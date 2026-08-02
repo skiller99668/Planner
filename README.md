@@ -1,59 +1,64 @@
-# EE Planner — Dashboard Skeleton
+# Planner
 
-Personal planner PWA for tracking academics, fitness (PPL), badminton, and career goals.
+Personal desktop planner (Windows, Electron): tasks with recurrence + reminders,
+academics with Groq-powered lecture chat, PPL gym tracking, badminton tournament +
+McGill event alarms, and the Summer 2027 internship pipeline.
 
-## Run it locally
+## Run it
 
 ```bash
 npm install
-npm run dev
+npm run dev        # dev server + Electron with hot reload
 ```
 
-Open the printed localhost URL. This is the dev server — use it while you keep building features.
+Build the installable app:
 
-## Install it as an app on your phone/laptop
+```bash
+npm run dist       # → release/Planner-Setup-<version>.exe
+```
 
-1. Deploy it somewhere free and public, e.g. [Vercel](https://vercel.com):
-   - Push this folder to a GitHub repo
-   - Import the repo on vercel.com → it auto-detects Vite → Deploy
-   - You'll get a URL like `ee-planner.vercel.app`
-2. On your **phone** (Chrome/Safari): open that URL → "Add to Home Screen". It now behaves like a native app icon, opens full-screen, works offline.
-3. On your **laptop** (Chrome/Edge): open the URL → click the install icon in the address bar (or menu → "Install EE Planner").
+The installer is unsigned, so SmartScreen will warn once — "More info → Run anyway".
 
-No backend, no signup needed for this — data is stored locally in the browser via `localStorage`.
+> Running Electron from a terminal that has `ELECTRON_RUN_AS_NODE=1` set (e.g. some
+> IDE-embedded shells) makes it behave like plain Node and the app won't start —
+> unset it first. Normal terminals are unaffected.
 
-## Where your data lives right now
+## Architecture
 
-Everything is saved to `localStorage` under the key `ee-planner-data-v1`, defined in `src/lib/store.js`.
-This means:
-- It persists across restarts on the *same device/browser*.
-- It does **not** sync between your phone and laptop yet.
-- Clearing browser data/cache will wipe it — worth exporting/backing up once you have real data in it.
+| Layer | Choice | Why |
+|---|---|---|
+| Shell | Electron 43 + electron-builder (NSIS) | Tray residency, toast notifications, autostart |
+| UI | React 19 + TypeScript + Vite + Tailwind 4 | |
+| Storage | SQLite via Electron's built-in `node:sqlite` | Zero native deps — no VS Build Tools, no ABI rebuilds |
+| AI | Groq (Phase 4) | Key encrypted via `safeStorage`, calls proxied through main |
 
-## Adding cross-device sync later (when you want it)
+```
+electron/   main process: window/tray lifecycle, db + migrations, reminder
+            scheduler, IPC handlers, preload bridge
+shared/     domain types + the typed IPC contract (single source of truth)
+src/        renderer (React) — pages, components, styles
+scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
+```
 
-The data layer in `src/lib/store.js` is intentionally shaped like database tables
-(`tasks`, `gymSessions`, `badmintonSessions`, `applications`, `courses`, `projects`).
-When you're ready:
-1. Create a free [Supabase](https://supabase.com) project.
-2. Create matching Postgres tables.
-3. Swap the `localStorage` read/writes in `usePlannerData()` for Supabase client calls (or add a sync-on-write layer that pushes to Supabase in addition to localStorage, so it still works offline).
+- **Data** lives in `%APPDATA%/planner/planner.db` (WAL). Schema is migrated on
+  launch via `PRAGMA user_version`; all tables for every planned phase ship in v1
+  ([electron/migrations.ts](electron/migrations.ts)).
+- **The renderer never touches Node/Electron APIs.** It calls `window.planner`
+  (typed `PlannerApi`, [shared/ipc.ts](shared/ipc.ts)), exposed by the preload over
+  `ipcRenderer.invoke`. Adding a method to `PlannerApi` forces main + preload to
+  implement it.
+- **Reminders** fire from the main process ([electron/scheduler.ts](electron/scheduler.ts)),
+  polling the `reminders` table every 30s — feature code just inserts rows.
+  Works with the window closed (tray) and catches up on missed reminders at launch.
+- The app is **single-instance**; launching again focuses the running window.
+  `--hidden` starts minimized to tray (used by autostart).
 
-This is a contained, one-file change — nothing in the components needs to know where the data comes from.
+## Build phases
 
-## What's built vs. what's next
-
-**Built (functional):**
-- Dashboard with goal gauges (GPA floor, lifts/week, badminton/week, applications sent)
-- Quick-log buttons for gym (push/pull/legs) and badminton sessions
-- Cross-module task list (add, complete, delete, tag by category, due dates)
-- Responsive nav (sidebar on desktop, bottom tabs on mobile)
-- Installable as a PWA
-
-**Stubbed, ready to fill in next:**
-- Academics: course list, assignment tracker, GPA calculator
-- Fitness: full session history, streaks, set/rep logging
-- Badminton: session history, tournament tracker with results
-- Career: application pipeline (kanban), project portfolio, networking log
-
-Each stub page (`src/components/ModuleStub.jsx` usages in `App.jsx`) is a clear slot — tell me which one to build out first and we'll go module by module.
+1. ✅ **Foundation** — shell, SQLite, IPC, tray, autostart, notifications, UI skeleton
+2. **Tasks** — capture, tags, due dates, reminders, recurring series (weekly labs)
+3. **Gym** — PPL next-in-cycle, one-tap logging, weekly grid vs 5–6 target, streaks
+4. **Academics** — courses → lectures → summaries, Groq chat with lecture context,
+   AI-suggested tasks
+5. **Events + Career** — ICS import, Badminton Québec registration-window alarms,
+   McGill career fairs, application kanban, weekly prep targets, SURE/USRA deadlines

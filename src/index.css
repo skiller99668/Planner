@@ -1,36 +1,67 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-html, body, #root {
+/* Design tokens — "lab bench" system.
+   Deep blue-black base, amber indicator accent (matches the app icon),
+   mono readouts via Cascadia (ships with Windows 11). */
+@theme {
+  --color-bench: #0d1321;
+  --color-panel: #141c2f;
+  --color-panel2: #1a2440;
+  --color-line: #26324d;
+  --color-ink: #e8edf4;
+  --color-muted: #8a97ab;
+  --color-amber: #f2a93b;
+  --color-cyan: #56c1d6;
+  --color-ok: #57c785;
+  --color-danger: #e5484d;
+
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
   height: 100%;
 }
 
-* {
-  -webkit-tap-highlight-color: transparent;
+body {
+  @apply bg-bench text-ink font-sans antialiased;
+  font-size: 14px;
+  overflow: hidden; /* app frame: only content panes scroll */
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #223049;
-  border-radius: 999px;
+/* Engineering-paper grid, content area only — kept just above invisible. */
+.bg-bench-grid {
+  background-image:
+    linear-gradient(rgba(138, 151, 171, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 151, 171, 0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
+/* Instrument LED dot */
+.led {
+  @apply inline-block h-1.5 w-1.5 rounded-full;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* Visible keyboard focus everywhere, amber like the rest of the accents */
 :focus-visible {
-  outline: 2px solid #4FB6C4;
+  outline: 2px solid var(--color-amber);
   outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgba(242, 169, 59, 0.28);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }
