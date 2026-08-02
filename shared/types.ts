@@ -3,7 +3,9 @@
 
 // ---------- Tasks ----------
 
-export type TaskStatus = 'open' | 'done'
+/** 'skipped' marks a deleted occurrence of a recurring series: the row stays
+ *  so regeneration can't resurrect it, but the UI never shows it. */
+export type TaskStatus = 'open' | 'done' | 'skipped'
 export type Priority = 0 | 1 | 2 | 3 // none | low | medium | high
 
 export interface Task {
@@ -54,6 +56,37 @@ export interface TaskSeries {
   createdAt: string
   updatedAt: string
 }
+
+// ---------- Task inputs (renderer → main) ----------
+// The renderer speaks local date (YYYY-MM-DD) + time (HH:mm); the main process
+// composes UTC ISO dueAt/reminderAt from them. Reminders require a due time.
+
+export interface TaskInput {
+  title: string
+  notes?: string | null
+  tags?: string[]
+  dueDate?: string | null // YYYY-MM-DD
+  dueTime?: string | null // HH:mm — null means all-day
+  priority?: Priority
+  /** Minutes before dueAt to remind (0 = at due time). Ignored without dueTime. */
+  reminderOffsetMin?: number | null
+}
+
+export type TaskPatch = Partial<TaskInput> & { status?: TaskStatus }
+
+export interface SeriesInput {
+  title: string
+  notes?: string | null
+  tags?: string[]
+  priority?: Priority
+  rule: RecurrenceRule
+  startDate: string // YYYY-MM-DD
+  endDate?: string | null
+  dueTime?: string | null
+  reminderOffsetMin?: number | null
+}
+
+export type SeriesPatch = Partial<SeriesInput> & { active?: boolean }
 
 // ---------- Gym ----------
 
@@ -198,6 +231,8 @@ export interface Settings {
   autostart: boolean
   closeToTray: boolean
   groqModel: string | null
+  /** Let AI suggest tags for new tasks (never overrides user tags). */
+  aiAutoTag: boolean
   targets: {
     gymPerWeek: number
     applicationsPerWeek: number
@@ -211,6 +246,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autostart: true,
   closeToTray: true,
   groqModel: null,
+  aiAutoTag: true,
   targets: {
     gymPerWeek: 5,
     applicationsPerWeek: 5,

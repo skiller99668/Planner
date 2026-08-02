@@ -8,11 +8,22 @@ import { getDb } from './db'
 
 const POLL_MS = 30_000
 let timer: ReturnType<typeof setInterval> | null = null
+let lastDailyRun = '' // local YYYY-MM-DD of the last daily-job run
 
-export function startScheduler(onActivate: (refId: string | null, kind: string) => void): void {
+export function startScheduler(
+  onActivate: (refId: string | null, kind: string) => void,
+  onDaily?: () => void
+): void {
   if (timer) return
   const tick = () => {
     try {
+      // Daily job (occurrence materialization etc.) — runs on first tick and
+      // whenever the local date rolls over, including after sleep/wake.
+      const today = localToday()
+      if (onDaily && today !== lastDailyRun) {
+        lastDailyRun = today
+        onDaily()
+      }
       fireDueReminders(onActivate)
     } catch (err) {
       console.error('[scheduler] tick failed:', err)
@@ -20,6 +31,11 @@ export function startScheduler(onActivate: (refId: string | null, kind: string) 
   }
   timer = setInterval(tick, POLL_MS)
   tick() // catch up immediately on launch (e.g. reminders missed while off)
+}
+
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function stopScheduler(): void {

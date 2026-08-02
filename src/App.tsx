@@ -3,17 +3,22 @@ import Sidebar, { type ModuleId } from './components/Sidebar'
 import DashboardPage from './pages/DashboardPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import SettingsPage from './pages/SettingsPage'
+import TasksPage from './pages/TasksPage'
+
+const MODULE_IDS: ModuleId[] = [
+  'dashboard', 'tasks', 'academics', 'gym', 'events', 'career', 'settings'
+]
+
+/** Initial view can be deep-linked via URL hash (set by PLANNER_OPEN / notifications). */
+function initialView(): ModuleId {
+  const hash = window.location.hash.replace('#', '')
+  return (MODULE_IDS as string[]).includes(hash) ? (hash as ModuleId) : 'dashboard'
+}
 
 const PLACEHOLDERS: Record<
-  Exclude<ModuleId, 'dashboard' | 'settings'>,
+  Exclude<ModuleId, 'dashboard' | 'settings' | 'tasks'>,
   { title: string; phase: string; blurb: string; items: string[] }
 > = {
-  tasks: {
-    title: 'Tasks',
-    phase: 'Phase 2 — next up',
-    blurb: 'Quick capture with tags, due dates and reminders, plus recurring tasks that regenerate themselves (weekly labs included).',
-    items: ['Quick add', 'Tags + priorities', 'Due dates + reminders', 'Recurring series']
-  },
   academics: {
     title: 'Academics',
     phase: 'Phase 4',
@@ -41,7 +46,7 @@ const PLACEHOLDERS: Record<
 }
 
 export default function App() {
-  const [active, setActive] = useState<ModuleId>('dashboard')
+  const [active, setActive] = useState<ModuleId>(initialView)
 
   return (
     <div className="flex h-full">
@@ -49,7 +54,9 @@ export default function App() {
       <main className="bg-bench-grid min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl px-8 py-8">
           {active === 'dashboard' ? (
-            <DashboardPage />
+            <DashboardPage onNavigate={setActive} />
+          ) : active === 'tasks' ? (
+            <TasksPage />
           ) : active === 'settings' ? (
             <SettingsPage />
           ) : (

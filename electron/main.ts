@@ -7,8 +7,10 @@
 import { app, BrowserWindow, Menu, nativeImage, Tray } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
+import { TASKS_CHANGED_EVENT } from '../shared/ipc'
 import { closeDb, getDbPath, getSchemaVersion, openDb } from './db'
 import { registerIpcHandlers } from './ipcHandlers'
+import { materializeAllSeries } from './recurrence'
 import { startScheduler, stopScheduler } from './scheduler'
 import { getSettings } from './settings'
 import { TRAY_ICON_BASE64 } from './trayIconData'
@@ -24,8 +26,14 @@ let quitting = false
 // Windows toast notifications need a stable AppUserModelID.
 app.setAppUserModelId(APP_ID)
 
-const gotLock = app.requestSingleInstanceLock()
-if (!gotLock) {
+if (isSmokeTest) {
+  // Smoke mode opens no window and must work alongside a running instance,
+  // so it skips the single-instance lock.
+  app.whenReady().then(() => {
+    openDb(app.getPath('userData'))
+    runSmokeTest()
+  })
+} else if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => showWindow())
@@ -33,16 +41,19 @@ if (!gotLock) {
   app.whenReady().then(() => {
     openDb(app.getPath('userData'))
 
-    if (isSmokeTest) {
-      runSmokeTest()
-      return
-    }
-
-    registerIpcHandlers({ applyAutostart })
+    registerIpcHandlers({
+      applyAutostart,
+      notifyDataChanged: () => win?.webContents.send(TASKS_CHANGED_EVENT)
+    })
     createWindow()
     createTray()
     applyAutostart(getSettings().autostart)
-    startScheduler(() => showWindow())
+    // Daily job generates upcoming occurrences of recurring series (runs on
+    // first tick, then at each local-date rollover).
+    startScheduler(
+      () => showWindow(),
+      () => materializeAllSeries()
+    )
   })
 }
 
@@ -68,10 +79,14 @@ function createWindow(): void {
     }
   })
 
+  // PLANNER_OPEN=<view> deep-links the initial page (also used by smoke checks).
+  const hash = process.env.PLANNER_OPEN ? `#${process.env.PLANNER_OPEN}` : ''
   if (process.env.VITE_DEV_SERVER_URL) {
-    win.loadURL(process.env.VITE_DEV_SERVER_URL)
+    win.loadURL(process.env.VITE_DEV_SERVER_URL + hash)
   } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), {
+      hash: process.env.PLANNER_OPEN ?? undefined
+    })
   }
 
   // Hide to tray instead of quitting, unless the user opted out or is quitting.

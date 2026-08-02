@@ -4,10 +4,23 @@ import type { Settings } from '../../shared/types'
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [saving, setSaving] = useState(false)
+  const [groqConfigured, setGroqConfigured] = useState<boolean | null>(null)
+  const [keyDraft, setKeyDraft] = useState('')
+  const [keySaved, setKeySaved] = useState(false)
 
   useEffect(() => {
     window.planner?.getSettings().then(setSettings).catch(() => setSettings(null))
+    window.planner?.groqStatus().then((s) => setGroqConfigured(s.configured)).catch(() => {})
   }, [])
+
+  const saveKey = async () => {
+    if (!window.planner) return
+    const res = await window.planner.groqSetKey(keyDraft)
+    setGroqConfigured(res.configured)
+    setKeyDraft('')
+    setKeySaved(true)
+    setTimeout(() => setKeySaved(false), 3000)
+  }
 
   const patch = async (p: Partial<Settings>) => {
     if (!window.planner) return
@@ -45,12 +58,57 @@ export default function SettingsPage() {
             onChange={(v) => patch({ closeToTray: v })}
           />
           <div className="px-5 py-4">
-            <p className="text-[13.5px] font-medium">Groq API key</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[13.5px] font-medium">Groq API key</p>
+              {groqConfigured !== null && (
+                <span
+                  className={`led ${groqConfigured ? 'text-ok' : 'text-line'}`}
+                  title={groqConfigured ? 'Key stored' : 'No key'}
+                  aria-hidden
+                />
+              )}
+              <span className="text-muted font-mono text-[10.5px]">
+                {groqConfigured ? 'configured' : 'not set'}
+              </span>
+            </div>
             <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
-              Added in Phase 4 with the Academics module — stored encrypted with Windows
-              credentials, never in the database as plain text.
+              Powers tag suggestions now and the Academics chat later. Stored encrypted with
+              Windows credentials — never as plain text, never shown again. Get a free key at
+              console.groq.com.
             </p>
+            <div className="mt-3 flex gap-2">
+              <input
+                type="password"
+                className="bg-bench border-line placeholder:text-muted/60 focus:border-amber/60 flex-1 rounded-md border px-2.5 py-1.5 text-[13px]"
+                placeholder={groqConfigured ? 'Paste a new key to replace' : 'gsk_…'}
+                value={keyDraft}
+                onChange={(e) => setKeyDraft(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && keyDraft.trim() && void saveKey()}
+              />
+              <button
+                onClick={() => void saveKey()}
+                disabled={!keyDraft.trim()}
+                className="bg-amber text-bench rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-opacity disabled:opacity-40"
+              >
+                {keySaved ? 'Saved' : 'Save'}
+              </button>
+              {groqConfigured && (
+                <button
+                  onClick={() => { setKeyDraft(''); void window.planner?.groqSetKey('').then((r) => setGroqConfigured(r.configured)) }}
+                  className="text-muted hover:text-danger rounded-md px-2 py-1.5 text-[12.5px] transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
+          <Toggle
+            label="AI tag suggestions"
+            hint="New tasks get 1–2 tags suggested from your existing tag vocabulary. Your own tags are never changed, and a task never gets a second course code."
+            checked={settings.aiAutoTag}
+            disabled={saving || !groqConfigured}
+            onChange={(v) => patch({ aiAutoTag: v })}
+          />
         </div>
       )}
     </div>

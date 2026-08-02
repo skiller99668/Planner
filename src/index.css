@@ -30,6 +30,7 @@ body {
   @apply bg-bench text-ink font-sans antialiased;
   font-size: 14px;
   overflow: hidden; /* app frame: only content panes scroll */
+  color-scheme: dark; /* native date/time pickers + scrollbars render dark */
 }
 
 /* Engineering-paper grid, content area only — kept just above invisible. */

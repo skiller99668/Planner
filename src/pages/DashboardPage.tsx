@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react'
 import type { AppInfo } from '../../shared/ipc'
+import type { ModuleId } from '../components/Sidebar'
+import { dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
+import { useTasks } from '../lib/useTasks'
 
 const ROADMAP: { phase: string; name: string; status: 'done' | 'now' | 'next' }[] = [
   { phase: '1', name: 'Foundation — shell, database, tray, notifications', status: 'done' },
-  { phase: '2', name: 'Tasks — capture, tags, reminders, recurring series', status: 'now' },
-  { phase: '3', name: 'Gym — PPL cycle, weekly grid, streaks', status: 'next' },
+  { phase: '2', name: 'Tasks — capture, tags, reminders, recurring series', status: 'done' },
+  { phase: '3', name: 'Gym — PPL cycle, weekly grid, streaks', status: 'now' },
   { phase: '4', name: 'Academics — lectures, summaries, Groq chat', status: 'next' },
   { phase: '5', name: 'Events + Career — tournaments, fairs, pipeline', status: 'next' }
 ]
 
-export default function DashboardPage() {
+export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId) => void }) {
+  const store = useTasks()
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [notifyResult, setNotifyResult] = useState<'idle' | 'sent' | 'unsupported'>('idle')
 
@@ -23,7 +27,13 @@ export default function DashboardPage() {
     setTimeout(() => setNotifyResult('idle'), 4000)
   }
 
-  const today = new Date().toLocaleDateString(undefined, {
+  const today = todayYMD()
+  const dueToday = store.tasks
+    .filter((t) => t.status === 'open' && t.dueAt && ymdOfIso(t.dueAt) <= today)
+    .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? ''))
+  const overdueCount = dueToday.filter((t) => t.dueAt && ymdOfIso(t.dueAt) < today).length
+
+  const todayLabel = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric'
@@ -31,15 +41,59 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">{today}</p>
+      <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">{todayLabel}</p>
       <h1 className="font-display mt-1 text-xl font-semibold">Dashboard</h1>
-      <p className="text-muted mt-3 max-w-xl leading-relaxed">
-        The dashboard fills in as each module lands — today&apos;s tasks, the lift on deck,
-        upcoming registration windows, and your weekly application count will all live here.
-      </p>
 
-      <div className="mt-6 grid max-w-2xl gap-4 sm:grid-cols-2">
-        {/* System check card — Phase 1's functional deliverable. */}
+      {/* Today */}
+      <section className="border-line bg-panel mt-6 max-w-2xl rounded-lg border p-5">
+        <div className="flex items-baseline justify-between">
+          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+            Today{overdueCount > 0 && <span className="text-danger"> · {overdueCount} overdue</span>}
+          </p>
+          <button
+            onClick={() => onNavigate('tasks')}
+            className="text-muted hover:text-amber font-mono text-[11px] transition-colors"
+          >
+            all tasks →
+          </button>
+        </div>
+        {dueToday.length === 0 ? (
+          <p className="text-muted mt-3 text-[13px]">
+            {store.loaded ? 'Clear for today. Add tasks with a due date and they show up here.' : '…'}
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-1">
+            {dueToday.slice(0, 8).map((t) => {
+              const isOverdue = t.dueAt !== null && ymdOfIso(t.dueAt) < today
+              return (
+                <li key={t.id} className="flex items-center gap-3">
+                  <button
+                    role="checkbox"
+                    aria-checked={false}
+                    aria-label={`Complete: ${t.title}`}
+                    onClick={() => void store.toggleTask(t)}
+                    className="border-line hover:border-amber/70 bg-bench h-[16px] w-[16px] shrink-0 rounded-[5px] border transition-colors"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[13px]">{t.title}</span>
+                  {t.dueAt && (
+                    <span
+                      className={`font-mono text-[10.5px] ${isOverdue ? 'text-danger' : 'text-muted'}`}
+                    >
+                      {dueLabel(t.dueAt, t.allDay)}
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+            {dueToday.length > 8 && (
+              <li className="text-muted font-mono text-[10.5px]">+ {dueToday.length - 8} more</li>
+            )}
+          </ul>
+        )}
+      </section>
+
+      <div className="mt-4 grid max-w-2xl gap-4 sm:grid-cols-2">
+        {/* System check */}
         <section className="border-line bg-panel rounded-lg border p-5">
           <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
             System check
