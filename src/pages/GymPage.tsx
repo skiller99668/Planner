@@ -225,7 +225,7 @@ export default function GymPage() {
                   <button
                     onClick={() => void store.remove(s.id)}
                     aria-label={`Delete session ${s.date}`}
-                    className="text-muted hover:text-danger px-1 opacity-0 transition-all group-hover:opacity-100"
+                    className="text-muted hover:text-danger px-1 opacity-45 transition-all group-hover:opacity-100"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       strokeWidth="1.75" strokeLinecap="round" aria-hidden>

@@ -9,7 +9,20 @@ import type {
   Settings
 } from '../../shared/types'
 
-const SWE_CATEGORIES = new Set(['Software', 'Software Engineering', 'AI/ML/Data', 'Quant'])
+// Most community lists don't carry a Hardware category, so hardware roles are
+// found by title as well — otherwise the Hardware track hides almost everything.
+const HARDWARE_RE =
+  /hardware|embedded|firmware|fpga|asic|vlsi|silicon|semiconductor|chip design|electrical|electronic|analog|mixed.signal|\brf\b|pcb|circuit|robotic|mechatronic|signal processing|verification engineer|physical design|power system/i
+
+const CANADA_RE =
+  /canada|montr[eé]al|toronto|vancouver|ottawa|waterloo|qu[eé]bec|calgary|edmonton|halifax|mississauga|burnaby|kitchener|winnipeg|,\s*(on|qc|bc|ab|ns|mb|sk)\b/i
+const REMOTE_RE = /remote|anywhere/i
+
+function matchesTrack(p: JobPosting, focus: 'swe' | 'hardware'): boolean {
+  return focus === 'hardware'
+    ? p.category === 'Hardware' || HARDWARE_RE.test(p.title)
+    : p.category !== 'Hardware' // software track = everything but tagged hardware
+}
 
 const PIPELINE: { id: ApplicationStatus; label: string; hint?: string }[] = [
   { id: 'wishlist', label: 'Wishlist', hint: 'Found it, not applied yet' },
@@ -273,6 +286,7 @@ function JobFeed({
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [region, setRegion] = useState<'all' | 'canada' | 'remote'>('all')
+  const [trackOnly, setTrackOnly] = useState(true)
   const [limit, setLimit] = useState(40)
 
   // Match by normalized URL so a posting added earlier is still recognized.
@@ -296,17 +310,28 @@ function JobFeed({
     }
   }
 
+  // Track filter first; every chip count below is derived from this same set,
+  // so a chip can never advertise more jobs than the list will show.
+  const trackFiltered = useMemo(
+    () => (trackOnly ? postings.filter((p) => matchesTrack(p, focus)) : postings),
+    [postings, focus, trackOnly]
+  )
+
+  const counts = useMemo(
+    () => ({
+      all: trackFiltered.length,
+      canada: trackFiltered.filter((p) => p.locations.some((l) => CANADA_RE.test(l))).length,
+      remote: trackFiltered.filter((p) => p.locations.some((l) => REMOTE_RE.test(l))).length
+    }),
+    [trackFiltered]
+  )
+
   const matching = useMemo(() => {
-    const canadaRe = /canada|montr[eé]al|toronto|vancouver|ottawa|waterloo|qu[eé]bec|calgary|edmonton|halifax|mississauga|burnaby|,\s*(on|qc|bc|ab|ns|mb|sk)\b/i
-    const remoteRe = /remote|anywhere/i
     const q = search.trim().toLowerCase()
-    return postings
-      .filter((p) =>
-        focus === 'hardware' ? p.category === 'Hardware' : SWE_CATEGORIES.has(p.category)
-      )
+    return trackFiltered
       .filter((p) => {
-        if (region === 'canada') return p.locations.some((l) => canadaRe.test(l))
-        if (region === 'remote') return p.locations.some((l) => remoteRe.test(l))
+        if (region === 'canada') return p.locations.some((l) => CANADA_RE.test(l))
+        if (region === 'remote') return p.locations.some((l) => REMOTE_RE.test(l))
         return true
       })
       .filter(
@@ -316,13 +341,9 @@ function JobFeed({
           p.title.toLowerCase().includes(q) ||
           p.locations.some((l) => l.toLowerCase().includes(q))
       )
-  }, [postings, focus, region, search])
+  }, [trackFiltered, region, search])
 
   const visible = matching.slice(0, limit)
-  const canadaCount = useMemo(() => {
-    const canadaRe = /canada|montr[eé]al|toronto|vancouver|ottawa|waterloo|qu[eé]bec|calgary|edmonton|halifax|mississauga|burnaby|,\s*(on|qc|bc|ab|ns|mb|sk)\b/i
-    return postings.filter((p) => p.locations.some((l) => canadaRe.test(l))).length
-  }, [postings])
 
   return (
     <section className="mt-8 max-w-2xl">
@@ -372,9 +393,9 @@ function JobFeed({
             />
             <div className="border-line bg-panel flex rounded-md border p-0.5" role="group" aria-label="Region">
               {([
-                ['all', 'all'],
-                ['canada', `canada${canadaCount ? ` (${canadaCount})` : ''}`],
-                ['remote', 'remote']
+                ['all', `all (${counts.all})`],
+                ['canada', `canada (${counts.canada})`],
+                ['remote', `remote (${counts.remote})`]
               ] as const).map(([id, label]) => (
                 <button
                   key={id}
@@ -388,13 +409,30 @@ function JobFeed({
                 </button>
               ))}
             </div>
+            <button
+              onClick={() => { setTrackOnly((t) => !t); setLimit(40) }}
+              aria-pressed={!trackOnly}
+              title={
+                trackOnly
+                  ? `Only ${focus === 'swe' ? 'software' : 'hardware'} roles — click to show every posting`
+                  : 'Showing every posting regardless of track'
+              }
+              className={`rounded-full border px-2.5 py-1 font-mono text-[10.5px] transition-colors ${
+                trackOnly
+                  ? 'border-line text-muted hover:text-ink'
+                  : 'border-amber/60 text-amber bg-amber/10'
+              }`}
+            >
+              {trackOnly ? `${focus === 'swe' ? 'swe' : 'hardware'} only` : 'all roles'}
+            </button>
           </div>
 
           {visible.length === 0 ? (
             <p className="text-muted mt-3 text-[13px]">
               {region === 'canada'
-                ? 'No Canadian postings match yet — most Canadian internships post later in the season (Sep–Jan). Try “all”, or check back weekly.'
-                : 'Nothing matches that filter.'}
+                ? 'No Canadian postings match this filter. Most Canadian internships post later in the season (Sep–Jan)'
+                : 'Nothing matches that filter'}
+              {trackOnly && ` — or click “${focus === 'swe' ? 'swe' : 'hardware'} only” to drop the track filter.`}
             </p>
           ) : (
             <>
@@ -650,7 +688,7 @@ function AppCard({
             }}
             title="Remove from pipeline"
             aria-label={`Remove ${app.company} from pipeline`}
-            className="text-muted/50 hover:text-danger font-mono text-[13px] leading-none opacity-0 transition-all group-hover:opacity-100"
+            className="text-muted/60 hover:text-danger font-mono text-[15px] leading-none transition-colors"
           >
             ×
           </button>

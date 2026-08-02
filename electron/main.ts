@@ -44,15 +44,24 @@ if (isSmokeTest) {
           app.exit(1)
           return
         }
-        const canadaRe = /canada|montr|toronto|vancouver|ottawa|waterloo|qu[eé]bec/i
-        const cad = res.postings.filter((p) => p.locations.some((l) => canadaRe.test(l)))
+        // Mirror the renderer's filters so the counts here match the UI chips.
+        const canadaRe = /canada|montr[eé]al|toronto|vancouver|ottawa|waterloo|qu[eé]bec|calgary|edmonton|halifax|mississauga|burnaby|kitchener|winnipeg|,\s*(on|qc|bc|ab|ns|mb|sk)\b/i
+        const hwRe = /hardware|embedded|firmware|fpga|asic|vlsi|silicon|semiconductor|chip design|electrical|electronic|analog|mixed.signal|\brf\b|pcb|circuit|robotic|mechatronic|signal processing|verification engineer|physical design|power system/i
+        const isCad = (p: (typeof res.postings)[number]) =>
+          p.locations.some((l) => canadaRe.test(l))
+        const swe = res.postings.filter((p) => p.category !== 'Hardware')
+        const hw = res.postings.filter((p) => p.category === 'Hardware' || hwRe.test(p.title))
         console.log(
           'JOBS OK',
           JSON.stringify({
             total: res.postings.length,
             sources: res.sources,
-            canada: cad.length,
-            canadaSample: cad.slice(0, 3).map((p) => `${p.company} — ${p.title} [${p.locations.join('/')}]`),
+            swe: { all: swe.length, canada: swe.filter(isCad).length },
+            hardware: { all: hw.length, canada: hw.filter(isCad).length },
+            canadaSample: res.postings
+              .filter(isCad)
+              .slice(0, 3)
+              .map((p) => `${p.company} — ${p.title} [${p.locations.join('/')}]`),
             withSalary: res.postings.filter((p) => p.salary).length
           })
         )

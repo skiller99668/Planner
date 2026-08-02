@@ -332,7 +332,7 @@ function TaskRow({
           onClick={() => void store.deleteTask(task.id)}
           aria-label={`Delete: ${task.title}`}
           title={task.seriesId ? 'Skip this occurrence' : 'Delete'}
-          className="text-muted hover:text-danger px-1 opacity-0 transition-all group-hover:opacity-100"
+          className="text-muted hover:text-danger px-1 opacity-45 transition-all group-hover:opacity-100"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.75" strokeLinecap="round" aria-hidden>
@@ -412,7 +412,7 @@ function SeriesPanel({
                     if (window.confirm(`Stop repeating “${s.title}”? Past completions are kept.`))
                       void store.deleteSeries(s.id)
                   }}
-                  className="text-muted hover:text-danger px-1 text-[11px] opacity-0 transition-all group-hover:opacity-100"
+                  className="text-muted hover:text-danger px-1 text-[11px] opacity-45 transition-all group-hover:opacity-100"
                 >
                   Remove
                 </button>
