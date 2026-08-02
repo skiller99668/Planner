@@ -33,6 +33,35 @@ if (isSmokeTest) {
     openDb(app.getPath('userData'))
     // PLANNER_ASSIST_TEST="..." runs one headless assistant round (needs a
     // stored Groq key) and prints the reply + tool receipts.
+    // PLANNER_EVENT_TEST=YYYY-MM-DD creates a badminton event through the real
+    // path, prints the computed BQ window + queued reminders, cleans up, exits.
+    const eventTestDate = process.env.PLANNER_EVENT_TEST
+    if (eventTestDate) {
+      try {
+        const { createEvent, deleteEvent } = await import('./eventsRepo')
+        const { getDb } = await import('./db')
+        const ev = createEvent({
+          title: 'BQ window self-test',
+          kind: 'badminton',
+          date: eventTestDate,
+          time: null
+        })
+        const reminders = getDb()
+          .prepare(`SELECT title, fire_at FROM reminders WHERE ref_id = ? ORDER BY fire_at`)
+          .all(ev.id)
+        console.log(
+          'EVENT OK',
+          JSON.stringify({ opens: ev.regOpensAt, closes: ev.regClosesAt, reminders })
+        )
+        deleteEvent(ev.id)
+        app.exit(0)
+      } catch (err) {
+        console.error('EVENT FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
     const assistPrompt = process.env.PLANNER_ASSIST_TEST
     if (assistPrompt) {
       try {
@@ -110,6 +139,25 @@ function createWindow(): void {
   } else {
     win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), {
       hash: process.env.PLANNER_OPEN ?? undefined
+    })
+  }
+
+  // PLANNER_SHOT=<file.png>: self-capture the rendered page shortly after
+  // load and exit — ground-truth debugging that bypasses DWM quirks.
+  const shotPath = process.env.PLANNER_SHOT
+  if (shotPath) {
+    win.webContents.once('did-finish-load', () => {
+      setTimeout(async () => {
+        try {
+          const img = await win!.webContents.capturePage()
+          fs.writeFileSync(shotPath, img.toPNG())
+          console.log(`SHOT OK ${shotPath}`)
+        } catch (err) {
+          console.error('SHOT FAIL', err)
+        }
+        quitting = true
+        app.quit()
+      }, 3500)
     })
   }
 

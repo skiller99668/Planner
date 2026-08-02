@@ -64,8 +64,13 @@ scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
    chat with course context; app-wide Assistant with tool use (creates tasks,
    plans projects into steps, sets up recurring tasks, logs workouts, completes
    tasks — additive tools only, every action shows a receipt chip)
-5. **Events + Career** — ICS import, Badminton Québec registration-window alarms,
-   McGill career fairs, application kanban, weekly prep targets, SURE/USRA deadlines
+5. ✅ **Events + Career** — manual events + ICS import with dedupe; Badminton
+   Québec registration windows computed from the event date (opens −18d Tue
+   12:30, closes −11d Tue 11:30) with open/close-warning alarms and a
+   "registered ✓" toggle; application pipeline with weekly scoreboard
+   (applications / DSA / networking vs targets), live Summer 2027 postings
+   from the SimplifyJobs GitHub feed with one-click add-to-pipeline,
+   SURE/USRA watchlist, per-track resource shelf
 
 ### Task model notes
 

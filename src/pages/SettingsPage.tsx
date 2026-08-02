@@ -163,6 +163,37 @@ export default function SettingsPage() {
               }}
             />
           </div>
+          <div className="px-5 py-4">
+            <p className="text-[13.5px] font-medium">Career weekly targets</p>
+            <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
+              The Career scoreboard measures each week (Sun–Sat) against these.
+            </p>
+            <div className="mt-3 flex gap-5">
+              {(
+                [
+                  ['applicationsPerWeek', 'applications'],
+                  ['dsaPerWeek', 'dsa problems'],
+                  ['networkingPerWeek', 'networking']
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="text-muted flex flex-col gap-1 font-mono text-[10px] uppercase">
+                  {label}
+                  <input
+                    type="number"
+                    min={0}
+                    max={50}
+                    className="bg-bench border-line focus:border-amber/60 w-16 rounded-md border px-2.5 py-1.5 text-center font-mono text-[13px] normal-case"
+                    value={settings.targets[key]}
+                    disabled={saving}
+                    onChange={(e) => {
+                      const n = Math.max(0, Math.min(50, Number(e.target.value) || 0))
+                      void patch({ targets: { ...settings.targets, [key]: n } })
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -170,5 +170,13 @@ export const MIGRATIONS: Migration[] = [
         value TEXT NOT NULL            -- JSON
       );
     `
+  },
+  {
+    version: 2,
+    sql: `
+      -- Track whether the user has registered for an event (badminton
+      -- tournaments): silences the "registration closes soon" reminder.
+      ALTER TABLE events ADD COLUMN registered INTEGER NOT NULL DEFAULT 0;
+    `
   }
 ]

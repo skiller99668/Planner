@@ -5,16 +5,26 @@
 // so adding a method here forces both sides to implement it.
 
 import type {
+  Application,
+  ApplicationInput,
+  ApplicationPatch,
+  CareerLogKind,
+  CareerWeekStats,
   ChatMessage,
   ChatThread,
   Course,
   CourseInput,
+  EventInput,
+  EventPatch,
   GymLogInput,
   GymPatch,
   GymSession,
+  IcsImportResult,
+  JobPosting,
   Lecture,
   LectureInput,
   LecturePatch,
+  PlannerEvent,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -54,8 +64,25 @@ export const IPC = {
   chatThreads: 'chat:threads',
   chatMessages: 'chat:messages',
   chatSend: 'chat:send',
-  groqListModels: 'groq:listModels'
+  groqListModels: 'groq:listModels',
+  eventsList: 'events:list',
+  eventsCreate: 'events:create',
+  eventsUpdate: 'events:update',
+  eventsDelete: 'events:delete',
+  eventsImportIcs: 'events:importIcs',
+  appsList: 'apps:list',
+  appsCreate: 'apps:create',
+  appsUpdate: 'apps:update',
+  appsDelete: 'apps:delete',
+  careerLogAdd: 'career:logAdd',
+  careerLogUndo: 'career:logUndo',
+  careerWeekStats: 'career:weekStats',
+  jobsFetch: 'jobs:fetch'
 } as const
+
+export type JobsFetchResult =
+  | { ok: true; postings: JobPosting[]; fetchedAt: string }
+  | { ok: false; error: string }
 
 /** Main → renderer: task/series data changed outside a renderer call
  *  (auto-tagging, daily materialization, assistant tools). Refetch on it. */
@@ -133,4 +160,23 @@ export interface PlannerApi {
   chatMessages(threadId: string): Promise<ChatMessage[]>
   /** Runs the assistant loop (may execute tools) and returns both messages. */
   chatSend(input: ChatSendInput): Promise<ChatSendResult>
+
+  /** Events from the last ~4 months onward, soonest first. */
+  eventsList(): Promise<PlannerEvent[]>
+  eventsCreate(input: EventInput): Promise<PlannerEvent>
+  eventsUpdate(id: string, patch: EventPatch): Promise<PlannerEvent>
+  eventsDelete(id: string): Promise<void>
+  /** Opens a file dialog in main, imports VEVENTs under the given kind. */
+  eventsImportIcs(kind: PlannerEvent['kind']): Promise<IcsImportResult>
+
+  appsList(): Promise<Application[]>
+  appsCreate(input: ApplicationInput): Promise<Application>
+  appsUpdate(id: string, patch: ApplicationPatch): Promise<Application>
+  appsDelete(id: string): Promise<void>
+  careerLogAdd(kind: CareerLogKind): Promise<void>
+  /** Removes today's most recent log of that kind (mis-click undo). */
+  careerLogUndo(kind: CareerLogKind): Promise<void>
+  careerWeekStats(): Promise<CareerWeekStats>
+  /** On-demand fetch of the SimplifyJobs internship feed (10-min cache). */
+  jobsFetch(): Promise<JobsFetchResult>
 }

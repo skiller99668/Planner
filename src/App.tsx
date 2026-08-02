@@ -2,8 +2,9 @@ import { useState } from 'react'
 import Sidebar, { type ModuleId } from './components/Sidebar'
 import AcademicsPage from './pages/AcademicsPage'
 import AssistantPage from './pages/AssistantPage'
+import CareerPage from './pages/CareerPage'
 import DashboardPage from './pages/DashboardPage'
-import PlaceholderPage from './pages/PlaceholderPage'
+import EventsPage from './pages/EventsPage'
 import GymPage from './pages/GymPage'
 import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
@@ -16,24 +17,6 @@ const MODULE_IDS: ModuleId[] = [
 function initialView(): ModuleId {
   const hash = window.location.hash.replace('#', '')
   return (MODULE_IDS as string[]).includes(hash) ? (hash as ModuleId) : 'dashboard'
-}
-
-const PLACEHOLDERS: Record<
-  Exclude<ModuleId, 'dashboard' | 'settings' | 'tasks' | 'gym' | 'academics' | 'assistant'>,
-  { title: string; phase: string; blurb: string; items: string[] }
-> = {
-  events: {
-    title: 'Events',
-    phase: 'Phase 5',
-    blurb: 'Badminton tournaments with registration-window alarms computed from Badminton Québec rules, McGill career fairs, and ICS import.',
-    items: ['ICS import', 'Registration alarms', 'Career fair tracker', 'Deadline watchlist']
-  },
-  career: {
-    title: 'Career',
-    phase: 'Phase 5',
-    blurb: 'The Summer 2027 pipeline: application kanban, weekly prep targets treated like gym targets, and SURE/USRA deadlines you cannot miss.',
-    items: ['Application kanban', 'Weekly targets', 'Resource shelf', 'Research deadline watchlist']
-  }
 }
 
 export default function App() {
@@ -54,10 +37,12 @@ export default function App() {
             <AcademicsPage />
           ) : active === 'gym' ? (
             <GymPage />
-          ) : active === 'settings' ? (
-            <SettingsPage />
+          ) : active === 'events' ? (
+            <EventsPage />
+          ) : active === 'career' ? (
+            <CareerPage />
           ) : (
-            <PlaceholderPage {...PLACEHOLDERS[active]} />
+            <SettingsPage />
           )}
         </div>
       </main>

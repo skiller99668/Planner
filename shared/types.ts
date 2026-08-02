@@ -185,7 +185,7 @@ export interface PlannerEvent {
   id: string
   title: string
   kind: EventKind
-  startAt: string // ISO datetime
+  startAt: string // ISO datetime; local midnight means "all-day"
   endAt: string | null
   location: string | null
   url: string | null
@@ -196,8 +196,30 @@ export interface PlannerEvent {
   /** Badminton Québec registration window, computed or manual. */
   regOpensAt: string | null
   regClosesAt: string | null
+  /** User marked themselves registered → close-soon reminder is dropped. */
+  registered: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface EventInput {
+  title: string
+  kind: EventKind
+  date: string // YYYY-MM-DD
+  time?: string | null // HH:mm; null = all-day
+  location?: string | null
+  url?: string | null
+  notes?: string | null
+  /** Badminton only: compute BQ registration window + alarms (default true). */
+  autoRegWindow?: boolean
+}
+
+export type EventPatch = Partial<EventInput> & { registered?: boolean }
+
+export interface IcsImportResult {
+  imported: number
+  skipped: number
+  canceled: boolean
 }
 
 // ---------- Career / internship pipeline ----------
@@ -226,6 +248,40 @@ export interface Application {
   notes: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface ApplicationInput {
+  company: string
+  role: string
+  track: ApplicationTrack
+  url?: string | null
+  deadline?: string | null
+}
+
+export type ApplicationPatch = Partial<ApplicationInput> & {
+  status?: ApplicationStatus
+  nextAction?: string | null
+  nextActionDate?: string | null
+  notes?: string | null
+}
+
+/** Weekly career scoreboard (weeks run Sun–Sat). */
+export interface CareerWeekStats {
+  weekStart: string
+  applications: number
+  dsa: number
+  networking: number
+}
+
+/** A live internship posting from the SimplifyJobs feed. */
+export interface JobPosting {
+  id: string
+  company: string
+  title: string
+  category: string // Software | Software Engineering | AI/ML/Data | Quant | Hardware | Product
+  locations: string[]
+  url: string
+  postedAt: string | null
 }
 
 /** Countable career-prep actions logged against weekly targets. */

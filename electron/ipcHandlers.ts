@@ -4,7 +4,13 @@
 import { app, ipcMain, Notification, shell } from 'electron'
 import { IPC, type AppInfo, type ChatSendInput } from '../shared/ipc'
 import type {
+  ApplicationInput,
+  ApplicationPatch,
+  CareerLogKind,
   CourseInput,
+  EventInput,
+  EventKind,
+  EventPatch,
   GymLogInput,
   GymPatch,
   LectureInput,
@@ -26,8 +32,19 @@ import {
 } from './academicsRepo'
 import { assistantSend } from './assistant'
 import { autoTagSeries, autoTagTask } from './autoTag'
+import {
+  addCareerLog,
+  careerWeekStats,
+  createApplication,
+  deleteApplication,
+  listApplications,
+  undoCareerLog,
+  updateApplication
+} from './careerRepo'
 import { listMessages, listThreads } from './chatRepo'
 import { getDbPath, getSchemaVersion } from './db'
+import { createEvent, deleteEvent, importIcs, listEvents, updateEvent } from './eventsRepo'
+import { fetchJobs } from './jobsFeed'
 import { getGroqStatus, listModels, setGroqKey } from './groq'
 import {
   deleteGymSession,
@@ -131,4 +148,23 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.chatSend, (_e, input: ChatSendInput) =>
     assistantSend(input, deps.notifyDataChanged)
   )
+
+  // ---------- events ----------
+  ipcMain.handle(IPC.eventsList, () => listEvents())
+  ipcMain.handle(IPC.eventsCreate, (_e, input: EventInput) => createEvent(input))
+  ipcMain.handle(IPC.eventsUpdate, (_e, id: string, patch: EventPatch) => updateEvent(id, patch))
+  ipcMain.handle(IPC.eventsDelete, (_e, id: string) => deleteEvent(id))
+  ipcMain.handle(IPC.eventsImportIcs, (_e, kind: EventKind) => importIcs(kind))
+
+  // ---------- career ----------
+  ipcMain.handle(IPC.appsList, () => listApplications())
+  ipcMain.handle(IPC.appsCreate, (_e, input: ApplicationInput) => createApplication(input))
+  ipcMain.handle(IPC.appsUpdate, (_e, id: string, patch: ApplicationPatch) =>
+    updateApplication(id, patch)
+  )
+  ipcMain.handle(IPC.appsDelete, (_e, id: string) => deleteApplication(id))
+  ipcMain.handle(IPC.careerLogAdd, (_e, kind: CareerLogKind) => addCareerLog(kind))
+  ipcMain.handle(IPC.careerLogUndo, (_e, kind: CareerLogKind) => undoCareerLog(kind))
+  ipcMain.handle(IPC.careerWeekStats, () => careerWeekStats())
+  ipcMain.handle(IPC.jobsFetch, () => fetchJobs())
 }

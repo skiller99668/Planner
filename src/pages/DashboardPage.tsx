@@ -1,18 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { AppInfo } from '../../shared/ipc'
-import type { GymType } from '../../shared/types'
+import type { GymType, PlannerEvent } from '../../shared/types'
 import type { ModuleId } from '../components/Sidebar'
 import { dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
 import { deriveGym, useGym, useGymTarget } from '../lib/useGym'
 import { useTasks } from '../lib/useTasks'
-
-const ROADMAP: { phase: string; name: string; status: 'done' | 'now' | 'next' }[] = [
-  { phase: '1', name: 'Foundation — shell, database, tray, notifications', status: 'done' },
-  { phase: '2', name: 'Tasks — capture, tags, reminders, recurring series', status: 'done' },
-  { phase: '3', name: 'Gym — PPL cycle, weekly grid, streaks', status: 'done' },
-  { phase: '4', name: 'Academics + Assistant — lectures, chat, AI tools', status: 'done' },
-  { phase: '5', name: 'Events + Career — tournaments, fairs, pipeline', status: 'now' }
-]
 
 const GYM_LABEL: Record<GymType, string> = {
   push: 'Push', pull: 'Pull', legs: 'Legs', other: 'Other'
@@ -25,9 +17,11 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
   const g = deriveGym(gym.sessions, gymTarget)
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [notifyResult, setNotifyResult] = useState<'idle' | 'sent' | 'unsupported'>('idle')
+  const [events, setEvents] = useState<PlannerEvent[]>([])
 
   useEffect(() => {
     window.planner?.ping().then(setInfo).catch(() => setInfo(null))
+    window.planner?.eventsList().then(setEvents).catch(() => {})
   }, [])
 
   const testNotification = async () => {
@@ -175,28 +169,57 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
           </button>
         </section>
 
-        {/* Build roadmap */}
+        {/* Upcoming events */}
         <section className="border-line bg-panel rounded-lg border p-5">
-          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-            Build roadmap
-          </p>
-          <ol className="mt-3 space-y-2.5">
-            {ROADMAP.map((r) => (
-              <li key={r.phase} className="flex items-start gap-2.5 text-[12.5px] leading-snug">
-                <span
-                  aria-hidden
-                  className={`led mt-1 ${
-                    r.status === 'done'
-                      ? 'text-ok'
-                      : r.status === 'now'
-                        ? 'text-amber'
-                        : 'text-line'
-                  }`}
-                />
-                <span className={r.status === 'next' ? 'text-muted' : ''}>{r.name}</span>
-              </li>
-            ))}
-          </ol>
+          <div className="flex items-baseline justify-between">
+            <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+              Up next
+            </p>
+            <button
+              onClick={() => onNavigate('events')}
+              className="text-muted hover:text-amber font-mono text-[11px] transition-colors"
+            >
+              events →
+            </button>
+          </div>
+          {(() => {
+            const upcoming = events
+              .filter((e) => new Date(e.startAt).getTime() >= Date.now() - 12 * 3600_000)
+              .slice(0, 4)
+            if (upcoming.length === 0) {
+              return (
+                <p className="text-muted mt-3 text-[13px]">
+                  No upcoming events. Tournaments and career fairs land here.
+                </p>
+              )
+            }
+            return (
+              <ul className="mt-3 space-y-2">
+                {upcoming.map((e) => {
+                  const d = new Date(e.startAt)
+                  const regOpen =
+                    e.regOpensAt &&
+                    e.regClosesAt &&
+                    !e.registered &&
+                    Date.now() >= new Date(e.regOpensAt).getTime() &&
+                    Date.now() < new Date(e.regClosesAt).getTime()
+                  return (
+                    <li key={e.id} className="flex items-baseline gap-2.5 text-[12.5px]">
+                      <span className="text-amber w-12 shrink-0 font-mono text-[10.5px]">
+                        {d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{e.title}</span>
+                      {regOpen && (
+                        <span className="text-amber shrink-0 font-mono text-[9px] font-semibold">
+                          REG OPEN
+                        </span>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )
+          })()}
         </section>
       </div>
     </div>

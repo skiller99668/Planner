@@ -1,0 +1,687 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type {
+  Application,
+  ApplicationStatus,
+  ApplicationTrack,
+  CareerWeekStats,
+  JobPosting,
+  Settings
+} from '../../shared/types'
+
+const SWE_CATEGORIES = new Set(['Software', 'Software Engineering', 'AI/ML/Data', 'Quant'])
+
+const PIPELINE: { id: ApplicationStatus; label: string }[] = [
+  { id: 'wishlist', label: 'Wishlist' },
+  { id: 'applied', label: 'Applied' },
+  { id: 'oa', label: 'OA' },
+  { id: 'interview', label: 'Interview' },
+  { id: 'offer', label: 'Offer' }
+]
+const CLOSED: ApplicationStatus[] = ['rejected', 'ghosted']
+
+const TRACK_META: Record<ApplicationTrack, { label: string; cls: string }> = {
+  swe: { label: 'swe', cls: 'text-cyan' },
+  hardware: { label: 'hw', cls: 'text-amber' },
+  research: { label: 'research', cls: 'text-ok' }
+}
+
+// Stable, top-level links only — labels carry the guidance.
+const RESOURCES: Record<'swe' | 'hardware', { name: string; url: string; note: string }[]> = {
+  swe: [
+    { name: 'SimplifyJobs internship list', url: 'https://github.com/SimplifyJobs', note: 'the Summer 2027 repo — check daily in Aug–Oct' },
+    { name: 'NeetCode roadmap', url: 'https://neetcode.io', note: 'DSA prep path; your weekly problem target' },
+    { name: 'LeetCode', url: 'https://leetcode.com', note: 'company-tagged problems before OAs' },
+    { name: 'McGill CaPS', url: 'https://www.mcgill.ca/caps', note: 'myFuture postings + fall career fairs' },
+    { name: 'levels.fyi', url: 'https://www.levels.fyi', note: 'intern comp data for negotiating' }
+  ],
+  hardware: [
+    { name: 'McGill CaPS', url: 'https://www.mcgill.ca/caps', note: 'hardware co-ops post here more than anywhere' },
+    { name: 'IEEE Xtreme / student branch', url: 'https://www.ieee.org', note: 'competitions that read well on a hardware resume' },
+    { name: 'SimplifyJobs internship list', url: 'https://github.com/SimplifyJobs', note: 'filter for hardware/embedded roles' },
+    { name: 'Digi-Key TechForum', url: 'https://www.digikey.ca', note: 'parts for the portfolio projects that get you hired' }
+  ]
+}
+
+const WATCHLIST = [
+  {
+    id: 'sure',
+    name: 'SURE — Summer Undergraduate Research in Engineering',
+    url: 'https://www.mcgill.ca/engineering',
+    note: 'McGill-internal research internships. Applications historically open Jan–Feb for summer. Professors pick from applicants — email 2–3 profs whose labs interest you before the portal opens.'
+  },
+  {
+    id: 'usra',
+    name: 'NSERC USRA',
+    url: 'https://www.nserc-crsng.gc.ca',
+    note: 'Federally funded research award held at McGill. Internal McGill deadline is typically late Feb–Mar. Needs a supervising prof — same outreach as SURE covers both.'
+  }
+]
+
+const inputCls =
+  'bg-bench border-line rounded-md border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-amber/60'
+
+export default function CareerPage() {
+  const [apps, setApps] = useState<Application[]>([])
+  const [stats, setStats] = useState<CareerWeekStats | null>(null)
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [showClosed, setShowClosed] = useState(false)
+
+  const refresh = useCallback(async () => {
+    if (!window.planner) return
+    const [a, s, st] = await Promise.all([
+      window.planner.appsList(),
+      window.planner.careerWeekStats(),
+      window.planner.getSettings()
+    ])
+    setApps(a)
+    setStats(s)
+    setSettings(st)
+  }, [])
+
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  const focus = settings?.internshipTrackFocus ?? 'swe'
+  const targets = settings?.targets
+
+  const setFocus = async (f: 'swe' | 'hardware') => {
+    if (!window.planner) return
+    setSettings(await window.planner.patchSettings({ internshipTrackFocus: f }))
+  }
+
+  const log = async (kind: 'dsa' | 'networking') => {
+    await window.planner?.careerLogAdd(kind)
+    await refresh()
+  }
+  const unlog = async (kind: 'dsa' | 'networking') => {
+    await window.planner?.careerLogUndo(kind)
+    await refresh()
+  }
+
+  const closed = apps.filter((a) => CLOSED.includes(a.status))
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-4">
+        <div>
+          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+            Summer 2027 pipeline
+          </p>
+          <h1 className="font-display mt-1 text-xl font-semibold">Career</h1>
+        </div>
+        <div className="border-line bg-panel flex rounded-md border p-0.5" role="group" aria-label="Track focus">
+          {(['swe', 'hardware'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => void setFocus(f)}
+              className={`rounded px-3 py-1 font-mono text-[11px] transition-colors ${
+                focus === f ? 'bg-amber text-bench font-semibold' : 'text-muted hover:text-ink'
+              }`}
+            >
+              {f === 'swe' ? 'SWE' : 'Hardware'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Weekly scoreboard */}
+      {stats && targets && (
+        <div className="mt-5 grid max-w-2xl grid-cols-3 gap-3">
+          <ScoreTile
+            label="applications"
+            value={stats.applications}
+            target={targets.applicationsPerWeek}
+            hint="counted when a card moves to Applied"
+          />
+          <ScoreTile
+            label="dsa problems"
+            value={stats.dsa}
+            target={targets.dsaPerWeek}
+            onAdd={() => void log('dsa')}
+            onUndo={stats.dsa > 0 ? () => void unlog('dsa') : undefined}
+          />
+          <ScoreTile
+            label="networking"
+            value={stats.networking}
+            target={targets.networkingPerWeek}
+            onAdd={() => void log('networking')}
+            onUndo={stats.networking > 0 ? () => void unlog('networking') : undefined}
+          />
+        </div>
+      )}
+
+      {/* Pipeline */}
+      <AddApplication defaultTrack={focus} onCreated={refresh} />
+
+      <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+        {PIPELINE.map((col) => {
+          const items = apps.filter((a) => a.status === col.id)
+          return (
+            <div key={col.id} className="w-52 shrink-0">
+              <p className="text-muted font-mono text-[10.5px] tracking-[0.14em] uppercase">
+                {col.label} <span className="opacity-60">· {items.length}</span>
+              </p>
+              <div className="mt-1.5 space-y-1.5">
+                {items.map((a) => (
+                  <AppCard
+                    key={a.id}
+                    app={a}
+                    expanded={expandedId === a.id}
+                    onToggle={() => setExpandedId(expandedId === a.id ? null : a.id)}
+                    onChanged={refresh}
+                  />
+                ))}
+                {items.length === 0 && (
+                  <div className="border-line/40 text-muted/40 rounded-md border border-dashed px-2 py-3 text-center font-mono text-[10px]">
+                    —
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {closed.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setShowClosed((s) => !s)}
+            className="text-muted hover:text-ink font-mono text-[11px] tracking-[0.16em] uppercase transition-colors"
+          >
+            {showClosed ? '▾' : '▸'} Closed · {closed.length}
+          </button>
+          {showClosed && (
+            <ul className="mt-2 max-w-2xl space-y-1 opacity-70">
+              {closed.map((a) => (
+                <li key={a.id}>
+                  <AppCard
+                    app={a}
+                    expanded={expandedId === a.id}
+                    onToggle={() => setExpandedId(expandedId === a.id ? null : a.id)}
+                    onChanged={refresh}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Live internship feed */}
+      <JobFeed focus={focus} apps={apps} onAdded={refresh} />
+
+      {/* Research watchlist (the 15%) */}
+      <section className="mt-8 max-w-2xl">
+        <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+          Research watchlist — SURE / USRA
+        </h2>
+        <div className="mt-2 space-y-2">
+          {WATCHLIST.map((w) => (
+            <WatchlistItem key={w.id} item={w} />
+          ))}
+        </div>
+      </section>
+
+      {/* Resource shelf */}
+      <section className="mt-8 max-w-2xl">
+        <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+          Resources · {focus === 'swe' ? 'software' : 'hardware'} focus
+        </h2>
+        <ul className="mt-2 space-y-1">
+          {RESOURCES[focus].map((r) => (
+            <li key={r.name} className="flex items-baseline gap-2 text-[13px]">
+              <button
+                onClick={() => void window.planner?.openExternal(r.url)}
+                className="text-cyan shrink-0 hover:underline"
+              >
+                {r.name}
+              </button>
+              <span className="text-muted text-[12px]">{r.note}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  )
+}
+
+// ---------- job feed ----------
+
+function JobFeed({
+  focus,
+  apps,
+  onAdded
+}: {
+  focus: 'swe' | 'hardware'
+  apps: Application[]
+  onAdded: () => Promise<void>
+}) {
+  const [postings, setPostings] = useState<JobPosting[]>([])
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [canadaOnly, setCanadaOnly] = useState(false)
+
+  const knownUrls = useMemo(() => new Set(apps.map((a) => a.url).filter(Boolean)), [apps])
+
+  const load = async () => {
+    if (!window.planner || loading) return
+    setLoading(true)
+    setError(null)
+    const res = await window.planner.jobsFetch()
+    setLoading(false)
+    if (res.ok) {
+      setPostings(res.postings)
+      setFetchedAt(res.fetchedAt)
+    } else {
+      setError(res.error)
+    }
+  }
+
+  const visible = useMemo(() => {
+    const canadaRe = /canada|montr[eé]al|toronto|vancouver|ottawa|waterloo|qu[eé]bec|remote/i
+    const q = search.trim().toLowerCase()
+    return postings
+      .filter((p) =>
+        focus === 'hardware' ? p.category === 'Hardware' : SWE_CATEGORIES.has(p.category)
+      )
+      .filter((p) => !canadaOnly || p.locations.some((l) => canadaRe.test(l)))
+      .filter(
+        (p) =>
+          !q ||
+          p.company.toLowerCase().includes(q) ||
+          p.title.toLowerCase().includes(q) ||
+          p.locations.some((l) => l.toLowerCase().includes(q))
+      )
+      .slice(0, 60)
+  }, [postings, focus, canadaOnly, search])
+
+  return (
+    <section className="mt-8 max-w-2xl">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+          Live postings · Summer 2027
+        </h2>
+        <span className="text-muted/60 font-mono text-[9.5px]">via SimplifyJobs (GitHub)</span>
+        <div className="flex-1" />
+        {fetchedAt && (
+          <span className="text-muted/60 font-mono text-[9.5px]">
+            fetched {new Date(fetchedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+        <button
+          onClick={() => void load()}
+          disabled={loading}
+          className="border-line bg-panel text-muted hover:text-ink rounded-md border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Fetching…' : postings.length ? 'Refresh' : 'Fetch postings'}
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-danger mt-2 font-mono text-[11px]">
+          Feed unavailable: {error}. Try again in a minute.
+        </p>
+      )}
+
+      {postings.length > 0 && (
+        <>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              className={`${inputCls} min-w-40 flex-1`}
+              placeholder="Filter company, role, location…"
+              aria-label="Filter postings"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <button
+              onClick={() => setCanadaOnly((c) => !c)}
+              aria-pressed={canadaOnly}
+              className={`rounded-full border px-2.5 py-1 font-mono text-[10.5px] transition-colors ${
+                canadaOnly
+                  ? 'border-amber/60 text-amber bg-amber/10'
+                  : 'border-line text-muted hover:text-ink'
+              }`}
+            >
+              canada + remote
+            </button>
+          </div>
+
+          {visible.length === 0 ? (
+            <p className="text-muted mt-3 text-[13px]">
+              Nothing matches{canadaOnly ? ' — few Canadian postings are up yet; they come later in the season.' : '.'}
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-1">
+              {visible.map((p) => {
+                const added = knownUrls.has(p.url)
+                return (
+                  <li
+                    key={p.id}
+                    className="group border-line/60 bg-panel/60 hover:bg-panel flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px]">
+                        <span className="font-medium">{p.company}</span>
+                        <span className="text-muted"> — {p.title}</span>
+                      </p>
+                      <p className="text-muted mt-0.5 truncate font-mono text-[10px]">
+                        {p.locations.join(' · ') || 'location n/a'}
+                        {p.postedAt && ` · ${relAge(p.postedAt)}`}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => void window.planner?.openExternal(p.url)}
+                      className="text-cyan shrink-0 font-mono text-[10.5px] hover:underline"
+                    >
+                      open ↗
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (added || !window.planner) return
+                        await window.planner.appsCreate({
+                          company: p.company,
+                          role: p.title,
+                          track: p.category === 'Hardware' ? 'hardware' : 'swe',
+                          url: p.url
+                        })
+                        await onAdded()
+                      }}
+                      disabled={added}
+                      className={`shrink-0 rounded-md border px-2 py-1 font-mono text-[10.5px] transition-colors ${
+                        added
+                          ? 'border-ok/40 text-ok'
+                          : 'border-line text-muted hover:border-amber/60 hover:text-ink'
+                      }`}
+                    >
+                      {added ? 'in pipeline ✓' : '+ pipeline'}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
+function relAge(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
+  if (days <= 0) return 'today'
+  if (days === 1) return '1d ago'
+  return `${days}d ago`
+}
+
+// ---------- pieces ----------
+
+function ScoreTile({
+  label,
+  value,
+  target,
+  hint,
+  onAdd,
+  onUndo
+}: {
+  label: string
+  value: number
+  target: number
+  hint?: string
+  onAdd?: () => void
+  onUndo?: () => void
+}) {
+  const met = value >= target
+  return (
+    <div className="border-line bg-panel rounded-lg border p-3.5">
+      <p className="text-muted font-mono text-[10px] tracking-[0.14em] uppercase">{label}</p>
+      <div className="mt-1 flex items-center justify-between">
+        <p className="font-mono text-lg leading-none font-semibold">
+          <span className={met ? 'text-ok' : ''}>{value}</span>
+          <span className="text-muted text-[12px]"> / {target}</span>
+        </p>
+        {onAdd && (
+          <div className="flex gap-1">
+            {onUndo && (
+              <button
+                onClick={onUndo}
+                aria-label={`Undo ${label}`}
+                className="border-line text-muted hover:text-danger h-6 w-6 rounded border font-mono text-[12px] transition-colors"
+              >
+                −
+              </button>
+            )}
+            <button
+              onClick={onAdd}
+              aria-label={`Log ${label}`}
+              className="bg-amber text-bench h-6 w-6 rounded font-mono text-[13px] font-bold"
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
+      {hint && <p className="text-muted/60 mt-1.5 font-mono text-[9.5px] leading-tight">{hint}</p>}
+    </div>
+  )
+}
+
+function AddApplication({
+  defaultTrack,
+  onCreated
+}: {
+  defaultTrack: ApplicationTrack
+  onCreated: () => Promise<void>
+}) {
+  const [company, setCompany] = useState('')
+  const [role, setRole] = useState('')
+  const [track, setTrack] = useState<ApplicationTrack>(defaultTrack)
+  const [url, setUrl] = useState('')
+
+  useEffect(() => setTrack(defaultTrack), [defaultTrack])
+
+  const add = async () => {
+    if (!company.trim() || !role.trim() || !window.planner) return
+    await window.planner.appsCreate({ company, role, track, url: url || null })
+    setCompany('')
+    setRole('')
+    setUrl('')
+    await onCreated()
+  }
+
+  return (
+    <div className="border-line bg-panel mt-5 flex max-w-2xl flex-wrap items-end gap-2 rounded-lg border p-4">
+      <div className="min-w-32 flex-1">
+        <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ap-company">
+          Company
+        </label>
+        <input id="ap-company" className={`${inputCls} w-full`} placeholder="Matrox"
+          value={company} onChange={(e) => setCompany(e.target.value)} />
+      </div>
+      <div className="min-w-40 flex-1">
+        <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ap-role">
+          Role
+        </label>
+        <input id="ap-role" className={`${inputCls} w-full`} placeholder="SWE Intern — Summer 2027"
+          value={role} onChange={(e) => setRole(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && void add()} />
+      </div>
+      <div>
+        <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ap-track">
+          Track
+        </label>
+        <select id="ap-track" className={inputCls} value={track}
+          onChange={(e) => setTrack(e.target.value as ApplicationTrack)}>
+          <option value="swe">SWE</option>
+          <option value="hardware">Hardware</option>
+          <option value="research">Research</option>
+        </select>
+      </div>
+      <button
+        onClick={() => void add()}
+        disabled={!company.trim() || !role.trim()}
+        className="bg-amber text-bench rounded-md px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
+      >
+        Add
+      </button>
+      <input className={`${inputCls} w-full`} placeholder="Posting URL (optional)"
+        aria-label="Posting URL" value={url} onChange={(e) => setUrl(e.target.value)} />
+    </div>
+  )
+}
+
+function AppCard({
+  app,
+  expanded,
+  onToggle,
+  onChanged
+}: {
+  app: Application
+  expanded: boolean
+  onToggle: () => void
+  onChanged: () => Promise<void>
+}) {
+  const idx = PIPELINE.findIndex((p) => p.id === app.status)
+  const canAdvance = idx >= 0 && idx < PIPELINE.length - 1
+  const meta = TRACK_META[app.track]
+
+  const patch = async (p: Parameters<NonNullable<typeof window.planner>['appsUpdate']>[1]) => {
+    await window.planner?.appsUpdate(app.id, p)
+    await onChanged()
+  }
+
+  return (
+    <div className="border-line/60 bg-panel/80 rounded-md border">
+      <div className="flex items-start gap-1.5 px-2.5 py-2">
+        <button onClick={onToggle} className="min-w-0 flex-1 text-left">
+          <p className="truncate text-[12.5px] font-medium">{app.company}</p>
+          <p className="text-muted truncate text-[11px]">{app.role}</p>
+          <p className={`mt-0.5 font-mono text-[9.5px] ${meta.cls}`}>
+            {meta.label}
+            {app.deadline && <span className="text-muted"> · due {app.deadline}</span>}
+            {app.nextActionDate && <span className="text-amber"> · next {app.nextActionDate}</span>}
+          </p>
+        </button>
+        {canAdvance && (
+          <button
+            onClick={() => void patch({ status: PIPELINE[idx + 1].id })}
+            title={`Move to ${PIPELINE[idx + 1].label}`}
+            aria-label={`Advance ${app.company} to ${PIPELINE[idx + 1].label}`}
+            className="text-muted hover:text-amber mt-0.5 shrink-0 font-mono text-[13px] transition-colors"
+          >
+            →
+          </button>
+        )}
+      </div>
+      {expanded && (
+        <div className="border-line/60 space-y-2 border-t px-2.5 py-2">
+          <select
+            aria-label="Status"
+            className={`${inputCls} w-full py-1 font-mono text-[11px]`}
+            value={app.status}
+            onChange={(e) => void patch({ status: e.target.value as ApplicationStatus })}
+          >
+            {[...PIPELINE.map((p) => p.id), ...CLOSED].map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <input
+            className={`${inputCls} w-full py-1 text-[11.5px]`}
+            placeholder="Next action (e.g. follow up with recruiter)"
+            defaultValue={app.nextAction ?? ''}
+            onBlur={(e) => {
+              const v = e.target.value.trim() || null
+              if (v !== app.nextAction) void patch({ nextAction: v })
+            }}
+          />
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              aria-label="Next action date"
+              className={`${inputCls} py-1 font-mono text-[11px]`}
+              defaultValue={app.nextActionDate ?? ''}
+              onBlur={(e) => {
+                const v = e.target.value || null
+                if (v !== app.nextActionDate) void patch({ nextActionDate: v })
+              }}
+            />
+            {app.url && (
+              <button
+                onClick={() => void window.planner?.openExternal(app.url!)}
+                className="text-cyan font-mono text-[10.5px] hover:underline"
+              >
+                posting ↗
+              </button>
+            )}
+            <button
+              onClick={() => void window.planner?.appsDelete(app.id).then(onChanged)}
+              className="text-muted/60 hover:text-danger ml-auto font-mono text-[10.5px] transition-colors"
+            >
+              delete
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function WatchlistItem({ item }: { item: { name: string; url: string; note: string } }) {
+  const [date, setDate] = useState('')
+  const [tracked, setTracked] = useState(false)
+
+  const track = async () => {
+    if (!date || !window.planner) return
+    await window.planner.eventsCreate({
+      title: `${item.name.split('—')[0].trim()} deadline`,
+      kind: 'academic',
+      date,
+      time: null,
+      url: item.url,
+      autoRegWindow: false
+    })
+    setTracked(true)
+  }
+
+  return (
+    <div className="border-line bg-panel rounded-lg border p-3.5">
+      <div className="flex items-baseline gap-2">
+        <button
+          onClick={() => void window.planner?.openExternal(item.url)}
+          className="text-ok text-[13px] font-medium hover:underline"
+        >
+          {item.name}
+        </button>
+      </div>
+      <p className="text-muted mt-1 text-[12px] leading-relaxed">{item.note}</p>
+      <div className="mt-2 flex items-center gap-2">
+        {tracked ? (
+          <span className="text-ok font-mono text-[10.5px]">✓ deadline added to Events</span>
+        ) : (
+          <>
+            <input
+              type="date"
+              aria-label={`${item.name} deadline date`}
+              className={`${inputCls} py-1 font-mono text-[11px]`}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+            <button
+              onClick={() => void track()}
+              disabled={!date}
+              className="border-line bg-panel2 hover:border-amber/60 rounded-md border px-2.5 py-1 font-mono text-[10.5px] transition-colors disabled:opacity-40"
+            >
+              track deadline in Events
+            </button>
+            <span className="text-muted/60 font-mono text-[9.5px]">
+              (set it when the real date is announced)
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

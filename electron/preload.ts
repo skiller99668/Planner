@@ -10,7 +10,13 @@ import {
   type PlannerApi
 } from '../shared/ipc'
 import type {
+  ApplicationInput,
+  ApplicationPatch,
+  CareerLogKind,
   CourseInput,
+  EventInput,
+  EventKind,
+  EventPatch,
   GymLogInput,
   GymPatch,
   LectureInput,
@@ -62,6 +68,21 @@ const api: PlannerApi = {
     ipcRenderer.invoke(IPC.chatThreads, scope, refId),
   chatMessages: (threadId: string) => ipcRenderer.invoke(IPC.chatMessages, threadId),
   chatSend: (input: ChatSendInput) => ipcRenderer.invoke(IPC.chatSend, input),
+
+  eventsList: () => ipcRenderer.invoke(IPC.eventsList),
+  eventsCreate: (input: EventInput) => ipcRenderer.invoke(IPC.eventsCreate, input),
+  eventsUpdate: (id: string, patch: EventPatch) => ipcRenderer.invoke(IPC.eventsUpdate, id, patch),
+  eventsDelete: (id: string) => ipcRenderer.invoke(IPC.eventsDelete, id),
+  eventsImportIcs: (kind: EventKind) => ipcRenderer.invoke(IPC.eventsImportIcs, kind),
+
+  appsList: () => ipcRenderer.invoke(IPC.appsList),
+  appsCreate: (input: ApplicationInput) => ipcRenderer.invoke(IPC.appsCreate, input),
+  appsUpdate: (id: string, patch: ApplicationPatch) => ipcRenderer.invoke(IPC.appsUpdate, id, patch),
+  appsDelete: (id: string) => ipcRenderer.invoke(IPC.appsDelete, id),
+  careerLogAdd: (kind: CareerLogKind) => ipcRenderer.invoke(IPC.careerLogAdd, kind),
+  careerLogUndo: (kind: CareerLogKind) => ipcRenderer.invoke(IPC.careerLogUndo, kind),
+  careerWeekStats: () => ipcRenderer.invoke(IPC.careerWeekStats),
+  jobsFetch: () => ipcRenderer.invoke(IPC.jobsFetch),
 
   onTasksChanged: (cb: () => void) => {
     const listener = () => cb()
