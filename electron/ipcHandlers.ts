@@ -166,5 +166,5 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.careerLogAdd, (_e, kind: CareerLogKind) => addCareerLog(kind))
   ipcMain.handle(IPC.careerLogUndo, (_e, kind: CareerLogKind) => undoCareerLog(kind))
   ipcMain.handle(IPC.careerWeekStats, () => careerWeekStats())
-  ipcMain.handle(IPC.jobsFetch, () => fetchJobs())
+  ipcMain.handle(IPC.jobsFetch, (_e, force?: boolean) => fetchJobs(force === true))
 }

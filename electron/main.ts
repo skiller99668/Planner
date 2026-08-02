@@ -33,6 +33,37 @@ if (isSmokeTest) {
     openDb(app.getPath('userData'))
     // PLANNER_ASSIST_TEST="..." runs one headless assistant round (needs a
     // stored Groq key) and prints the reply + tool receipts.
+    // PLANNER_JOBS_TEST=1 fetches every job source and prints per-source
+    // counts plus a Canada sample — verifies parsers against the live repos.
+    if (process.env.PLANNER_JOBS_TEST) {
+      try {
+        const { fetchJobs } = await import('./jobsFeed')
+        const res = await fetchJobs(true)
+        if (!res.ok) {
+          console.log('JOBS FAIL', res.error)
+          app.exit(1)
+          return
+        }
+        const canadaRe = /canada|montr|toronto|vancouver|ottawa|waterloo|qu[eé]bec/i
+        const cad = res.postings.filter((p) => p.locations.some((l) => canadaRe.test(l)))
+        console.log(
+          'JOBS OK',
+          JSON.stringify({
+            total: res.postings.length,
+            sources: res.sources,
+            canada: cad.length,
+            canadaSample: cad.slice(0, 3).map((p) => `${p.company} — ${p.title} [${p.locations.join('/')}]`),
+            withSalary: res.postings.filter((p) => p.salary).length
+          })
+        )
+        app.exit(0)
+      } catch (err) {
+        console.error('JOBS FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
     // PLANNER_EVENT_TEST=YYYY-MM-DD creates a badminton event through the real
     // path, prints the computed BQ window + queued reminders, cleans up, exits.
     const eventTestDate = process.env.PLANNER_EVENT_TEST

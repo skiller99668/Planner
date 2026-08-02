@@ -80,8 +80,16 @@ export const IPC = {
   jobsFetch: 'jobs:fetch'
 } as const
 
+export interface JobSourceStatus {
+  id: string
+  label: string
+  ok: boolean
+  count: number
+  error?: string
+}
+
 export type JobsFetchResult =
-  | { ok: true; postings: JobPosting[]; fetchedAt: string }
+  | { ok: true; postings: JobPosting[]; fetchedAt: string; sources: JobSourceStatus[] }
   | { ok: false; error: string }
 
 /** Main → renderer: task/series data changed outside a renderer call
@@ -177,6 +185,7 @@ export interface PlannerApi {
   /** Removes today's most recent log of that kind (mis-click undo). */
   careerLogUndo(kind: CareerLogKind): Promise<void>
   careerWeekStats(): Promise<CareerWeekStats>
-  /** On-demand fetch of the SimplifyJobs internship feed (10-min cache). */
-  jobsFetch(): Promise<JobsFetchResult>
+  /** On-demand fetch of the aggregated internship feeds (10-min cache).
+   *  `force` bypasses the cache for an explicit refresh. */
+  jobsFetch(force?: boolean): Promise<JobsFetchResult>
 }

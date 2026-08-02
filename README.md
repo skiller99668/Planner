@@ -69,8 +69,8 @@ scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
    12:30, closes −11d Tue 11:30) with open/close-warning alarms and a
    "registered ✓" toggle; application pipeline with weekly scoreboard
    (applications / DSA / networking vs targets), live Summer 2027 postings
-   from the SimplifyJobs GitHub feed with one-click add-to-pipeline,
-   SURE/USRA watchlist, per-track resource shelf
+   aggregated from six community feeds with one-click add/remove-to-pipeline,
+   SURE/USRA watchlist, per-track resource shelf, hackathon events
 
 ### Task model notes
 
@@ -82,6 +82,29 @@ scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
   the `reminders` table on every task write; the tray-resident scheduler does the rest.
 - AI tag suggestions merge into your tags, never replace them; at most one course-code
   tag per task is enforced in code, preferring yours ([electron/autoTag.ts](electron/autoTag.ts)).
+
+### Job feed notes
+
+[electron/jobsFeed.ts](electron/jobsFeed.ts) aggregates six public GitHub lists on
+demand (10-min cache, never background-polled), merging and de-duplicating by
+normalized application URL:
+
+| Source | Shape |
+|---|---|
+| SimplifyJobs/Summer2027-Internships | `listings.json` — filtered to 2027 terms |
+| vanshb03/Summer2027-Internships | `listings.json` — `repoScoped` (tags season `"Summer"`, no year, so the whole file counts) |
+| speedyapply/2027-SWE-College-Jobs | `README.md` + `INTERN_INTL.md` markdown tables |
+| speedyapply/2027-AI-College-Jobs | `README.md` + `INTERN_INTL.md` markdown tables |
+
+The markdown parser reads the header row for column positions (US files carry a
+Salary column, international ones don't) and skips rows without an apply link
+(those are closed listings). A dead source degrades to a warning line under the
+header, never an empty page. Verify against the live repos with
+`PLANNER_SMOKE=1 PLANNER_JOBS_TEST=1 npx electron .`.
+
+LinkedIn/Indeed/Handshake are deliberately absent: they forbid scraping and
+break constantly. Add structured sources (GitHub lists, Greenhouse/Lever boards,
+RSS/JSON) to `SOURCES` instead.
 
 ### Assistant notes
 

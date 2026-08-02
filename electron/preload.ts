@@ -82,7 +82,7 @@ const api: PlannerApi = {
   careerLogAdd: (kind: CareerLogKind) => ipcRenderer.invoke(IPC.careerLogAdd, kind),
   careerLogUndo: (kind: CareerLogKind) => ipcRenderer.invoke(IPC.careerLogUndo, kind),
   careerWeekStats: () => ipcRenderer.invoke(IPC.careerWeekStats),
-  jobsFetch: () => ipcRenderer.invoke(IPC.jobsFetch),
+  jobsFetch: (force?: boolean) => ipcRenderer.invoke(IPC.jobsFetch, force),
 
   onTasksChanged: (cb: () => void) => {
     const listener = () => cb()

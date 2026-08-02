@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { JobSourceStatus } from '../../shared/ipc'
 import type {
   Application,
   ApplicationStatus,
@@ -10,12 +11,16 @@ import type {
 
 const SWE_CATEGORIES = new Set(['Software', 'Software Engineering', 'AI/ML/Data', 'Quant'])
 
-const PIPELINE: { id: ApplicationStatus; label: string }[] = [
-  { id: 'wishlist', label: 'Wishlist' },
-  { id: 'applied', label: 'Applied' },
-  { id: 'oa', label: 'OA' },
-  { id: 'interview', label: 'Interview' },
-  { id: 'offer', label: 'Offer' }
+const PIPELINE: { id: ApplicationStatus; label: string; hint?: string }[] = [
+  { id: 'wishlist', label: 'Wishlist', hint: 'Found it, not applied yet' },
+  { id: 'applied', label: 'Applied', hint: 'Application submitted — counts toward your weekly target' },
+  {
+    id: 'oa',
+    label: 'OA — online assessment',
+    hint: 'Online Assessment: the timed coding/aptitude test companies send after you apply, usually on HackerRank or CodeSignal'
+  },
+  { id: 'interview', label: 'Interview', hint: 'Phone screen, technical, or final round' },
+  { id: 'offer', label: 'Offer', hint: 'They said yes' }
 ]
 const CLOSED: ApplicationStatus[] = ['rejected', 'ghosted']
 
@@ -160,7 +165,10 @@ export default function CareerPage() {
           const items = apps.filter((a) => a.status === col.id)
           return (
             <div key={col.id} className="w-52 shrink-0">
-              <p className="text-muted font-mono text-[10.5px] tracking-[0.14em] uppercase">
+              <p
+                className="text-muted font-mono text-[10.5px] tracking-[0.14em] uppercase"
+                title={col.hint}
+              >
                 {col.label} <span className="opacity-60">· {items.length}</span>
               </p>
               <div className="mt-1.5 space-y-1.5">
@@ -259,36 +267,48 @@ function JobFeed({
   onAdded: () => Promise<void>
 }) {
   const [postings, setPostings] = useState<JobPosting[]>([])
+  const [sources, setSources] = useState<JobSourceStatus[]>([])
   const [fetchedAt, setFetchedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [canadaOnly, setCanadaOnly] = useState(false)
+  const [region, setRegion] = useState<'all' | 'canada' | 'remote'>('all')
+  const [limit, setLimit] = useState(40)
 
-  const knownUrls = useMemo(() => new Set(apps.map((a) => a.url).filter(Boolean)), [apps])
+  // Match by normalized URL so a posting added earlier is still recognized.
+  const knownUrls = useMemo(
+    () => new Map(apps.filter((a) => a.url).map((a) => [normUrl(a.url!), a.id])),
+    [apps]
+  )
 
-  const load = async () => {
+  const load = async (force = false) => {
     if (!window.planner || loading) return
     setLoading(true)
     setError(null)
-    const res = await window.planner.jobsFetch()
+    const res = await window.planner.jobsFetch(force)
     setLoading(false)
     if (res.ok) {
       setPostings(res.postings)
+      setSources(res.sources)
       setFetchedAt(res.fetchedAt)
     } else {
       setError(res.error)
     }
   }
 
-  const visible = useMemo(() => {
-    const canadaRe = /canada|montr[eé]al|toronto|vancouver|ottawa|waterloo|qu[eé]bec|remote/i
+  const matching = useMemo(() => {
+    const canadaRe = /canada|montr[eé]al|toronto|vancouver|ottawa|waterloo|qu[eé]bec|calgary|edmonton|halifax|mississauga|burnaby|,\s*(on|qc|bc|ab|ns|mb|sk)\b/i
+    const remoteRe = /remote|anywhere/i
     const q = search.trim().toLowerCase()
     return postings
       .filter((p) =>
         focus === 'hardware' ? p.category === 'Hardware' : SWE_CATEGORIES.has(p.category)
       )
-      .filter((p) => !canadaOnly || p.locations.some((l) => canadaRe.test(l)))
+      .filter((p) => {
+        if (region === 'canada') return p.locations.some((l) => canadaRe.test(l))
+        if (region === 'remote') return p.locations.some((l) => remoteRe.test(l))
+        return true
+      })
       .filter(
         (p) =>
           !q ||
@@ -296,8 +316,13 @@ function JobFeed({
           p.title.toLowerCase().includes(q) ||
           p.locations.some((l) => l.toLowerCase().includes(q))
       )
-      .slice(0, 60)
-  }, [postings, focus, canadaOnly, search])
+  }, [postings, focus, region, search])
+
+  const visible = matching.slice(0, limit)
+  const canadaCount = useMemo(() => {
+    const canadaRe = /canada|montr[eé]al|toronto|vancouver|ottawa|waterloo|qu[eé]bec|calgary|edmonton|halifax|mississauga|burnaby|,\s*(on|qc|bc|ab|ns|mb|sk)\b/i
+    return postings.filter((p) => p.locations.some((l) => canadaRe.test(l))).length
+  }, [postings])
 
   return (
     <section className="mt-8 max-w-2xl">
@@ -305,15 +330,17 @@ function JobFeed({
         <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
           Live postings · Summer 2027
         </h2>
-        <span className="text-muted/60 font-mono text-[9.5px]">via SimplifyJobs (GitHub)</span>
+        <span className="text-muted/60 font-mono text-[9.5px]">
+          SimplifyJobs · vanshb03 · speedyapply
+        </span>
         <div className="flex-1" />
         {fetchedAt && (
           <span className="text-muted/60 font-mono text-[9.5px]">
-            fetched {new Date(fetchedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+            {postings.length} jobs · {new Date(fetchedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
         <button
-          onClick={() => void load()}
+          onClick={() => void load(postings.length > 0)}
           disabled={loading}
           className="border-line bg-panel text-muted hover:text-ink rounded-md border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
         >
@@ -327,6 +354,12 @@ function JobFeed({
         </p>
       )}
 
+      {sources.some((s) => !s.ok) && (
+        <p className="text-muted/70 mt-2 font-mono text-[10px]">
+          {sources.filter((s) => !s.ok).map((s) => `${s.label} unavailable (${s.error})`).join(' · ')}
+        </p>
+      )}
+
       {postings.length > 0 && (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -337,77 +370,111 @@ function JobFeed({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <button
-              onClick={() => setCanadaOnly((c) => !c)}
-              aria-pressed={canadaOnly}
-              className={`rounded-full border px-2.5 py-1 font-mono text-[10.5px] transition-colors ${
-                canadaOnly
-                  ? 'border-amber/60 text-amber bg-amber/10'
-                  : 'border-line text-muted hover:text-ink'
-              }`}
-            >
-              canada + remote
-            </button>
+            <div className="border-line bg-panel flex rounded-md border p-0.5" role="group" aria-label="Region">
+              {([
+                ['all', 'all'],
+                ['canada', `canada${canadaCount ? ` (${canadaCount})` : ''}`],
+                ['remote', 'remote']
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => { setRegion(id); setLimit(40) }}
+                  aria-pressed={region === id}
+                  className={`rounded px-2.5 py-1 font-mono text-[10.5px] transition-colors ${
+                    region === id ? 'bg-amber text-bench font-semibold' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {visible.length === 0 ? (
             <p className="text-muted mt-3 text-[13px]">
-              Nothing matches{canadaOnly ? ' — few Canadian postings are up yet; they come later in the season.' : '.'}
+              {region === 'canada'
+                ? 'No Canadian postings match yet — most Canadian internships post later in the season (Sep–Jan). Try “all”, or check back weekly.'
+                : 'Nothing matches that filter.'}
             </p>
           ) : (
-            <ul className="mt-2 space-y-1">
-              {visible.map((p) => {
-                const added = knownUrls.has(p.url)
-                return (
-                  <li
-                    key={p.id}
-                    className="group border-line/60 bg-panel/60 hover:bg-panel flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px]">
-                        <span className="font-medium">{p.company}</span>
-                        <span className="text-muted"> — {p.title}</span>
-                      </p>
-                      <p className="text-muted mt-0.5 truncate font-mono text-[10px]">
-                        {p.locations.join(' · ') || 'location n/a'}
-                        {p.postedAt && ` · ${relAge(p.postedAt)}`}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => void window.planner?.openExternal(p.url)}
-                      className="text-cyan shrink-0 font-mono text-[10.5px] hover:underline"
+            <>
+              <ul className="mt-2 space-y-1">
+                {visible.map((p) => {
+                  const existingId = knownUrls.get(normUrl(p.url))
+                  return (
+                    <li
+                      key={p.id}
+                      className="group border-line/60 bg-panel/60 hover:bg-panel flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors"
                     >
-                      open ↗
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (added || !window.planner) return
-                        await window.planner.appsCreate({
-                          company: p.company,
-                          role: p.title,
-                          track: p.category === 'Hardware' ? 'hardware' : 'swe',
-                          url: p.url
-                        })
-                        await onAdded()
-                      }}
-                      disabled={added}
-                      className={`shrink-0 rounded-md border px-2 py-1 font-mono text-[10.5px] transition-colors ${
-                        added
-                          ? 'border-ok/40 text-ok'
-                          : 'border-line text-muted hover:border-amber/60 hover:text-ink'
-                      }`}
-                    >
-                      {added ? 'in pipeline ✓' : '+ pipeline'}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px]">
+                          <span className="font-medium">{p.company}</span>
+                          <span className="text-muted"> — {p.title}</span>
+                        </p>
+                        <p className="text-muted mt-0.5 truncate font-mono text-[10px]">
+                          {p.locations.join(' · ') || 'location n/a'}
+                          {p.salary && <span className="text-ok"> · {p.salary}</span>}
+                          {p.postedAt && ` · ${relAge(p.postedAt)}`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => void window.planner?.openExternal(p.url)}
+                        className="text-cyan shrink-0 font-mono text-[10.5px] hover:underline"
+                      >
+                        open ↗
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!window.planner) return
+                          if (existingId) {
+                            await window.planner.appsDelete(existingId)
+                          } else {
+                            await window.planner.appsCreate({
+                              company: p.company,
+                              role: p.title,
+                              track: p.category === 'Hardware' ? 'hardware' : 'swe',
+                              url: p.url
+                            })
+                          }
+                          await onAdded()
+                        }}
+                        title={existingId ? 'Click to remove from pipeline' : 'Add to pipeline'}
+                        className={`shrink-0 rounded-md border px-2 py-1 font-mono text-[10.5px] transition-colors ${
+                          existingId
+                            ? 'border-ok/40 text-ok hover:border-danger/60 hover:text-danger'
+                            : 'border-line text-muted hover:border-amber/60 hover:text-ink'
+                        }`}
+                      >
+                        {existingId ? 'in pipeline ✓' : '+ pipeline'}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+              {matching.length > visible.length && (
+                <button
+                  onClick={() => setLimit((l) => l + 40)}
+                  className="text-muted hover:text-amber mt-2 font-mono text-[11px] transition-colors"
+                >
+                  show more ({matching.length - visible.length} more)
+                </button>
+              )}
+            </>
           )}
         </>
       )}
     </section>
   )
+}
+
+/** Same normalization the main process uses, so add/remove round-trips. */
+function normUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    return `${u.host.replace(/^www\./, '')}${u.pathname.replace(/\/+$/, '')}`.toLowerCase()
+  } catch {
+    return url.toLowerCase()
+  }
 }
 
 function relAge(iso: string): string {
@@ -555,7 +622,7 @@ function AppCard({
 
   return (
     <div className="border-line/60 bg-panel/80 rounded-md border">
-      <div className="flex items-start gap-1.5 px-2.5 py-2">
+      <div className="group flex items-start gap-1.5 px-2.5 py-2">
         <button onClick={onToggle} className="min-w-0 flex-1 text-left">
           <p className="truncate text-[12.5px] font-medium">{app.company}</p>
           <p className="text-muted truncate text-[11px]">{app.role}</p>
@@ -565,16 +632,29 @@ function AppCard({
             {app.nextActionDate && <span className="text-amber"> · next {app.nextActionDate}</span>}
           </p>
         </button>
-        {canAdvance && (
+        <div className="flex shrink-0 flex-col items-center gap-1">
+          {canAdvance && (
+            <button
+              onClick={() => void patch({ status: PIPELINE[idx + 1].id })}
+              title={`Move to ${PIPELINE[idx + 1].label}`}
+              aria-label={`Advance ${app.company} to ${PIPELINE[idx + 1].label}`}
+              className="text-muted hover:text-amber font-mono text-[13px] leading-none transition-colors"
+            >
+              →
+            </button>
+          )}
           <button
-            onClick={() => void patch({ status: PIPELINE[idx + 1].id })}
-            title={`Move to ${PIPELINE[idx + 1].label}`}
-            aria-label={`Advance ${app.company} to ${PIPELINE[idx + 1].label}`}
-            className="text-muted hover:text-amber mt-0.5 shrink-0 font-mono text-[13px] transition-colors"
+            onClick={() => {
+              if (window.confirm(`Remove ${app.company} — ${app.role} from the pipeline?`))
+                void window.planner?.appsDelete(app.id).then(onChanged)
+            }}
+            title="Remove from pipeline"
+            aria-label={`Remove ${app.company} from pipeline`}
+            className="text-muted/50 hover:text-danger font-mono text-[13px] leading-none opacity-0 transition-all group-hover:opacity-100"
           >
-            →
+            ×
           </button>
-        )}
+        </div>
       </div>
       {expanded && (
         <div className="border-line/60 space-y-2 border-t px-2.5 py-2">
@@ -617,10 +697,13 @@ function AppCard({
               </button>
             )}
             <button
-              onClick={() => void window.planner?.appsDelete(app.id).then(onChanged)}
+              onClick={() => {
+                if (window.confirm(`Remove ${app.company} — ${app.role} from the pipeline?`))
+                  void window.planner?.appsDelete(app.id).then(onChanged)
+              }}
               className="text-muted/60 hover:text-danger ml-auto font-mono text-[10.5px] transition-colors"
             >
-              delete
+              remove
             </button>
           </div>
         </div>

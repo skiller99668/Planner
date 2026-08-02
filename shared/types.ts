@@ -178,7 +178,7 @@ export interface ChatMessage {
 
 // ---------- Events (badminton tournaments, McGill career fairs, deadlines) ----------
 
-export type EventKind = 'badminton' | 'career' | 'academic' | 'other'
+export type EventKind = 'badminton' | 'hackathon' | 'career' | 'academic' | 'other'
 export type EventSource = 'manual' | 'ics'
 
 export interface PlannerEvent {
@@ -273,7 +273,7 @@ export interface CareerWeekStats {
   networking: number
 }
 
-/** A live internship posting from the SimplifyJobs feed. */
+/** A live internship posting aggregated from the community job-list repos. */
 export interface JobPosting {
   id: string
   company: string
@@ -281,6 +281,10 @@ export interface JobPosting {
   category: string // Software | Software Engineering | AI/ML/Data | Quant | Hardware | Product
   locations: string[]
   url: string
+  /** Listed pay when the source publishes it (e.g. "$60/hr"). */
+  salary: string | null
+  /** Human label of the list this came from. */
+  source: string
   postedAt: string | null
 }
 

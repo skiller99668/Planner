@@ -3,10 +3,20 @@ import type { EventKind, PlannerEvent } from '../../shared/types'
 
 const KIND_META: Record<EventKind, { label: string; cls: string }> = {
   badminton: { label: 'badminton', cls: 'text-cyan border-cyan/40 bg-cyan/10' },
+  hackathon: { label: 'hackathon', cls: 'text-[#c792ea] border-[#c792ea]/40 bg-[#c792ea]/10' },
   career: { label: 'career', cls: 'text-amber border-amber/40 bg-amber/10' },
   academic: { label: 'academic', cls: 'text-ok border-ok/40 bg-ok/10' },
   other: { label: 'other', cls: 'text-muted border-line bg-panel2' }
 }
+
+/** Hackathons worth knowing about — opened in the browser, not scraped. */
+const HACKATHON_LINKS = [
+  { name: 'MLH 2026–27 season', url: 'https://mlh.io/seasons/2026/events' },
+  { name: 'McHacks (McGill)', url: 'https://mchacks.ca' },
+  { name: 'ConUHacks (Concordia)', url: 'https://conuhacks.io' },
+  { name: 'HackTheNorth (Waterloo)', url: 'https://hackthenorth.com' },
+  { name: 'Devpost hackathons', url: 'https://devpost.com/hackathons' }
+]
 
 const inputCls =
   'bg-bench border-line rounded-md border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-amber/60'
@@ -83,6 +93,7 @@ export default function EventsPage() {
             onChange={(e) => setImportKind(e.target.value as EventKind)}
           >
             <option value="badminton">as badminton</option>
+            <option value="hackathon">as hackathon</option>
             <option value="career">as career</option>
             <option value="academic">as academic</option>
             <option value="other">as other</option>
@@ -127,6 +138,28 @@ export default function EventsPage() {
           </section>
         ))
       )}
+
+      <section className="mt-8 max-w-2xl">
+        <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+          Find hackathons
+        </h2>
+        <p className="text-muted mt-1.5 text-[12.5px] leading-relaxed">
+          These don&apos;t publish machine-readable calendars — open one, then add the dates
+          above as a <span className="text-[#c792ea]">hackathon</span> event so the reminder
+          fires. Registration for the big ones fills in days.
+        </p>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
+          {HACKATHON_LINKS.map((h) => (
+            <button
+              key={h.url}
+              onClick={() => void window.planner?.openExternal(h.url)}
+              className="text-cyan text-[12.5px] hover:underline"
+            >
+              {h.name} ↗
+            </button>
+          ))}
+        </div>
+      </section>
 
       {past.length > 0 && (
         <section className="mt-8">
@@ -204,6 +237,7 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
           <select id="ev-kind" className={inputCls} value={kind}
             onChange={(e) => setKind(e.target.value as EventKind)}>
             <option value="badminton">Badminton</option>
+            <option value="hackathon">Hackathon</option>
             <option value="career">Career</option>
             <option value="academic">Academic</option>
             <option value="other">Other</option>
