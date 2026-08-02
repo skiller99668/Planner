@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Sidebar, { type ModuleId } from './components/Sidebar'
 import DashboardPage from './pages/DashboardPage'
 import PlaceholderPage from './pages/PlaceholderPage'
+import GymPage from './pages/GymPage'
 import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
 
@@ -16,7 +17,7 @@ function initialView(): ModuleId {
 }
 
 const PLACEHOLDERS: Record<
-  Exclude<ModuleId, 'dashboard' | 'settings' | 'tasks'>,
+  Exclude<ModuleId, 'dashboard' | 'settings' | 'tasks' | 'gym'>,
   { title: string; phase: string; blurb: string; items: string[] }
 > = {
   academics: {
@@ -24,12 +25,6 @@ const PLACEHOLDERS: Record<
     phase: 'Phase 4',
     blurb: 'Courses and lectures, your post-lecture summaries, and a Groq-powered chat that already knows what the course covered.',
     items: ['Courses + lectures', 'Lecture summaries', 'AI chat per lecture', 'AI-suggested tasks']
-  },
-  gym: {
-    title: 'Gym',
-    phase: 'Phase 3',
-    blurb: 'The PPL cycle tracker: it knows what today is, you tap once to log it. Weekly grid against your 5–6 target and your current streak.',
-    items: ['Next-in-cycle', 'One-tap logging', 'Weekly grid + streak', 'Optional set/rep log']
   },
   events: {
     title: 'Events',
@@ -57,6 +52,8 @@ export default function App() {
             <DashboardPage onNavigate={setActive} />
           ) : active === 'tasks' ? (
             <TasksPage />
+          ) : active === 'gym' ? (
+            <GymPage />
           ) : active === 'settings' ? (
             <SettingsPage />
           ) : (

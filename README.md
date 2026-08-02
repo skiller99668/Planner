@@ -58,7 +58,8 @@ scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
 1. ✅ **Foundation** — shell, SQLite, IPC, tray, autostart, notifications, UI skeleton
 2. ✅ **Tasks** — capture, tags, due dates, reminders, recurring series (weekly labs),
    AI tag suggestions (Groq; key in Settings, encrypted via `safeStorage`)
-3. **Gym** — PPL next-in-cycle, one-tap logging, weekly grid vs 5–6 target, streaks
+3. ✅ **Gym** — PPL next-in-cycle, one-tap logging (idempotent per day+type),
+   Sun–Sat week grid with history arrows, week streak vs target, session notes
 4. **Academics** — courses → lectures → summaries, Groq chat with lecture context,
    AI-suggested tasks
 5. **Events + Career** — ICS import, Badminton Québec registration-window alarms,

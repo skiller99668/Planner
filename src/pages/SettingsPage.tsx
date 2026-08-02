@@ -109,6 +109,28 @@ export default function SettingsPage() {
             disabled={saving || !groqConfigured}
             onChange={(v) => patch({ aiAutoTag: v })}
           />
+          <div className="flex items-start justify-between gap-6 px-5 py-4">
+            <div>
+              <p className="text-[13.5px] font-medium">Gym target</p>
+              <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
+                Sessions per week that count as hitting the goal — drives the weekly bar and
+                the streak counter.
+              </p>
+            </div>
+            <input
+              type="number"
+              min={1}
+              max={7}
+              aria-label="Gym sessions per week"
+              className="bg-bench border-line focus:border-amber/60 mt-0.5 w-16 rounded-md border px-2.5 py-1.5 text-center font-mono text-[13px]"
+              value={settings.targets.gymPerWeek}
+              disabled={saving}
+              onChange={(e) => {
+                const n = Math.max(1, Math.min(7, Number(e.target.value) || 1))
+                void patch({ targets: { ...settings.targets, gymPerWeek: n } })
+              }}
+            />
+          </div>
         </div>
       )}
     </div>

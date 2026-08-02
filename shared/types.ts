@@ -102,6 +102,17 @@ export interface GymSession {
   createdAt: string
 }
 
+export interface GymLogInput {
+  date: string // YYYY-MM-DD
+  type: GymType
+  notes?: string | null
+}
+
+export interface GymPatch {
+  type?: GymType
+  notes?: string | null
+}
+
 // ---------- Academics ----------
 
 export interface Course {

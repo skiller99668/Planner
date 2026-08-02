@@ -78,7 +78,9 @@ export function parseTags(text: string): string[] {
 const inputCls =
   'bg-bench border-line rounded-md border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-amber/60'
 const labelCls = 'text-muted mb-1 block font-mono text-[10.5px] tracking-[0.14em] uppercase'
-const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+// Display order Sun..Sat (Skyler's week convention); values stay 0=Mon..6=Sun.
+const WEEKDAY_ORDER = [6, 0, 1, 2, 3, 4, 5]
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 export default function TaskEditor({
   mode,
@@ -272,14 +274,15 @@ export default function TaskEditor({
               <div className="col-span-2">
                 <span className={labelCls}>On days</span>
                 <div className="flex gap-1" role="group" aria-label="Weekdays">
-                  {WEEKDAY_LABELS.map((label, i) => {
+                  {WEEKDAY_ORDER.map((i, pos) => {
+                    const label = WEEKDAY_LABELS[pos]
                     const on = v.weekdays.includes(i)
                     return (
                       <button
                         key={i}
                         type="button"
                         aria-pressed={on}
-                        aria-label={`Weekday ${i}`}
+                        aria-label={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}
                         onClick={() =>
                           set(
                             'weekdays',

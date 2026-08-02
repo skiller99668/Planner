@@ -5,6 +5,9 @@
 // so adding a method here forces both sides to implement it.
 
 import type {
+  GymLogInput,
+  GymPatch,
+  GymSession,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -29,7 +32,11 @@ export const IPC = {
   seriesUpdate: 'series:update',
   seriesDelete: 'series:delete',
   groqStatus: 'groq:status',
-  groqSetKey: 'groq:setKey'
+  groqSetKey: 'groq:setKey',
+  gymList: 'gym:list',
+  gymLog: 'gym:log',
+  gymUpdate: 'gym:update',
+  gymDelete: 'gym:delete'
 } as const
 
 /** Main → renderer: task/series data changed outside a renderer call
@@ -67,6 +74,12 @@ export interface PlannerApi {
   seriesUpdate(id: string, patch: SeriesPatch): Promise<TaskSeries>
   /** Deletes the series + future open occurrences; past/done history is kept. */
   seriesDelete(id: string): Promise<void>
+
+  /** Sessions from the last ~26 weeks, newest first. */
+  gymList(): Promise<GymSession[]>
+  gymLog(input: GymLogInput): Promise<GymSession>
+  gymUpdate(id: string, patch: GymPatch): Promise<GymSession>
+  gymDelete(id: string): Promise<void>
 
   /** Whether a Groq API key is stored (the key itself never crosses IPC). */
   groqStatus(): Promise<{ configured: boolean }>

@@ -1,19 +1,28 @@
 import { useEffect, useState } from 'react'
 import type { AppInfo } from '../../shared/ipc'
+import type { GymType } from '../../shared/types'
 import type { ModuleId } from '../components/Sidebar'
 import { dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
+import { deriveGym, useGym, useGymTarget } from '../lib/useGym'
 import { useTasks } from '../lib/useTasks'
 
 const ROADMAP: { phase: string; name: string; status: 'done' | 'now' | 'next' }[] = [
   { phase: '1', name: 'Foundation — shell, database, tray, notifications', status: 'done' },
   { phase: '2', name: 'Tasks — capture, tags, reminders, recurring series', status: 'done' },
-  { phase: '3', name: 'Gym — PPL cycle, weekly grid, streaks', status: 'now' },
-  { phase: '4', name: 'Academics — lectures, summaries, Groq chat', status: 'next' },
+  { phase: '3', name: 'Gym — PPL cycle, weekly grid, streaks', status: 'done' },
+  { phase: '4', name: 'Academics — lectures, summaries, Groq chat', status: 'now' },
   { phase: '5', name: 'Events + Career — tournaments, fairs, pipeline', status: 'next' }
 ]
 
+const GYM_LABEL: Record<GymType, string> = {
+  push: 'Push', pull: 'Pull', legs: 'Legs', other: 'Other'
+}
+
 export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId) => void }) {
   const store = useTasks()
+  const gym = useGym()
+  const gymTarget = useGymTarget()
+  const g = deriveGym(gym.sessions, gymTarget)
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [notifyResult, setNotifyResult] = useState<'idle' | 'sent' | 'unsupported'>('idle')
 
@@ -90,6 +99,52 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
             )}
           </ul>
         )}
+      </section>
+
+      {/* Gym */}
+      <section className="border-line bg-panel mt-4 max-w-2xl rounded-lg border p-5">
+        <div className="flex items-baseline justify-between">
+          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">Gym</p>
+          <button
+            onClick={() => onNavigate('gym')}
+            className="text-muted hover:text-amber font-mono text-[11px] transition-colors"
+          >
+            details →
+          </button>
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-4">
+          {g.today.length > 0 ? (
+            <p className="text-[13.5px]">
+              <span className="text-ok font-semibold">
+                {[...new Set(g.today.map((s) => GYM_LABEL[s.type]))].join(' + ')} ✓
+              </span>
+              <span className="text-muted ml-2 font-mono text-[11px]">
+                tomorrow: {GYM_LABEL[g.nextType].toLowerCase()}
+              </span>
+            </p>
+          ) : (
+            <button
+              onClick={() => void gym.log({ date: todayYMD(), type: g.nextType })}
+              className="bg-amber text-bench rounded-md px-3 py-1.5 text-[12.5px] font-semibold"
+              title="One tap: log today's workout"
+            >
+              Log {GYM_LABEL[g.nextType]} day
+            </button>
+          )}
+          <div className="flex items-center gap-1" aria-label={`${g.weekCount} of ${gymTarget} sessions this week`}>
+            {g.weekDates.map((d) => (
+              <span
+                key={d}
+                className={`h-2 w-2 rounded-full ${
+                  g.byDate.has(d) ? 'bg-amber' : d === todayYMD() ? 'border-amber border' : 'bg-line'
+                }`}
+              />
+            ))}
+            <span className={`ml-2 font-mono text-[11px] ${g.weekMet ? 'text-ok' : 'text-muted'}`}>
+              {g.weekCount}/{gymTarget}
+            </span>
+          </div>
+        </div>
       </section>
 
       <div className="mt-4 grid max-w-2xl gap-4 sm:grid-cols-2">

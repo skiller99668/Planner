@@ -5,6 +5,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, TASKS_CHANGED_EVENT, type PlannerApi } from '../shared/ipc'
 import type {
+  GymLogInput,
+  GymPatch,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -29,6 +31,11 @@ const api: PlannerApi = {
   seriesUpdate: (id: string, patch: SeriesPatch) =>
     ipcRenderer.invoke(IPC.seriesUpdate, id, patch),
   seriesDelete: (id: string) => ipcRenderer.invoke(IPC.seriesDelete, id),
+
+  gymList: () => ipcRenderer.invoke(IPC.gymList),
+  gymLog: (input: GymLogInput) => ipcRenderer.invoke(IPC.gymLog, input),
+  gymUpdate: (id: string, patch: GymPatch) => ipcRenderer.invoke(IPC.gymUpdate, id, patch),
+  gymDelete: (id: string) => ipcRenderer.invoke(IPC.gymDelete, id),
 
   groqStatus: () => ipcRenderer.invoke(IPC.groqStatus),
   groqSetKey: (key: string) => ipcRenderer.invoke(IPC.groqSetKey, key),

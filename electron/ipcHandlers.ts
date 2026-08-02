@@ -4,6 +4,8 @@
 import { app, ipcMain, Notification, shell } from 'electron'
 import { IPC, type AppInfo } from '../shared/ipc'
 import type {
+  GymLogInput,
+  GymPatch,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -13,6 +15,12 @@ import type {
 import { autoTagSeries, autoTagTask } from './autoTag'
 import { getDbPath, getSchemaVersion } from './db'
 import { getGroqStatus, setGroqKey } from './groq'
+import {
+  deleteGymSession,
+  listGymSessions,
+  logGymSession,
+  updateGymSession
+} from './gymRepo'
 import { createSeries, deleteSeries, listSeries, updateSeries } from './recurrence'
 import { getSettings, patchSettings } from './settings'
 import { createTask, deleteTask, listTasks, updateTask } from './tasksRepo'
@@ -78,6 +86,12 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     updateSeries(id, patch)
   )
   ipcMain.handle(IPC.seriesDelete, (_e, id: string) => deleteSeries(id))
+
+  // ---------- gym ----------
+  ipcMain.handle(IPC.gymList, () => listGymSessions())
+  ipcMain.handle(IPC.gymLog, (_e, input: GymLogInput) => logGymSession(input))
+  ipcMain.handle(IPC.gymUpdate, (_e, id: string, patch: GymPatch) => updateGymSession(id, patch))
+  ipcMain.handle(IPC.gymDelete, (_e, id: string) => deleteGymSession(id))
 
   // ---------- groq ----------
   ipcMain.handle(IPC.groqStatus, () => getGroqStatus())
