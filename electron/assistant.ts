@@ -56,6 +56,8 @@ export async function assistantSend(
     { role: 'system', content: buildSystemPrompt(input.scope, input.refId) },
     ...history
       .filter((m) => m.role === 'user' || m.role === 'assistant')
+      // Error notices carry no conversational value — don't burn tokens on them.
+      .filter((m) => !m.meta?.error && !m.content.startsWith('The request to Groq failed'))
       .map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: clip(m.content, 4000)
@@ -65,12 +67,23 @@ export async function assistantSend(
 
   const receipts: string[] = []
   let finalText: string | null = null
+  let failed = false
   const model = getSettings().groqModel ?? ASSISTANT_MODEL
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const res = await chatRaw({ messages: wire, model, tools: TOOLS, temperature: 0.3 })
-    if (!res) {
-      finalText = 'The request to Groq failed — check your connection (or the model in Settings) and try again.'
+    let res = await chatRaw({ messages: wire, model, tools: TOOLS, temperature: 0.3 })
+
+    // Rate limits and transient server errors get one automatic retry,
+    // waiting out the server's suggested delay (capped at 20s).
+    if (!res.ok && (res.status === 429 || (res.status !== null && res.status >= 500))) {
+      const waitSec = Math.min(res.retryAfterSec ?? 5, 20)
+      await new Promise((r) => setTimeout(r, waitSec * 1000))
+      res = await chatRaw({ messages: wire, model, tools: TOOLS, temperature: 0.3 })
+    }
+
+    if (!res.ok) {
+      finalText = describeGroqFailure(res, model)
+      failed = true
       break
     }
     if (res.toolCalls.length === 0) {
@@ -101,9 +114,31 @@ export async function assistantSend(
 
   const assistantMessage = appendMessage(thread.id, 'assistant', finalText, {
     model,
-    receipts
+    receipts,
+    ...(failed ? { error: true } : {})
   })
   return { threadId: thread.id, userMessage, assistantMessage }
+}
+
+/** Turn a Groq failure into a specific, actionable one-liner. */
+function describeGroqFailure(
+  res: { status: number | null; error: string; retryAfterSec: number | null },
+  model: string
+): string {
+  if (res.status === 401 || res.status === 403) {
+    return `Groq rejected the API key (${res.status}). Re-paste it in Settings — keys start with "gsk_".`
+  }
+  if (res.status === 404 || /model .*(not found|decommissioned|does not exist)/i.test(res.error)) {
+    return `The model "${model}" isn't available on Groq anymore — pick a different one in Settings. (Groq said: ${res.error})`
+  }
+  if (res.status === 429) {
+    const wait = res.retryAfterSec ? `about ${res.retryAfterSec}s` : 'a minute'
+    return `Groq's free-tier rate limit is used up right now — wait ${wait} and send again. (${res.error})`
+  }
+  if (res.status !== null && res.status >= 500) {
+    return `Groq is having server trouble (${res.status}) — try again shortly.`
+  }
+  return `Couldn't reach Groq: ${res.error}`
 }
 
 // ---------- system prompts ----------

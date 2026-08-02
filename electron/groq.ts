@@ -77,13 +77,12 @@ export interface ToolDef {
   }
 }
 
-export interface ChatResult {
-  content: string | null
-  toolCalls: ToolCall[]
-}
+export type ChatResult =
+  | { ok: true; content: string | null; toolCalls: ToolCall[] }
+  | { ok: false; status: number | null; error: string; retryAfterSec: number | null }
 
-/** Full chat call. Returns null on any failure (missing key, network, API);
- *  callers degrade gracefully. */
+/** Full chat call. Never throws — failures come back as { ok: false } with
+ *  the real status + message so callers can explain what happened. */
 export async function chatRaw(opts: {
   messages: WireMessage[]
   model: string
@@ -92,9 +91,9 @@ export async function chatRaw(opts: {
   maxTokens?: number
   jsonObject?: boolean
   timeoutMs?: number
-}): Promise<ChatResult | null> {
+}): Promise<ChatResult> {
   const key = readKey()
-  if (!key) return null
+  if (!key) return { ok: false, status: null, error: 'No API key stored', retryAfterSec: null }
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 45_000)
@@ -116,24 +115,42 @@ export async function chatRaw(opts: {
       })
     })
     if (!res.ok) {
-      console.error(`[groq] HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`)
-      return null
+      const bodyText = await res.text()
+      console.error(`[groq] HTTP ${res.status}: ${bodyText.slice(0, 300)}`)
+      let message = bodyText.slice(0, 200)
+      try {
+        const parsed = JSON.parse(bodyText) as { error?: { message?: string } }
+        if (parsed.error?.message) message = parsed.error.message
+      } catch { /* keep raw slice */ }
+      const ra = res.headers.get('retry-after')
+      return {
+        ok: false,
+        status: res.status,
+        error: message,
+        retryAfterSec: ra ? Math.ceil(Number(ra)) : null
+      }
     }
     const data = (await res.json()) as {
       choices?: { message?: { content?: string | null; tool_calls?: ToolCall[] } }[]
     }
     const msg = data.choices?.[0]?.message
-    if (!msg) return null
-    return { content: msg.content ?? null, toolCalls: msg.tool_calls ?? [] }
+    if (!msg) return { ok: false, status: null, error: 'Empty response from Groq', retryAfterSec: null }
+    return { ok: true, content: msg.content ?? null, toolCalls: msg.tool_calls ?? [] }
   } catch (err) {
     console.error('[groq] request failed:', err)
-    return null
+    const aborted = (err as Error).name === 'AbortError'
+    return {
+      ok: false,
+      status: null,
+      error: aborted ? 'Request timed out' : `Network error: ${(err as Error).message}`,
+      retryAfterSec: null
+    }
   } finally {
     clearTimeout(timer)
   }
 }
 
-/** Simple text completion (used by auto-tagging). */
+/** Simple text completion (used by auto-tagging). Silent on failure. */
 export async function chatComplete(opts: {
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
   model?: string
@@ -150,7 +167,7 @@ export async function chatComplete(opts: {
     jsonObject: opts.jsonObject,
     timeoutMs: opts.timeoutMs ?? 20_000
   })
-  return res?.content ?? null
+  return res.ok ? res.content : null
 }
 
 // ---------- model listing ----------
