@@ -9,11 +9,13 @@ import { safeStorage } from 'electron'
 import { getDb } from './db'
 
 const KEY_ROW = 'groqKeyEnc' // base64(DPAPI blob); deliberately outside Settings
-const API_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const BASE_URL = 'https://api.groq.com/openai/v1'
 
-// Fallback when settings.groqModel is unset. Cheap + fast is right for tagging;
-// if Groq retires this id, set groqModel in Settings instead of rebuilding.
-const DEFAULT_MODEL = 'llama-3.1-8b-instant'
+// Fallbacks when settings.groqModel is unset. Cheap+fast for tagging, a
+// tool-capable model for the assistant. If Groq retires an id, pick a model
+// in Settings instead of rebuilding.
+export const TAG_MODEL = 'llama-3.1-8b-instant'
+export const ASSISTANT_MODEL = 'llama-3.3-70b-versatile'
 
 export function getGroqStatus(): { configured: boolean } {
   return { configured: readKey() !== null }
@@ -51,28 +53,53 @@ function readKey(): string | null {
   }
 }
 
-export interface ChatMessageInput {
-  role: 'system' | 'user' | 'assistant'
-  content: string
+// ---------- chat (OpenAI-compatible, with tool use) ----------
+
+export interface ToolCall {
+  id: string
+  type: 'function'
+  function: { name: string; arguments: string }
 }
 
-/** Minimal chat completion. Returns null (never throws) when the key is
- *  missing, the network fails, or the API errors — callers degrade silently. */
-export async function chatComplete(opts: {
-  messages: ChatMessageInput[]
-  model?: string
+/** Message for the wire. Assistant messages may carry tool_calls; tool
+ *  results reference them via tool_call_id. */
+export type WireMessage =
+  | { role: 'system' | 'user'; content: string }
+  | { role: 'assistant'; content: string | null; tool_calls?: ToolCall[] }
+  | { role: 'tool'; tool_call_id: string; content: string }
+
+export interface ToolDef {
+  type: 'function'
+  function: {
+    name: string
+    description: string
+    parameters: Record<string, unknown> // JSON schema
+  }
+}
+
+export interface ChatResult {
+  content: string | null
+  toolCalls: ToolCall[]
+}
+
+/** Full chat call. Returns null on any failure (missing key, network, API);
+ *  callers degrade gracefully. */
+export async function chatRaw(opts: {
+  messages: WireMessage[]
+  model: string
+  tools?: ToolDef[]
   temperature?: number
   maxTokens?: number
   jsonObject?: boolean
   timeoutMs?: number
-}): Promise<string | null> {
+}): Promise<ChatResult | null> {
   const key = readKey()
   if (!key) return null
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 20_000)
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 45_000)
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetch(`${BASE_URL}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -80,10 +107,11 @@ export async function chatComplete(opts: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: opts.model ?? DEFAULT_MODEL,
+        model: opts.model,
         messages: opts.messages,
-        temperature: opts.temperature ?? 0,
-        max_tokens: opts.maxTokens ?? 512,
+        temperature: opts.temperature ?? 0.3,
+        max_tokens: opts.maxTokens ?? 1024,
+        ...(opts.tools?.length ? { tools: opts.tools, tool_choice: 'auto' } : {}),
         ...(opts.jsonObject ? { response_format: { type: 'json_object' } } : {})
       })
     })
@@ -92,13 +120,57 @@ export async function chatComplete(opts: {
       return null
     }
     const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[]
+      choices?: { message?: { content?: string | null; tool_calls?: ToolCall[] } }[]
     }
-    return data.choices?.[0]?.message?.content ?? null
+    const msg = data.choices?.[0]?.message
+    if (!msg) return null
+    return { content: msg.content ?? null, toolCalls: msg.tool_calls ?? [] }
   } catch (err) {
     console.error('[groq] request failed:', err)
     return null
   } finally {
     clearTimeout(timer)
+  }
+}
+
+/** Simple text completion (used by auto-tagging). */
+export async function chatComplete(opts: {
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
+  model?: string
+  temperature?: number
+  maxTokens?: number
+  jsonObject?: boolean
+  timeoutMs?: number
+}): Promise<string | null> {
+  const res = await chatRaw({
+    messages: opts.messages as WireMessage[],
+    model: opts.model ?? TAG_MODEL,
+    temperature: opts.temperature ?? 0,
+    maxTokens: opts.maxTokens,
+    jsonObject: opts.jsonObject,
+    timeoutMs: opts.timeoutMs ?? 20_000
+  })
+  return res?.content ?? null
+}
+
+// ---------- model listing ----------
+
+let modelsCache: { at: number; ids: string[] } | null = null
+
+export async function listModels(): Promise<string[]> {
+  const key = readKey()
+  if (!key) return []
+  if (modelsCache && Date.now() - modelsCache.at < 10 * 60_000) return modelsCache.ids
+  try {
+    const res = await fetch(`${BASE_URL}/models`, {
+      headers: { Authorization: `Bearer ${key}` }
+    })
+    if (!res.ok) return []
+    const data = (await res.json()) as { data?: { id: string }[] }
+    const ids = (data.data ?? []).map((m) => m.id).sort()
+    modelsCache = { at: Date.now(), ids }
+    return ids
+  } catch {
+    return []
   }
 }

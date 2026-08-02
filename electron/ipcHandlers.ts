@@ -2,19 +2,33 @@
 // the preload exposes the matching PlannerApi methods to the renderer.
 
 import { app, ipcMain, Notification, shell } from 'electron'
-import { IPC, type AppInfo } from '../shared/ipc'
+import { IPC, type AppInfo, type ChatSendInput } from '../shared/ipc'
 import type {
+  CourseInput,
   GymLogInput,
   GymPatch,
+  LectureInput,
+  LecturePatch,
   SeriesInput,
   SeriesPatch,
   Settings,
   TaskInput,
   TaskPatch
 } from '../shared/types'
+import {
+  createCourse,
+  createLecture,
+  deleteCourse,
+  deleteLecture,
+  listCourses,
+  listLectures,
+  updateLecture
+} from './academicsRepo'
+import { assistantSend } from './assistant'
 import { autoTagSeries, autoTagTask } from './autoTag'
+import { listMessages, listThreads } from './chatRepo'
 import { getDbPath, getSchemaVersion } from './db'
-import { getGroqStatus, setGroqKey } from './groq'
+import { getGroqStatus, listModels, setGroqKey } from './groq'
 import {
   deleteGymSession,
   listGymSessions,
@@ -96,4 +110,25 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   // ---------- groq ----------
   ipcMain.handle(IPC.groqStatus, () => getGroqStatus())
   ipcMain.handle(IPC.groqSetKey, (_e, key: string) => setGroqKey(key))
+  ipcMain.handle(IPC.groqListModels, () => listModels())
+
+  // ---------- academics ----------
+  ipcMain.handle(IPC.coursesList, () => listCourses())
+  ipcMain.handle(IPC.coursesCreate, (_e, input: CourseInput) => createCourse(input))
+  ipcMain.handle(IPC.coursesDelete, (_e, id: string) => deleteCourse(id))
+  ipcMain.handle(IPC.lecturesList, (_e, courseId: string) => listLectures(courseId))
+  ipcMain.handle(IPC.lecturesCreate, (_e, input: LectureInput) => createLecture(input))
+  ipcMain.handle(IPC.lecturesUpdate, (_e, id: string, patch: LecturePatch) =>
+    updateLecture(id, patch)
+  )
+  ipcMain.handle(IPC.lecturesDelete, (_e, id: string) => deleteLecture(id))
+
+  // ---------- chat / assistant ----------
+  ipcMain.handle(IPC.chatThreads, (_e, scope: 'general' | 'lecture', refId: string | null) =>
+    listThreads(scope, refId)
+  )
+  ipcMain.handle(IPC.chatMessages, (_e, threadId: string) => listMessages(threadId))
+  ipcMain.handle(IPC.chatSend, (_e, input: ChatSendInput) =>
+    assistantSend(input, deps.notifyDataChanged)
+  )
 }

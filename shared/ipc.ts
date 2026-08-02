@@ -5,9 +5,16 @@
 // so adding a method here forces both sides to implement it.
 
 import type {
+  ChatMessage,
+  ChatThread,
+  Course,
+  CourseInput,
   GymLogInput,
   GymPatch,
   GymSession,
+  Lecture,
+  LectureInput,
+  LecturePatch,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -36,12 +43,36 @@ export const IPC = {
   gymList: 'gym:list',
   gymLog: 'gym:log',
   gymUpdate: 'gym:update',
-  gymDelete: 'gym:delete'
+  gymDelete: 'gym:delete',
+  coursesList: 'courses:list',
+  coursesCreate: 'courses:create',
+  coursesDelete: 'courses:delete',
+  lecturesList: 'lectures:list',
+  lecturesCreate: 'lectures:create',
+  lecturesUpdate: 'lectures:update',
+  lecturesDelete: 'lectures:delete',
+  chatThreads: 'chat:threads',
+  chatMessages: 'chat:messages',
+  chatSend: 'chat:send',
+  groqListModels: 'groq:listModels'
 } as const
 
 /** Main → renderer: task/series data changed outside a renderer call
- *  (auto-tagging, daily materialization). Renderer should refetch. */
+ *  (auto-tagging, daily materialization, assistant tools). Refetch on it. */
 export const TASKS_CHANGED_EVENT = 'event:tasksChanged'
+
+export interface ChatSendInput {
+  scope: 'general' | 'lecture'
+  refId: string | null
+  threadId: string | null // null starts a new thread
+  text: string
+}
+
+export interface ChatSendResult {
+  threadId: string
+  userMessage: ChatMessage
+  assistantMessage: ChatMessage
+}
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
 
@@ -85,6 +116,21 @@ export interface PlannerApi {
   groqStatus(): Promise<{ configured: boolean }>
   /** Store a Groq API key encrypted with Windows credentials; '' clears it. */
   groqSetKey(key: string): Promise<{ configured: boolean }>
+  /** Model ids available to the stored key (empty when unconfigured). */
+  groqListModels(): Promise<string[]>
   /** Subscribe to data-changed pushes; returns an unsubscribe function. */
   onTasksChanged(cb: () => void): () => void
+
+  coursesList(): Promise<Course[]>
+  coursesCreate(input: CourseInput): Promise<Course>
+  coursesDelete(id: string): Promise<void>
+  lecturesList(courseId: string): Promise<Lecture[]>
+  lecturesCreate(input: LectureInput): Promise<Lecture>
+  lecturesUpdate(id: string, patch: LecturePatch): Promise<Lecture>
+  lecturesDelete(id: string): Promise<void>
+
+  chatThreads(scope: 'general' | 'lecture', refId: string | null): Promise<ChatThread[]>
+  chatMessages(threadId: string): Promise<ChatMessage[]>
+  /** Runs the assistant loop (may execute tools) and returns both messages. */
+  chatSend(input: ChatSendInput): Promise<ChatSendResult>
 }

@@ -3,10 +3,18 @@
 // Node or Electron APIs directly.
 
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC, TASKS_CHANGED_EVENT, type PlannerApi } from '../shared/ipc'
+import {
+  IPC,
+  TASKS_CHANGED_EVENT,
+  type ChatSendInput,
+  type PlannerApi
+} from '../shared/ipc'
 import type {
+  CourseInput,
   GymLogInput,
   GymPatch,
+  LectureInput,
+  LecturePatch,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -39,6 +47,22 @@ const api: PlannerApi = {
 
   groqStatus: () => ipcRenderer.invoke(IPC.groqStatus),
   groqSetKey: (key: string) => ipcRenderer.invoke(IPC.groqSetKey, key),
+  groqListModels: () => ipcRenderer.invoke(IPC.groqListModels),
+
+  coursesList: () => ipcRenderer.invoke(IPC.coursesList),
+  coursesCreate: (input: CourseInput) => ipcRenderer.invoke(IPC.coursesCreate, input),
+  coursesDelete: (id: string) => ipcRenderer.invoke(IPC.coursesDelete, id),
+  lecturesList: (courseId: string) => ipcRenderer.invoke(IPC.lecturesList, courseId),
+  lecturesCreate: (input: LectureInput) => ipcRenderer.invoke(IPC.lecturesCreate, input),
+  lecturesUpdate: (id: string, patch: LecturePatch) =>
+    ipcRenderer.invoke(IPC.lecturesUpdate, id, patch),
+  lecturesDelete: (id: string) => ipcRenderer.invoke(IPC.lecturesDelete, id),
+
+  chatThreads: (scope: 'general' | 'lecture', refId: string | null) =>
+    ipcRenderer.invoke(IPC.chatThreads, scope, refId),
+  chatMessages: (threadId: string) => ipcRenderer.invoke(IPC.chatMessages, threadId),
+  chatSend: (input: ChatSendInput) => ipcRenderer.invoke(IPC.chatSend, input),
+
   onTasksChanged: (cb: () => void) => {
     const listener = () => cb()
     ipcRenderer.on(TASKS_CHANGED_EVENT, listener)

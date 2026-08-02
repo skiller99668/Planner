@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import Sidebar, { type ModuleId } from './components/Sidebar'
+import AcademicsPage from './pages/AcademicsPage'
+import AssistantPage from './pages/AssistantPage'
 import DashboardPage from './pages/DashboardPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import GymPage from './pages/GymPage'
@@ -7,7 +9,7 @@ import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
 
 const MODULE_IDS: ModuleId[] = [
-  'dashboard', 'tasks', 'academics', 'gym', 'events', 'career', 'settings'
+  'dashboard', 'assistant', 'tasks', 'academics', 'gym', 'events', 'career', 'settings'
 ]
 
 /** Initial view can be deep-linked via URL hash (set by PLANNER_OPEN / notifications). */
@@ -17,15 +19,9 @@ function initialView(): ModuleId {
 }
 
 const PLACEHOLDERS: Record<
-  Exclude<ModuleId, 'dashboard' | 'settings' | 'tasks' | 'gym'>,
+  Exclude<ModuleId, 'dashboard' | 'settings' | 'tasks' | 'gym' | 'academics' | 'assistant'>,
   { title: string; phase: string; blurb: string; items: string[] }
 > = {
-  academics: {
-    title: 'Academics',
-    phase: 'Phase 4',
-    blurb: 'Courses and lectures, your post-lecture summaries, and a Groq-powered chat that already knows what the course covered.',
-    items: ['Courses + lectures', 'Lecture summaries', 'AI chat per lecture', 'AI-suggested tasks']
-  },
   events: {
     title: 'Events',
     phase: 'Phase 5',
@@ -50,8 +46,12 @@ export default function App() {
         <div className="mx-auto max-w-4xl px-8 py-8">
           {active === 'dashboard' ? (
             <DashboardPage onNavigate={setActive} />
+          ) : active === 'assistant' ? (
+            <AssistantPage />
           ) : active === 'tasks' ? (
             <TasksPage />
+          ) : active === 'academics' ? (
+            <AcademicsPage />
           ) : active === 'gym' ? (
             <GymPage />
           ) : active === 'settings' ? (

@@ -29,8 +29,32 @@ app.setAppUserModelId(APP_ID)
 if (isSmokeTest) {
   // Smoke mode opens no window and must work alongside a running instance,
   // so it skips the single-instance lock.
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     openDb(app.getPath('userData'))
+    // PLANNER_ASSIST_TEST="..." runs one headless assistant round (needs a
+    // stored Groq key) and prints the reply + tool receipts.
+    const assistPrompt = process.env.PLANNER_ASSIST_TEST
+    if (assistPrompt) {
+      try {
+        const { assistantSend } = await import('./assistant')
+        const res = await assistantSend(
+          { scope: 'general', refId: null, threadId: null, text: assistPrompt },
+          () => {}
+        )
+        console.log(
+          'ASSIST OK',
+          JSON.stringify({
+            reply: res.assistantMessage.content,
+            receipts: res.assistantMessage.meta?.receipts ?? []
+          })
+        )
+        app.exit(0)
+      } catch (err) {
+        console.error('ASSIST FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
     runSmokeTest()
   })
 } else if (!app.requestSingleInstanceLock()) {

@@ -135,6 +135,25 @@ export interface Lecture {
   updatedAt: string
 }
 
+export interface CourseInput {
+  code: string
+  name: string
+  term: string
+}
+
+export interface LectureInput {
+  courseId: string
+  title: string
+  lectureDate: string // YYYY-MM-DD
+  summary?: string
+}
+
+export interface LecturePatch {
+  title?: string
+  lectureDate?: string
+  summary?: string
+}
+
 export type ChatScope = 'lecture' | 'course' | 'general'
 export type ChatRole = 'user' | 'assistant' | 'system'
 

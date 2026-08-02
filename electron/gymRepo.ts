@@ -75,6 +75,58 @@ export function deleteGymSession(id: string): void {
   getDb().prepare('DELETE FROM gym_sessions WHERE id = ?').run(id)
 }
 
+/** Compact training status for the assistant (weeks run Sun–Sat). */
+export function gymStatusSummary(target: number): {
+  today: string[]
+  nextType: GymType
+  weekCount: number
+  target: number
+  weekMet: boolean
+  weekStreak: number
+} {
+  const sessions = listGymSessions()
+  const ymd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const today = new Date()
+  const todayStr = ymd(today)
+  const dates = new Set(sessions.map((s) => s.date))
+
+  const weekStart = new Date(today)
+  weekStart.setDate(today.getDate() - today.getDay()) // Sunday
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart)
+    d.setDate(weekStart.getDate() + i)
+    return ymd(d)
+  })
+  const weekCount = weekDates.filter((d) => dates.has(d)).length
+
+  const order: GymType[] = ['push', 'pull', 'legs']
+  const lastPpl = sessions.find((s) => order.includes(s.type))
+  const nextType = lastPpl ? order[(order.indexOf(lastPpl.type) + 1) % 3] : 'push'
+
+  let weekStreak = 0
+  for (let back = 1; back <= 52; back++) {
+    const ws = new Date(weekStart)
+    ws.setDate(weekStart.getDate() - back * 7)
+    const count = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(ws)
+      d.setDate(ws.getDate() + i)
+      return ymd(d)
+    }).filter((d) => dates.has(d)).length
+    if (count >= target) weekStreak++
+    else break
+  }
+
+  return {
+    today: sessions.filter((s) => s.date === todayStr).map((s) => s.type),
+    nextType,
+    weekCount,
+    target,
+    weekMet: weekCount >= target,
+    weekStreak
+  }
+}
+
 function getGymSession(id: string): GymSession {
   const row = getDb().prepare('SELECT * FROM gym_sessions WHERE id = ?').get(id) as
     | GymRow

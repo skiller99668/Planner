@@ -10,8 +10,8 @@ const ROADMAP: { phase: string; name: string; status: 'done' | 'now' | 'next' }[
   { phase: '1', name: 'Foundation — shell, database, tray, notifications', status: 'done' },
   { phase: '2', name: 'Tasks — capture, tags, reminders, recurring series', status: 'done' },
   { phase: '3', name: 'Gym — PPL cycle, weekly grid, streaks', status: 'done' },
-  { phase: '4', name: 'Academics — lectures, summaries, Groq chat', status: 'now' },
-  { phase: '5', name: 'Events + Career — tournaments, fairs, pipeline', status: 'next' }
+  { phase: '4', name: 'Academics + Assistant — lectures, chat, AI tools', status: 'done' },
+  { phase: '5', name: 'Events + Career — tournaments, fairs, pipeline', status: 'now' }
 ]
 
 const GYM_LABEL: Record<GymType, string> = {

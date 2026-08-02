@@ -7,10 +7,14 @@ export default function SettingsPage() {
   const [groqConfigured, setGroqConfigured] = useState<boolean | null>(null)
   const [keyDraft, setKeyDraft] = useState('')
   const [keySaved, setKeySaved] = useState(false)
+  const [models, setModels] = useState<string[]>([])
 
   useEffect(() => {
     window.planner?.getSettings().then(setSettings).catch(() => setSettings(null))
-    window.planner?.groqStatus().then((s) => setGroqConfigured(s.configured)).catch(() => {})
+    window.planner?.groqStatus().then((s) => {
+      setGroqConfigured(s.configured)
+      if (s.configured) window.planner?.groqListModels().then(setModels).catch(() => {})
+    }).catch(() => {})
   }, [])
 
   const saveKey = async () => {
@@ -20,6 +24,7 @@ export default function SettingsPage() {
     setKeyDraft('')
     setKeySaved(true)
     setTimeout(() => setKeySaved(false), 3000)
+    if (res.configured) window.planner.groqListModels().then(setModels).catch(() => {})
   }
 
   const patch = async (p: Partial<Settings>) => {
@@ -109,6 +114,33 @@ export default function SettingsPage() {
             disabled={saving || !groqConfigured}
             onChange={(v) => patch({ aiAutoTag: v })}
           />
+          <div className="flex items-start justify-between gap-6 px-5 py-4">
+            <div>
+              <p className="text-[13.5px] font-medium">Assistant model</p>
+              <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
+                Used by the Assistant and lecture chats. Default picks a tool-capable Groq
+                model; change it here if Groq retires it.
+              </p>
+            </div>
+            {models.length > 0 ? (
+              <select
+                aria-label="Assistant model"
+                className="bg-bench border-line focus:border-amber/60 mt-0.5 max-w-52 rounded-md border px-2 py-1.5 font-mono text-[11.5px]"
+                value={settings.groqModel ?? ''}
+                disabled={saving}
+                onChange={(e) => void patch({ groqModel: e.target.value || null })}
+              >
+                <option value="">default (llama-3.3-70b)</option>
+                {models.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-muted mt-1 font-mono text-[10.5px]">
+                {groqConfigured ? 'loading…' : 'needs key'}
+              </span>
+            )}
+          </div>
           <div className="flex items-start justify-between gap-6 px-5 py-4">
             <div>
               <p className="text-[13.5px] font-medium">Gym target</p>

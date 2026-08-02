@@ -60,8 +60,10 @@ scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
    AI tag suggestions (Groq; key in Settings, encrypted via `safeStorage`)
 3. ✅ **Gym** — PPL next-in-cycle, one-tap logging (idempotent per day+type),
    Sun–Sat week grid with history arrows, week streak vs target, session notes
-4. **Academics** — courses → lectures → summaries, Groq chat with lecture context,
-   AI-suggested tasks
+4. ✅ **Academics + Assistant** — courses → lectures → summaries, per-lecture Groq
+   chat with course context; app-wide Assistant with tool use (creates tasks,
+   plans projects into steps, sets up recurring tasks, logs workouts, completes
+   tasks — additive tools only, every action shows a receipt chip)
 5. **Events + Career** — ICS import, Badminton Québec registration-window alarms,
    McGill career fairs, application kanban, weekly prep targets, SURE/USRA deadlines
 
@@ -75,3 +77,16 @@ scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
   the `reminders` table on every task write; the tray-resident scheduler does the rest.
 - AI tag suggestions merge into your tags, never replace them; at most one course-code
   tag per task is enforced in code, preferring yours ([electron/autoTag.ts](electron/autoTag.ts)).
+
+### Assistant notes
+
+- The agent loop runs in the main process ([electron/assistant.ts](electron/assistant.ts)):
+  Groq tool-calling over `create_tasks`, `create_recurring_task`, `log_gym_session`,
+  `list_tasks`, `complete_task`, `get_gym_status`. Max 5 tool rounds per message.
+  No delete tools by design.
+- Lecture chats inject the course, the lecture's summary, and recent lectures from
+  the same course as system context at send time.
+- Headless check once a key is stored:
+  `PLANNER_SMOKE=1 PLANNER_ASSIST_TEST="add a task to test the assistant" npx electron .`
+- Default models: `llama-3.3-70b-versatile` (assistant), `llama-3.1-8b-instant`
+  (tagging); override the assistant model in Settings if Groq retires it.

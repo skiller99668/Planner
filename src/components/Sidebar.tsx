@@ -3,6 +3,7 @@ import type { AppInfo } from '../../shared/ipc'
 
 export type ModuleId =
   | 'dashboard'
+  | 'assistant'
   | 'tasks'
   | 'academics'
   | 'gym'
@@ -12,6 +13,7 @@ export type ModuleId =
 
 const NAV: { id: ModuleId; label: string; icon: ReactElement }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <IconGrid /> },
+  { id: 'assistant', label: 'Assistant', icon: <IconSpark /> },
   { id: 'tasks', label: 'Tasks', icon: <IconCheck /> },
   { id: 'academics', label: 'Academics', icon: <IconBook /> },
   { id: 'gym', label: 'Gym', icon: <IconBarbell /> },
@@ -143,6 +145,14 @@ function IconGrid() {
       <rect x="14" y="3" width="7" height="7" rx="1.5" />
       <rect x="3" y="14" width="7" height="7" rx="1.5" />
       <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </>
+  )
+}
+function IconSpark() {
+  return svg(
+    <>
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+      <path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z" />
     </>
   )
 }

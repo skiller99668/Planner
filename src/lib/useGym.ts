@@ -98,6 +98,8 @@ export function useGym(): GymStore {
 
   useEffect(() => {
     void refresh()
+    // Assistant tools can log sessions from anywhere — stay in sync.
+    return window.planner?.onTasksChanged(() => void refresh())
   }, [refresh])
 
   const wrap = useCallback(
