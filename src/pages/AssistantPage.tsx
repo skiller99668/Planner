@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Select from '../components/Select'
 import ChatView from '../components/ChatView'
 import { useChat } from '../lib/useChat'
 
@@ -27,18 +28,14 @@ export default function AssistantPage() {
         </div>
         <div className="flex items-center gap-2">
           {chat.threads.length > 0 && (
-            <select
-              aria-label="Conversation"
-              className="bg-surface border-line text-muted max-w-44 rounded-[11px] px-2 py-1.5 nums text-[12px]"
+            <Select
               value={chat.threadId ?? ''}
-              onChange={(e) => chat.selectThread(e.target.value || null)}
-            >
-              {chat.threads.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </select>
+              ariaLabel="Conversation"
+              align="right"
+              className="max-w-52"
+              onChange={(val) => chat.selectThread(val || null)}
+              options={chat.threads.map((t) => ({ value: t.id, label: t.title }))}
+            />
           )}
           <button
             onClick={() => chat.selectThread(null)}

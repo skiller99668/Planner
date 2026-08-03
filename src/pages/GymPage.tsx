@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Select from '../components/Select'
 import type { GymSession, GymType } from '../../shared/types'
 import { Burst, useCelebrate, useThresholdCross } from '../components/Celebrate'
 import { addDaysYMD, todayYMD } from '../lib/dates'
@@ -286,20 +287,20 @@ function Backfill({ onLog }: { onLog: (date: string, type: GymType) => Promise<v
         />
       </div>
       <div>
-        <label className="text-muted mb-1.5 block text-[12px] font-semibold" htmlFor="bf-type">
+        <span className="text-muted mb-1.5 block text-[12px] font-semibold">
           Workout
-        </label>
-        <select
-          id="bf-type"
-          className="bg-bg focus:ring-clay/60 rounded-[10px] px-3 py-2 text-[13.5px] outline-none focus:ring-1"
+        </span>
+        <Select
           value={type}
-          onChange={(e) => setType(e.target.value as GymType)}
-        >
-          <option value="push">Push</option>
-          <option value="pull">Pull</option>
-          <option value="legs">Legs</option>
-          <option value="other">Other</option>
-        </select>
+          ariaLabel="Workout"
+          onChange={(val) => setType(val as GymType)}
+          options={[
+            { value: 'push', label: 'Push' },
+            { value: 'pull', label: 'Pull' },
+            { value: 'legs', label: 'Legs' },
+            { value: 'other', label: 'Other' }
+          ]}
+        />
       </div>
       <button
         onClick={() => void onLog(date, type)}

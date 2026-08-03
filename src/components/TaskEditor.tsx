@@ -2,6 +2,7 @@
 // Dumb component — the page converts FormValues to TaskInput / SeriesInput.
 
 import { useState } from 'react'
+import Select from './Select'
 import type { Priority, Task, TaskSeries } from '../../shared/types'
 import { hmOfIso, todayYMD, ymdOfIso } from '../lib/dates'
 
@@ -131,6 +132,7 @@ export default function TaskEditor({
       className="bg-surface rounded-[16px] p-4 shadow-[var(--shadow-lift)]"
       onKeyDown={(e) => {
         if (e.key === 'Escape') onCancel()
+        // Ctrl/Cmd+Enter saves from anywhere, including the notes textarea.
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit()
       }}
     >
@@ -145,6 +147,13 @@ export default function TaskEditor({
             value={v.title}
             autoFocus
             onChange={(e) => set('title', e.target.value)}
+            // Enter from the title saves — the common case is type-a-name-and-go.
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                submit()
+              }
+            }}
             placeholder="Task name"
           />
         </div>
@@ -190,40 +199,42 @@ export default function TaskEditor({
             />
           </div>
           <div>
-            <label className={labelCls} htmlFor="te-reminder">
+            <span className={labelCls}>
               Remind
-            </label>
-            <select
-              id="te-reminder"
-              className={`${inputCls} w-full`}
+            </span>
+            <Select
               value={v.reminderOffset}
               disabled={!v.dueTime}
+              ariaLabel="Reminder"
               title={v.dueTime ? undefined : 'Needs a due time'}
-              onChange={(e) => set('reminderOffset', e.target.value)}
-            >
-              <option value="">None</option>
-              <option value="0">At due time</option>
-              <option value="10">10 min before</option>
-              <option value="30">30 min before</option>
-              <option value="60">1 hour before</option>
-              <option value="1440">1 day before</option>
-            </select>
+              className="w-full"
+              onChange={(val) => set('reminderOffset', val)}
+              options={[
+                { value: '', label: 'None' },
+                { value: '0', label: 'At due time' },
+                { value: '10', label: '10 min before' },
+                { value: '30', label: '30 min before' },
+                { value: '60', label: '1 hour before' },
+                { value: '1440', label: '1 day before' }
+              ]}
+            />
           </div>
           <div>
-            <label className={labelCls} htmlFor="te-priority">
+            <span className={labelCls}>
               Priority
-            </label>
-            <select
-              id="te-priority"
-              className={`${inputCls} w-full`}
-              value={v.priority}
-              onChange={(e) => set('priority', Number(e.target.value) as Priority)}
-            >
-              <option value={0}>None</option>
-              <option value={1}>Low</option>
-              <option value={2}>Medium</option>
-              <option value={3}>High</option>
-            </select>
+            </span>
+            <Select
+              value={String(v.priority)}
+              ariaLabel="Priority"
+              className="w-full"
+              onChange={(val) => set('priority', Number(val) as Priority)}
+              options={[
+                { value: '0', label: 'None' },
+                { value: '1', label: 'Low' },
+                { value: '2', label: 'Medium' },
+                { value: '3', label: 'High' }
+              ]}
+            />
           </div>
         </div>
 
@@ -236,20 +247,23 @@ export default function TaskEditor({
         {showRepeat && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
-              <label className={labelCls} htmlFor="te-freq">
+              <span className={labelCls}>
                 Repeat
-              </label>
-              <select
-                id="te-freq"
-                className={`${inputCls} w-full`}
+              </span>
+              <Select
                 value={v.freq}
-                onChange={(e) => set('freq', e.target.value as FormValues['freq'])}
-              >
-                {mode !== 'series' && <option value="none">Doesn&apos;t repeat</option>}
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
+                ariaLabel="Repeat"
+                className="w-full"
+                onChange={(val) => set('freq', val as FormValues['freq'])}
+                options={[
+                  ...(mode !== 'series'
+                    ? [{ value: 'none' as const, label: "Doesn't repeat" }]
+                    : []),
+                  { value: 'daily' as const, label: 'Daily' },
+                  { value: 'weekly' as const, label: 'Weekly' },
+                  { value: 'monthly' as const, label: 'Monthly' }
+                ]}
+              />
             </div>
             {repeating && (
               <div>

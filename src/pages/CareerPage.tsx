@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Select from '../components/Select'
 import type { JobSourceStatus } from '../../shared/ipc'
 import type {
   Application,
@@ -608,15 +609,19 @@ function AddApplication({
           onKeyDown={(e) => e.key === 'Enter' && void add()} />
       </div>
       <div>
-        <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ap-track">
+        <span className="text-muted mb-1 block text-[12px] font-semibold">
           Track
-        </label>
-        <select id="ap-track" className={inputCls} value={track}
-          onChange={(e) => setTrack(e.target.value as ApplicationTrack)}>
-          <option value="swe">SWE</option>
-          <option value="hardware">Hardware</option>
-          <option value="research">Research</option>
-        </select>
+        </span>
+        <Select
+          value={track}
+          ariaLabel="Track"
+          onChange={(val) => setTrack(val as ApplicationTrack)}
+          options={[
+            { value: 'swe', label: 'SWE' },
+            { value: 'hardware', label: 'Hardware' },
+            { value: 'research', label: 'Research' }
+          ]}
+        />
       </div>
       <button
         onClick={() => void add()}
@@ -689,16 +694,21 @@ function AppCard({
       </div>
       {expanded && (
         <div className="border-line/60 space-y-2 border-t px-2.5 py-2">
-          <select
-            aria-label="Status"
-            className={`${inputCls} w-full py-1 nums text-[12px]`}
+          <Select
             value={app.status}
-            onChange={(e) => void patch({ status: e.target.value as ApplicationStatus })}
-          >
-            {[...PIPELINE.map((p) => p.id), ...CLOSED].map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+            ariaLabel="Status"
+            className="w-full"
+            onChange={(val) => void patch({ status: val as ApplicationStatus })}
+            options={[
+              { value: 'wishlist', label: 'Wishlist' },
+              { value: 'applied', label: 'Applied' },
+              { value: 'oa', label: 'Online assessment' },
+              { value: 'interview', label: 'Interview' },
+              { value: 'offer', label: 'Offer' },
+              { value: 'rejected', label: 'Rejected' },
+              { value: 'ghosted', label: 'Ghosted' }
+            ]}
+          />
           <input
             className={`${inputCls} w-full py-1 text-[11.5px]`}
             placeholder="Next action (e.g. follow up with recruiter)"

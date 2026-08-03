@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Select from '../components/Select'
 import type { Settings } from '../../shared/types'
 
 export default function SettingsPage() {
@@ -110,18 +111,19 @@ export default function SettingsPage() {
               </p>
             </div>
             {models.length > 0 ? (
-              <select
-                aria-label="Assistant model"
-                className="bg-bg focus:ring-clay/60 mt-0.5 max-w-52 rounded-[10px] px-2.5 py-2 font-mono text-[12px] outline-none focus:ring-1"
+              <Select
                 value={settings.groqModel ?? ''}
+                ariaLabel="Assistant model"
+                align="right"
+                mono
                 disabled={saving}
-                onChange={(e) => void patch({ groqModel: e.target.value || null })}
-              >
-                <option value="">default (llama-3.3-70b)</option>
-                {models.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+                className="mt-0.5 max-w-52"
+                onChange={(val) => void patch({ groqModel: val || null })}
+                options={[
+                  { value: '', label: 'default (llama-3.3-70b)' },
+                  ...models.map((m) => ({ value: m, label: m }))
+                ]}
+              />
             ) : (
               <span className="text-muted mt-1 text-[12px] font-medium">
                 {groqConfigured ? 'loading…' : 'needs key'}

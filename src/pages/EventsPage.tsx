@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Select from '../components/Select'
 import type { EventKind, PlannerEvent } from '../../shared/types'
 
 const KIND_META: Record<EventKind, { label: string; cls: string }> = {
@@ -84,18 +85,20 @@ export default function EventsPage() {
           <p className="text-muted mt-0.5 text-[13.5px]">Tournaments, fairs and deadlines</p>
         </div>
         <div className="flex items-center gap-2">
-          <select
-            aria-label="Import kind"
-            className="bg-surface border-line text-muted rounded-[11px] px-2 py-1.5 nums text-[12px]"
+          <Select
             value={importKind}
-            onChange={(e) => setImportKind(e.target.value as EventKind)}
-          >
-            <option value="badminton">as badminton</option>
-            <option value="hackathon">as hackathon</option>
-            <option value="career">as career</option>
-            <option value="academic">as academic</option>
-            <option value="other">as other</option>
-          </select>
+            ariaLabel="Import as"
+            align="right"
+            className="bg-surface"
+            onChange={(val) => setImportKind(val as EventKind)}
+            options={[
+              { value: 'badminton', label: 'as badminton' },
+              { value: 'hackathon', label: 'as hackathon' },
+              { value: 'career', label: 'as career' },
+              { value: 'academic', label: 'as academic' },
+              { value: 'other', label: 'as other' }
+            ]}
+          />
           <button
             onClick={() => void doImport()}
             className="bg-surface text-muted hover:text-ink rounded-[11px] px-3 py-1.5 text-[12.5px] transition-colors"
@@ -227,17 +230,21 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
             onKeyDown={(e) => e.key === 'Enter' && void add()} />
         </div>
         <div>
-          <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ev-kind">
+          <span className="text-muted mb-1 block text-[12px] font-semibold">
             Kind
-          </label>
-          <select id="ev-kind" className={inputCls} value={kind}
-            onChange={(e) => setKind(e.target.value as EventKind)}>
-            <option value="badminton">Badminton</option>
-            <option value="hackathon">Hackathon</option>
-            <option value="career">Career</option>
-            <option value="academic">Academic</option>
-            <option value="other">Other</option>
-          </select>
+          </span>
+          <Select
+            value={kind}
+            ariaLabel="Kind"
+            onChange={(val) => setKind(val as EventKind)}
+            options={[
+              { value: 'badminton', label: 'Badminton' },
+              { value: 'hackathon', label: 'Hackathon' },
+              { value: 'career', label: 'Career' },
+              { value: 'academic', label: 'Academic' },
+              { value: 'other', label: 'Other' }
+            ]}
+          />
         </div>
         <div>
           <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ev-date">
