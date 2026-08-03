@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Task, TaskSeries } from '../../shared/types'
 import TaskEditor, {
   emptyForm,
+  normalizeTag,
   seriesToForm,
   taskToForm,
   type FormValues
@@ -282,11 +283,14 @@ function TagBar({
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
 
+  const clean = normalizeTag(draft)
+  const duplicate = clean.length > 0 && tags.includes(clean)
+  const canCreate = clean.length >= 2 && !duplicate
+
   const create = () => {
-    const name = draft.trim()
-    if (name) onCreate(name)
-    setDraft('')
-    setAdding(false)
+    if (!canCreate) return
+    onCreate(clean)
+    setDraft('') // stay open so several tags can be added in a row
   }
 
   return (
@@ -332,22 +336,47 @@ function TagBar({
       })}
 
       {adding ? (
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={create}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') create()
-            if (e.key === 'Escape') {
+        <span
+          className={`bg-surface flex items-center rounded-full pr-1 pl-3 ring-1 ${
+            duplicate ? 'ring-rose/60' : 'ring-clay/50'
+          }`}
+        >
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            // Closing without creating — blur used to create silently, which
+            // made stray tags whenever you clicked away.
+            onBlur={() => {
               setDraft('')
               setAdding(false)
-            }
-          }}
-          placeholder="Tag name"
-          aria-label="New tag"
-          className="bg-surface placeholder:text-faint focus:ring-clay/50 w-28 rounded-full px-3 py-1.5 text-[12px] outline-none focus:ring-1"
-        />
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                create()
+              } else if (e.key === 'Escape') {
+                setDraft('')
+                setAdding(false)
+              }
+            }}
+            placeholder="New tag"
+            aria-label="New tag"
+            className="placeholder:text-faint w-24 bg-transparent py-1.5 text-[12px] outline-none"
+          />
+          <button
+            onMouseDown={(e) => e.preventDefault()} // keep focus so blur can't cancel the click
+            onClick={create}
+            disabled={!canCreate}
+            aria-label="Create tag"
+            title={duplicate ? `“${clean}” already exists` : 'Create tag'}
+            className={`flex h-5 w-5 items-center justify-center rounded-full text-[12px] transition-colors ${
+              canCreate ? 'bg-clay text-bg' : 'text-faint'
+            }`}
+          >
+            →
+          </button>
+        </span>
       ) : (
         <button
           onClick={() => setAdding(true)}

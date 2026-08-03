@@ -382,6 +382,10 @@ function TagPicker({
   const full = tags.length >= MAX_TAGS
   const suggestions = knownTags.filter((t) => !tags.includes(t))
 
+  const clean = normalizeTag(draft)
+  const duplicate = clean.length > 0 && tags.includes(clean)
+  const canAdd = clean.length >= 2 && !duplicate && !full
+
   const add = (raw: string) => {
     const tag = normalizeTag(raw)
     if (!tag || tags.includes(tag) || full) return
@@ -416,28 +420,48 @@ function TagPicker({
         </div>
       )}
 
-      <input
-        className={`${inputCls} w-full`}
-        value={draft}
-        disabled={full}
-        placeholder={full ? `Max ${MAX_TAGS} tags` : 'Add a tag'}
-        aria-label="New tag"
-        onChange={(e) => {
-          // A typed comma commits the tag, matching the old paste-friendly habit.
-          if (e.target.value.includes(',')) add(e.target.value.replace(',', ''))
-          else setDraft(e.target.value)
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            e.stopPropagation() // don't submit the whole form
-            add(draft)
-          } else if (e.key === 'Backspace' && !draft && tags.length) {
-            remove(tags[tags.length - 1])
-          }
-        }}
-        onBlur={() => draft.trim() && add(draft)}
-      />
+      <div
+        className={`bg-bg flex items-center rounded-[10px] pr-1.5 ${
+          duplicate ? 'ring-rose/50 ring-1' : ''
+        }`}
+      >
+        <input
+          className="placeholder:text-faint min-w-0 flex-1 bg-transparent px-3 py-2 text-[13.5px] outline-none"
+          value={draft}
+          disabled={full}
+          placeholder={full ? `Max ${MAX_TAGS} tags` : 'Add a tag'}
+          aria-label="New tag"
+          onChange={(e) => {
+            // A typed comma commits the tag, matching the paste-friendly habit.
+            if (e.target.value.includes(',')) add(e.target.value.replace(',', ''))
+            else setDraft(e.target.value)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              e.stopPropagation() // don't submit the whole form
+              add(draft)
+            } else if (e.key === 'Backspace' && !draft && tags.length) {
+              remove(tags[tags.length - 1])
+            }
+          }}
+          // Keep what was typed rather than dropping it when the form is saved.
+          onBlur={() => canAdd && add(draft)}
+        />
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => add(draft)}
+          disabled={!canAdd}
+          aria-label="Add tag"
+          title={duplicate ? `“${clean}” is already on this task` : 'Add tag'}
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] transition-colors ${
+            canAdd ? 'bg-clay text-bg' : 'text-faint'
+          }`}
+        >
+          →
+        </button>
+      </div>
 
       {!full &&
         (suggestions.length > 0 ? (
