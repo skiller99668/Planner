@@ -1,11 +1,9 @@
 // Custom listbox. A native <select> renders its popup with OS chrome, which
 // can't be styled and looks square/foreign next to the rest of the UI.
-//
-// The popup is positioned `fixed` from the trigger's measured rect so it can
-// escape overflow containers (the career kanban scrolls horizontally), and it
-// closes on outside click, Escape, scroll, or resize.
+// Positioning and dismissal come from usePopoverAnchor.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { Chevron, FIELD_CLASS, POPUP_CLASS, usePopoverAnchor } from './Popover'
 
 export interface SelectOption<T extends string> {
   value: T
@@ -30,70 +28,35 @@ export default function Select<T extends string>({
   ariaLabel?: string
   title?: string
   className?: string
-  /** Monospace the trigger label — for literal strings like model ids. */
+  /** Monospace the labels — for literal strings like model ids. */
   mono?: boolean
   align?: 'left' | 'right'
 }) {
-  const [open, setOpen] = useState(false)
+  const pop = usePopoverAnchor(align)
   const [active, setActive] = useState(0)
-  const [rect, setRect] = useState<DOMRect | null>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const popupRef = useRef<HTMLDivElement>(null)
-
   const selected = options.find((o) => o.value === value)
 
   const openMenu = () => {
     if (disabled) return
     setActive(Math.max(0, options.findIndex((o) => o.value === value)))
-    setRect(triggerRef.current?.getBoundingClientRect() ?? null)
-    setOpen(true)
+    pop.openPopup()
   }
-
-  // Keep the popup glued to the trigger; simplest correct behaviour is to
-  // close it if the page moves underneath.
-  useEffect(() => {
-    if (!open) return
-    const close = () => setOpen(false)
-    const onDocPointer = (e: PointerEvent) => {
-      const t = e.target as Node
-      if (!popupRef.current?.contains(t) && !triggerRef.current?.contains(t)) setOpen(false)
-    }
-    document.addEventListener('pointerdown', onDocPointer)
-    window.addEventListener('resize', close)
-    window.addEventListener('scroll', close, true)
-    return () => {
-      document.removeEventListener('pointerdown', onDocPointer)
-      window.removeEventListener('resize', close)
-      window.removeEventListener('scroll', close, true)
-    }
-  }, [open])
-
-  // Flip above the trigger when there isn't room below.
-  const [flip, setFlip] = useState(false)
-  useLayoutEffect(() => {
-    if (!open || !rect) return
-    const h = popupRef.current?.offsetHeight ?? 0
-    setFlip(rect.bottom + h + 8 > window.innerHeight && rect.top > h)
-  }, [open, rect])
 
   const commit = (v: T) => {
     onChange(v)
-    setOpen(false)
-    triggerRef.current?.focus()
+    pop.close()
+    pop.triggerRef.current?.focus()
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!open) {
+    if (!pop.open) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
         e.preventDefault()
         openMenu()
       }
       return
     }
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      setOpen(false)
-    } else if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown') {
       e.preventDefault()
       setActive((i) => Math.min(options.length - 1, i + 1))
     } else if (e.key === 'ArrowUp') {
@@ -116,52 +79,31 @@ export default function Select<T extends string>({
   return (
     <>
       <button
-        ref={triggerRef}
+        ref={pop.triggerRef}
         type="button"
         role="combobox"
-        aria-expanded={open}
+        aria-expanded={pop.open}
         aria-haspopup="listbox"
         aria-label={ariaLabel}
         title={title}
         disabled={disabled}
-        onClick={() => (open ? setOpen(false) : openMenu())}
+        onClick={() => (pop.open ? pop.close() : openMenu())}
         onKeyDown={onKeyDown}
-        className={`bg-bg tactile flex items-center justify-between gap-2 rounded-[10px] px-3 py-2 text-left text-[13.5px] disabled:opacity-40 ${
-          open ? 'ring-clay/60 ring-1' : ''
-        } ${className}`}
+        className={`${FIELD_CLASS} ${pop.open ? 'ring-clay/60 ring-1' : ''} ${className}`}
       >
         <span className={`truncate ${mono ? 'font-mono text-[12px]' : ''}`}>
           {selected?.label ?? ''}
         </span>
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={`text-muted shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-          aria-hidden
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+        <Chevron open={pop.open} />
       </button>
 
-      {open && rect && (
+      {pop.open && (
         <div
-          ref={popupRef}
+          ref={pop.popupRef}
           role="listbox"
           aria-label={ariaLabel}
-          className="bg-raised animate-pop fixed z-50 max-h-64 overflow-y-auto rounded-[14px] p-1.5 shadow-[var(--shadow-lift)]"
-          style={{
-            top: flip ? undefined : rect.bottom + 6,
-            bottom: flip ? window.innerHeight - rect.top + 6 : undefined,
-            left: align === 'left' ? rect.left : undefined,
-            right: align === 'right' ? window.innerWidth - rect.right : undefined,
-            minWidth: rect.width
-          }}
+          className={`${POPUP_CLASS} max-h-64 overflow-y-auto`}
+          style={pop.popupStyle}
         >
           {options.map((o, i) => {
             const isSelected = o.value === value

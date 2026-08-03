@@ -40,15 +40,22 @@ export function usePopoverAnchor(align: 'left' | 'right' = 'left'): PopoverAncho
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
     }
+    // The popup detaches from its trigger when the page scrolls, so close it —
+    // but NOT when the scroll happens inside the popup's own scrollable list.
+    const onScroll = (e: Event) => {
+      const t = e.target as Node | null
+      if (t && popupRef.current?.contains(t)) return
+      setOpen(false)
+    }
     document.addEventListener('pointerdown', onPointer)
     document.addEventListener('keydown', onKey)
     window.addEventListener('resize', close)
-    window.addEventListener('scroll', close, true)
+    window.addEventListener('scroll', onScroll, true)
     return () => {
       document.removeEventListener('pointerdown', onPointer)
       document.removeEventListener('keydown', onKey)
       window.removeEventListener('resize', close)
-      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('scroll', onScroll, true)
     }
   }, [open, close])
 

@@ -1,13 +1,14 @@
 // Time field. Replaces <input type="time"> (Chromium's picker is unstyleable).
 // Value is a 24h "HH:mm" string; the UI shows local 12/24h formatting.
-// Two scrolling columns — hour, then minute — plus common presets.
+//
+// Every hour is visible at once in a grid — scrolling lists inside a popup are
+// fiddly and made the picker feel broken. Pick an hour, then a minute; the
+// minute completes the choice and closes.
 
-import { useEffect, useRef } from 'react'
 import { Chevron, FIELD_CLASS, POPUP_CLASS, usePopoverAnchor } from './Popover'
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
-const PRESETS = ['08:00', '09:00', '12:00', '14:00', '17:00', '20:00']
 
 export function formatTimeLabel(hhmm: string): string {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm)
@@ -17,10 +18,11 @@ export function formatTimeLabel(hhmm: string): string {
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
+/** Compact hour label: "12a", "9a", "5p" — keeps the grid narrow. */
 function hourLabel(h: number): string {
-  const d = new Date()
-  d.setHours(h, 0, 0, 0)
-  return d.toLocaleTimeString(undefined, { hour: 'numeric' })
+  const suffix = h < 12 ? 'a' : 'p'
+  const twelve = h % 12 === 0 ? 12 : h % 12
+  return `${twelve}${suffix}`
 }
 
 export default function TimeField({
@@ -41,19 +43,7 @@ export default function TimeField({
   className?: string
 }) {
   const pop = usePopoverAnchor()
-  const hourCol = useRef<HTMLDivElement>(null)
-  const minCol = useRef<HTMLDivElement>(null)
-
   const [h, mm] = value ? value.split(':').map(Number) : [null, null]
-
-  // Bring the current selection into view when the panel opens.
-  useEffect(() => {
-    if (!pop.open) return
-    for (const col of [hourCol.current, minCol.current]) {
-      const sel = col?.querySelector('[data-selected="true"]') as HTMLElement | null
-      if (sel && col) col.scrollTop = sel.offsetTop - col.clientHeight / 2 + sel.clientHeight / 2
-    }
-  }, [pop.open])
 
   const set = (hour: number, minute: number) =>
     onChange(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`)
@@ -88,56 +78,49 @@ export default function TimeField({
           ref={pop.popupRef}
           role="dialog"
           aria-label={ariaLabel ?? 'Choose a time'}
-          className={`${POPUP_CLASS} w-[212px]`}
+          className={`${POPUP_CLASS} w-[252px]`}
           style={pop.popupStyle}
         >
-          <div className="flex gap-1.5">
-            <div ref={hourCol} className="max-h-52 flex-1 overflow-y-auto pr-0.5">
-              {HOURS.map((hour) => (
-                <button
-                  key={hour}
-                  type="button"
-                  data-selected={h === hour}
-                  onClick={() => set(hour, mm ?? 0)}
-                  className={`nums w-full rounded-[9px] py-1.5 text-center text-[12.5px] transition-colors ${
-                    h === hour ? 'bg-clay text-bg font-bold' : 'text-muted hover:bg-surface'
-                  }`}
-                >
-                  {hourLabel(hour)}
-                </button>
-              ))}
-            </div>
-            <div ref={minCol} className="max-h-52 flex-1 overflow-y-auto pr-0.5">
-              {MINUTES.map((minute) => (
-                <button
-                  key={minute}
-                  type="button"
-                  data-selected={mm === minute}
-                  onClick={() => set(h ?? 9, minute)}
-                  className={`nums w-full rounded-[9px] py-1.5 text-center text-[12.5px] transition-colors ${
-                    mm === minute ? 'bg-clay text-bg font-bold' : 'text-muted hover:bg-surface'
-                  }`}
-                >
-                  :{String(minute).padStart(2, '0')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {PRESETS.map((p) => (
+          <p className="text-faint px-1 pb-1 text-[11px] font-semibold">Hour</p>
+          <div className="grid grid-cols-6 gap-1">
+            {HOURS.map((hour) => (
               <button
-                key={p}
+                key={hour}
                 type="button"
-                onClick={() => {
-                  onChange(p)
-                  pop.close()
-                }}
-                className="tactile bg-surface text-muted hover:text-ink nums rounded-full px-2 py-1 text-[11.5px]"
+                // Keep the popup open so the minute can still be adjusted.
+                onClick={() => set(hour, mm ?? 0)}
+                className={`nums rounded-[8px] py-1.5 text-center text-[12px] transition-colors ${
+                  h === hour ? 'bg-clay text-bg font-bold' : 'text-muted hover:bg-surface'
+                }`}
               >
-                {formatTimeLabel(p)}
+                {hourLabel(hour)}
               </button>
             ))}
+          </div>
+
+          <p className="text-faint px-1 pt-2.5 pb-1 text-[11px] font-semibold">Minute</p>
+          <div className="grid grid-cols-6 gap-1">
+            {MINUTES.map((minute) => (
+              <button
+                key={minute}
+                type="button"
+                onClick={() => {
+                  set(h ?? 9, minute)
+                  pop.close() // minute completes the choice
+                }}
+                className={`nums rounded-[8px] py-1.5 text-center text-[12px] transition-colors ${
+                  mm === minute ? 'bg-clay text-bg font-bold' : 'text-muted hover:bg-surface'
+                }`}
+              >
+                {String(minute).padStart(2, '0')}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-2.5 flex items-center gap-1 border-t border-(--color-line) pt-2">
+            <span className="nums text-ink flex-1 px-1 text-[13px] font-semibold">
+              {value ? formatTimeLabel(value) : '—'}
+            </span>
             {value && (
               <button
                 type="button"
@@ -145,11 +128,18 @@ export default function TimeField({
                   onChange('')
                   pop.close()
                 }}
-                className="tactile text-muted hover:text-rose ml-auto rounded-full px-2 py-1 text-[11.5px]"
+                className="tactile text-muted hover:text-rose rounded-[8px] px-2 py-1 text-[12px]"
               >
                 Clear
               </button>
             )}
+            <button
+              type="button"
+              onClick={pop.close}
+              className="tactile bg-clay text-bg rounded-[8px] px-3 py-1 text-[12px] font-bold"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
