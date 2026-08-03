@@ -92,10 +92,15 @@ h3 {
   background: rgb(232 168 124 / 0.3);
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-clay);
-  outline-offset: 2px;
-  border-radius: 8px;
+/* Must live in @layer base: unlayered rules outrank every Tailwind utility
+   no matter the specificity, so an unlayered version of this could never be
+   overridden by `focus-visible:outline-none` on an individual control. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-clay);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
 }
 
 /* Scrollbars that don't look like Windows 95 */

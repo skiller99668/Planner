@@ -384,7 +384,7 @@ function TagPicker({
 
   const clean = normalizeTag(draft)
   const duplicate = clean.length > 0 && tags.includes(clean)
-  const canAdd = clean.length >= 2 && !duplicate && !full
+  const canAdd = clean.length >= 1 && !duplicate && !full
 
   const add = (raw: string) => {
     const tag = normalizeTag(raw)
@@ -420,13 +420,11 @@ function TagPicker({
         </div>
       )}
 
-      <div
-        className={`bg-bg flex items-center rounded-[10px] pr-1.5 ${
-          duplicate ? 'ring-rose/50 ring-1' : ''
-        }`}
-      >
+      <div className="bg-bg flex items-center rounded-[10px] pr-1.5">
         <input
-          className="placeholder:text-faint min-w-0 flex-1 bg-transparent px-3 py-2 text-[13.5px] outline-none"
+          className={`placeholder:text-faint min-w-0 flex-1 bg-transparent px-3 py-2 text-[13.5px] outline-none focus-visible:outline-none ${
+            duplicate ? 'text-rose' : ''
+          }`}
           value={draft}
           disabled={full}
           placeholder={full ? `Max ${MAX_TAGS} tags` : 'Add a tag'}

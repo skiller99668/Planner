@@ -285,7 +285,7 @@ function TagBar({
 
   const clean = normalizeTag(draft)
   const duplicate = clean.length > 0 && tags.includes(clean)
-  const canCreate = clean.length >= 2 && !duplicate
+  const canCreate = clean.length >= 1 && !duplicate
 
   const create = () => {
     if (!canCreate) return
@@ -336,11 +336,7 @@ function TagBar({
       })}
 
       {adding ? (
-        <span
-          className={`bg-surface flex items-center rounded-full pr-1 pl-3 ring-1 ${
-            duplicate ? 'ring-rose/60' : 'ring-clay/50'
-          }`}
-        >
+        <span className="bg-surface flex items-center rounded-full pr-1 pl-3">
           <input
             autoFocus
             value={draft}
@@ -362,7 +358,9 @@ function TagBar({
             }}
             placeholder="New tag"
             aria-label="New tag"
-            className="placeholder:text-faint w-24 bg-transparent py-1.5 text-[12px] outline-none"
+            className={`placeholder:text-faint w-24 bg-transparent py-1.5 text-[12px] outline-none focus-visible:outline-none ${
+              duplicate ? 'text-rose' : ''
+            }`}
           />
           <button
             onMouseDown={(e) => e.preventDefault()} // keep focus so blur can't cancel the click

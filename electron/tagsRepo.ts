@@ -41,7 +41,7 @@ export function listTags(): string[] {
 
 export function createTag(raw: string): string[] {
   const name = normalizeTag(raw)
-  if (name.length >= 2) {
+  if (name.length >= 1) {
     getDb()
       .prepare('INSERT INTO tags (name, created_at) VALUES (?, ?) ON CONFLICT(name) DO NOTHING')
       .run(name, new Date().toISOString())
