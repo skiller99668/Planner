@@ -77,8 +77,8 @@ export default function SettingsPage() {
               </span>
             </div>
             <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
-              Powers tag suggestions now and the Academics chat later. Stored encrypted with
-              Windows credentials — never as plain text, never shown again. Get a free key at
+              Powers the Assistant and lecture chats. Stored encrypted with Windows
+              credentials — never as plain text, never shown again. Get a free key at
               console.groq.com.
             </p>
             <div className="mt-3 flex gap-2">
@@ -107,13 +107,6 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-          <Toggle
-            label="AI tag suggestions"
-            hint="New tasks get 1–2 tags suggested from your existing tag vocabulary. Your own tags are never changed, and a task never gets a second course code."
-            checked={settings.aiAutoTag}
-            disabled={saving || !groqConfigured}
-            onChange={(v) => patch({ aiAutoTag: v })}
-          />
           <div className="flex items-start justify-between gap-6 px-5 py-4">
             <div>
               <p className="text-[13.5px] font-medium">Assistant model</p>

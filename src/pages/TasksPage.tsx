@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import type { Task, TaskSeries } from '../../shared/types'
 import TaskEditor, {
   emptyForm,
-  parseTags,
   seriesToForm,
   taskToForm,
   type FormValues
@@ -46,9 +45,17 @@ export default function TasksPage() {
         .slice(0, 50),
     [store.tasks, tagFilter]
   )
+  // Vocabulary for the tag picker + filter row: everything already in use,
+  // including tags that live only on a recurring series.
   const allTags = useMemo(
-    () => [...new Set(store.tasks.flatMap((t) => t.tags))].sort(),
-    [store.tasks]
+    () =>
+      [
+        ...new Set([
+          ...store.tasks.flatMap((t) => t.tags),
+          ...store.series.flatMap((s) => s.tags)
+        ])
+      ].sort(),
+    [store.tasks, store.series]
   )
 
   const buckets = useMemo(() => {
@@ -144,6 +151,7 @@ export default function TasksPage() {
             mode="create"
             initial={emptyForm(quickTitle)}
             submitLabel="Add"
+            knownTags={allTags}
             onSave={(v) => void saveNew(v)}
             onCancel={() => setDetailsOpen(false)}
           />
@@ -154,6 +162,7 @@ export default function TasksPage() {
       {seriesOpen && (
         <SeriesPanel
           store={store}
+          knownTags={allTags}
           editingId={editingSeriesId}
           setEditingId={setEditingSeriesId}
         />
@@ -195,6 +204,7 @@ export default function TasksPage() {
                     key={t.id}
                     task={t}
                     store={store}
+                    knownTags={allTags}
                     editing={editingId === t.id}
                     onEdit={() => setEditingId(editingId === t.id ? null : t.id)}
                     onClose={() => setEditingId(null)}
@@ -222,6 +232,7 @@ export default function TasksPage() {
                   key={t.id}
                   task={t}
                   store={store}
+                  knownTags={allTags}
                   editing={false}
                   onEdit={() => {}}
                   onClose={() => {}}
@@ -253,12 +264,14 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
 function TaskRow({
   task,
   store,
+  knownTags,
   editing,
   onEdit,
   onClose
 }: {
   task: Task
   store: TasksStore
+  knownTags: string[]
   editing: boolean
   onEdit: () => void
   onClose: () => void
@@ -352,12 +365,13 @@ function TaskRow({
             mode="task"
             initial={taskToForm(task)}
             submitLabel="Save"
+            knownTags={knownTags}
             onSave={(v) => {
               void store
                 .updateTask(task.id, {
                   title: v.title,
                   notes: v.notes || null,
-                  tags: parseTags(v.tagsText),
+                  tags: v.tags,
                   dueDate: v.dueDate || null,
                   dueTime: v.dueTime || null,
                   priority: v.priority,
@@ -376,10 +390,12 @@ function TaskRow({
 
 function SeriesPanel({
   store,
+  knownTags,
   editingId,
   setEditingId
 }: {
   store: TasksStore
+  knownTags: string[]
   editingId: string | null
   setEditingId: (id: string | null) => void
 }) {
@@ -423,12 +439,13 @@ function SeriesPanel({
                     mode="series"
                     initial={seriesToForm(s)}
                     submitLabel="Save series"
+                    knownTags={knownTags}
                     onSave={(v) => {
                       void store
                         .updateSeries(s.id, {
                           title: v.title,
                           notes: v.notes || null,
-                          tags: parseTags(v.tagsText),
+                          tags: v.tags,
                           priority: v.priority,
                           rule: {
                             freq: v.freq as 'daily' | 'weekly' | 'monthly',
@@ -476,7 +493,7 @@ function formToTaskInput(v: FormValues) {
   return {
     title: v.title,
     notes: v.notes || null,
-    tags: parseTags(v.tagsText),
+    tags: v.tags,
     dueDate: v.dueDate || null,
     dueTime: v.dueTime || null,
     priority: v.priority,
@@ -488,7 +505,7 @@ function formToSeriesInput(v: FormValues) {
   return {
     title: v.title,
     notes: v.notes || null,
-    tags: parseTags(v.tagsText),
+    tags: v.tags,
     priority: v.priority,
     rule: {
       freq: v.freq as 'daily' | 'weekly' | 'monthly',

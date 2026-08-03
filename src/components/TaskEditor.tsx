@@ -13,7 +13,7 @@ export interface FormValues {
   dueDate: string // '' = none
   dueTime: string // '' = none
   priority: Priority
-  tagsText: string
+  tags: string[]
   reminderOffset: string // '' = none; minutes as string otherwise
   freq: 'none' | 'daily' | 'weekly' | 'monthly'
   interval: number
@@ -28,7 +28,7 @@ export function emptyForm(title = ''): FormValues {
     dueDate: '',
     dueTime: '',
     priority: 0,
-    tagsText: '',
+    tags: [],
     reminderOffset: '',
     freq: 'none',
     interval: 1,
@@ -50,7 +50,7 @@ export function taskToForm(t: Task): FormValues {
     dueDate: t.dueAt ? ymdOfIso(t.dueAt) : '',
     dueTime: t.dueAt && !t.allDay ? hmOfIso(t.dueAt) : '',
     priority: t.priority,
-    tagsText: t.tags.join(', '),
+    tags: t.tags,
     reminderOffset: offset
   }
 }
@@ -62,7 +62,7 @@ export function seriesToForm(s: TaskSeries): FormValues {
     dueDate: s.startDate,
     dueTime: s.dueTime ?? '',
     priority: s.priority,
-    tagsText: s.tags.join(', '),
+    tags: s.tags,
     reminderOffset: s.reminderOffsetMin != null ? String(s.reminderOffsetMin) : '',
     freq: s.rule.freq,
     interval: s.rule.interval,
@@ -71,9 +71,17 @@ export function seriesToForm(s: TaskSeries): FormValues {
   }
 }
 
-export function parseTags(text: string): string[] {
-  return [...new Set(text.split(',').map((t) => t.trim()).filter(Boolean))]
+/** Tags are lowercase-kebab so "ECSE 200" and "ecse-200" never split in two. */
+export function normalizeTag(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\-+#.]/g, '')
+    .slice(0, 24)
 }
+
+const MAX_TAGS = 6
 
 const inputCls =
   'bg-bench border-line rounded-md border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-amber/60'
@@ -86,6 +94,7 @@ export default function TaskEditor({
   mode,
   initial,
   submitLabel,
+  knownTags = [],
   onSave,
   onCancel,
   onDelete
@@ -93,6 +102,8 @@ export default function TaskEditor({
   mode: EditorMode
   initial: FormValues
   submitLabel: string
+  /** Every tag already used in the app — offered as one-click chips. */
+  knownTags?: string[]
   onSave: (v: FormValues) => void
   onCancel: () => void
   onDelete?: () => void
@@ -216,18 +227,11 @@ export default function TaskEditor({
           </div>
         </div>
 
-        <div>
-          <label className={labelCls} htmlFor="te-tags">
-            Tags
-          </label>
-          <input
-            id="te-tags"
-            className={`${inputCls} w-full`}
-            value={v.tagsText}
-            onChange={(e) => set('tagsText', e.target.value)}
-            placeholder="school, ecse-200 (comma separated)"
-          />
-        </div>
+        <TagPicker
+          tags={v.tags}
+          knownTags={knownTags}
+          onChange={(tags) => set('tags', tags)}
+        />
 
         {showRepeat && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -344,6 +348,109 @@ export default function TaskEditor({
           {submitLabel}
         </button>
       </div>
+    </div>
+  )
+}
+
+/** Tag chips with × to remove, one-click chips for tags you already use,
+ *  and a free-text field for new ones (Enter or comma commits). */
+function TagPicker({
+  tags,
+  knownTags,
+  onChange
+}: {
+  tags: string[]
+  knownTags: string[]
+  onChange: (tags: string[]) => void
+}) {
+  const [draft, setDraft] = useState('')
+  const full = tags.length >= MAX_TAGS
+  const suggestions = knownTags.filter((t) => !tags.includes(t))
+
+  const add = (raw: string) => {
+    const tag = normalizeTag(raw)
+    if (!tag || tags.includes(tag) || full) return
+    onChange([...tags, tag])
+    setDraft('')
+  }
+  const remove = (tag: string) => onChange(tags.filter((t) => t !== tag))
+
+  return (
+    <div>
+      <span className={labelCls}>
+        Tags{' '}
+        <span className="tracking-normal normal-case opacity-60">
+          {full ? `— max ${MAX_TAGS}` : '— click to add, × to remove'}
+        </span>
+      </span>
+
+      {tags.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="bg-amber/15 border-amber/50 text-amber flex items-center gap-1 rounded-full border py-0.5 pr-1 pl-2.5 font-mono text-[11px]"
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => remove(tag)}
+                aria-label={`Remove tag ${tag}`}
+                title={`Remove ${tag}`}
+                className="hover:bg-amber/30 flex h-4 w-4 items-center justify-center rounded-full leading-none transition-colors"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <input
+        className={`${inputCls} w-full`}
+        value={draft}
+        disabled={full}
+        placeholder={full ? `Max ${MAX_TAGS} tags` : 'Type a new tag, press Enter'}
+        aria-label="New tag"
+        onChange={(e) => {
+          // A typed comma commits the tag, matching the old paste-friendly habit.
+          if (e.target.value.includes(',')) add(e.target.value.replace(',', ''))
+          else setDraft(e.target.value)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            e.stopPropagation() // don't submit the whole form
+            add(draft)
+          } else if (e.key === 'Backspace' && !draft && tags.length) {
+            remove(tags[tags.length - 1])
+          }
+        }}
+        onBlur={() => draft.trim() && add(draft)}
+      />
+
+      {!full &&
+        (suggestions.length > 0 ? (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {suggestions.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => add(tag)}
+                title={`Add ${tag}`}
+                className="border-line bg-panel2 text-muted hover:border-amber/50 hover:text-ink rounded-full border px-2.5 py-0.5 font-mono text-[11px] transition-colors"
+              >
+                + {tag}
+              </button>
+            ))}
+          </div>
+        ) : (
+          knownTags.length === 0 && (
+            <p className="text-muted/60 mt-1.5 font-mono text-[10px]">
+              Tags you create show up here as one-click chips next time.
+            </p>
+          )
+        ))}
     </div>
   )
 }

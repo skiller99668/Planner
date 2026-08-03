@@ -321,8 +321,6 @@ export interface Settings {
   autostart: boolean
   closeToTray: boolean
   groqModel: string | null
-  /** Let AI suggest tags for new tasks (never overrides user tags). */
-  aiAutoTag: boolean
   targets: {
     gymPerWeek: number
     applicationsPerWeek: number
@@ -336,7 +334,6 @@ export const DEFAULT_SETTINGS: Settings = {
   autostart: true,
   closeToTray: true,
   groqModel: null,
-  aiAutoTag: true,
   targets: {
     gymPerWeek: 5,
     applicationsPerWeek: 5,

@@ -189,6 +189,12 @@ function createWindow(): void {
     win.webContents.once('did-finish-load', () => {
       setTimeout(async () => {
         try {
+          // PLANNER_SHOT_JS runs in the page first, so screenshots can capture
+          // states that need interaction (opening a form, expanding a row).
+          if (process.env.PLANNER_SHOT_JS) {
+            await win!.webContents.executeJavaScript(process.env.PLANNER_SHOT_JS)
+            await new Promise((r) => setTimeout(r, 600))
+          }
           const img = await win!.webContents.capturePage()
           fs.writeFileSync(shotPath, img.toPNG())
           console.log(`SHOT OK ${shotPath}`)

@@ -57,7 +57,7 @@ scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
 
 1. ✅ **Foundation** — shell, SQLite, IPC, tray, autostart, notifications, UI skeleton
 2. ✅ **Tasks** — capture, tags, due dates, reminders, recurring series (weekly labs),
-   AI tag suggestions (Groq; key in Settings, encrypted via `safeStorage`)
+   tag picker (× to remove, one click to reuse a tag you already have)
 3. ✅ **Gym** — PPL next-in-cycle, one-tap logging (idempotent per day+type),
    Sun–Sat week grid with history arrows, week streak vs target, session notes
 4. ✅ **Academics + Assistant** — courses → lectures → summaries, per-lecture Groq
@@ -80,8 +80,9 @@ scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
   rewrites only future open occurrences; deleting a series keeps past/done history.
 - Reminders need a due **time** (all-day tasks don't fire toasts) and are synced to
   the `reminders` table on every task write; the tray-resident scheduler does the rest.
-- AI tag suggestions merge into your tags, never replace them; at most one course-code
-  tag per task is enforced in code, preferring yours ([electron/autoTag.ts](electron/autoTag.ts)).
+- Tags are manual and normalized to lowercase-kebab (`ECSE 200` → `ecse-200`) so the
+  same tag can't exist twice. The picker offers every tag already in use — across
+  tasks *and* recurring series — as one-click chips.
 
 ### Job feed notes
 

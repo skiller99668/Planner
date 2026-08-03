@@ -31,7 +31,6 @@ import {
   updateLecture
 } from './academicsRepo'
 import { assistantSend } from './assistant'
-import { autoTagSeries, autoTagTask } from './autoTag'
 import {
   addCareerLog,
   careerWeekStats,
@@ -97,22 +96,13 @@ export function registerIpcHandlers(deps: IpcDeps): void {
 
   // ---------- tasks ----------
   ipcMain.handle(IPC.tasksList, () => listTasks())
-  ipcMain.handle(IPC.tasksCreate, (_e, input: TaskInput) => {
-    const task = createTask(input)
-    // Fire-and-forget: tags merge in a moment later and push a refresh.
-    void autoTagTask(task.id, deps.notifyDataChanged)
-    return task
-  })
+  ipcMain.handle(IPC.tasksCreate, (_e, input: TaskInput) => createTask(input))
   ipcMain.handle(IPC.tasksUpdate, (_e, id: string, patch: TaskPatch) => updateTask(id, patch))
   ipcMain.handle(IPC.tasksDelete, (_e, id: string) => deleteTask(id))
 
   // ---------- recurring series ----------
   ipcMain.handle(IPC.seriesList, () => listSeries())
-  ipcMain.handle(IPC.seriesCreate, (_e, input: SeriesInput) => {
-    const series = createSeries(input)
-    void autoTagSeries(series.id, deps.notifyDataChanged)
-    return series
-  })
+  ipcMain.handle(IPC.seriesCreate, (_e, input: SeriesInput) => createSeries(input))
   ipcMain.handle(IPC.seriesUpdate, (_e, id: string, patch: SeriesPatch) =>
     updateSeries(id, patch)
   )
