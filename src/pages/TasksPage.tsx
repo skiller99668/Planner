@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useConfirm } from '../components/ConfirmProvider'
 import type { Task, TaskSeries } from '../../shared/types'
 import TaskEditor, {
   emptyForm,
@@ -26,6 +27,7 @@ const BUCKETS: { id: BucketId; label: string; tone: string }[] = [
 
 export default function TasksPage() {
   const store = useTasks()
+  const confirm = useConfirm()
   const [quickTitle, setQuickTitle] = useState('')
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -197,11 +199,14 @@ export default function TasksPage() {
         onFilter={(tag) => setTagFilter(tag)}
         onCreate={(name, color) => void store.createTag(name, color)}
         onSetColor={(tag, color) => void store.setTagColor(tag, color)}
-        onDelete={(tag) => {
-          if (
-            !window.confirm(`Delete “${tag}”? It will be removed from every task using it.`)
-          )
-            return
+        onDelete={async (tag) => {
+          const ok = await confirm({
+            title: `Delete “${tag}”?`,
+            body: 'It will be removed from every task using it.',
+            confirmLabel: 'Delete',
+            danger: true
+          })
+          if (!ok) return
           if (tagFilter === tag) setTagFilter(null)
           void store.deleteTag(tag)
         }}
@@ -290,7 +295,7 @@ function TagBar({
   onFilter: (tag: string | null) => void
   onCreate: (name: string, color: string) => void
   onSetColor: (tag: string, color: string) => void
-  onDelete: (tag: string) => void
+  onDelete: (tag: string) => void | Promise<void>
 }) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
@@ -385,7 +390,7 @@ function TagBar({
           onClick={() => setAdding(true)}
           className="tactile text-muted hover:text-ink rounded-full px-2.5 py-1.5 text-[12px] font-medium"
         >
-          +
+          {tags.length === 0 ? '+ Add a tag' : '+'}
         </button>
       )}
     </div>
@@ -523,6 +528,7 @@ function SeriesPanel({
   editingId: string | null
   setEditingId: (id: string | null) => void
 }) {
+  const confirm = useConfirm()
   return (
     <div className="bg-surface mt-4 rounded-[16px] p-4 shadow-[var(--shadow-soft)]">
       <p className="text-[13px] font-bold">Repeating</p>
@@ -545,9 +551,14 @@ function SeriesPanel({
                   <span className="text-muted nums ml-2 text-[12px]">{humanRule(s)}</span>
                 </button>
                 <button
-                  onClick={() => {
-                    if (window.confirm(`Stop repeating “${s.title}”?`))
-                      void store.deleteSeries(s.id)
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: `Stop repeating “${s.title}”?`,
+                      body: 'Past completions are kept.',
+                      confirmLabel: 'Stop',
+                      danger: true
+                    })
+                    if (ok) void store.deleteSeries(s.id)
                   }}
                   className="text-faint hover:text-coral px-1 text-[12px] transition-colors"
                 >

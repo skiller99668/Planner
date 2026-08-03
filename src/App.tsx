@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ConfirmProvider } from './components/ConfirmProvider'
 import Sidebar, { type ModuleId } from './components/Sidebar'
 import AcademicsPage from './pages/AcademicsPage'
 import AssistantPage from './pages/AssistantPage'
@@ -23,6 +24,7 @@ export default function App() {
   const [active, setActive] = useState<ModuleId>(initialView)
 
   return (
+    <ConfirmProvider>
     <div className="flex h-full">
       <Sidebar active={active} onNavigate={setActive} />
       <main className="app-canvas min-w-0 flex-1 overflow-y-auto">
@@ -47,5 +49,6 @@ export default function App() {
         </div>
       </main>
     </div>
+    </ConfirmProvider>
   )
 }

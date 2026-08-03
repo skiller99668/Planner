@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useConfirm } from '../components/ConfirmProvider'
 import DateField from '../components/DateField'
 import Select from '../components/Select'
 import type { JobSourceStatus } from '../../shared/ipc'
@@ -648,6 +649,7 @@ function AppCard({
   onToggle: () => void
   onChanged: () => Promise<void>
 }) {
+  const confirm = useConfirm()
   const idx = PIPELINE.findIndex((p) => p.id === app.status)
   const canAdvance = idx >= 0 && idx < PIPELINE.length - 1
   const meta = TRACK_META[app.track]
@@ -681,9 +683,14 @@ function AppCard({
             </button>
           )}
           <button
-            onClick={() => {
-              if (window.confirm(`Remove ${app.company} — ${app.role} from the pipeline?`))
-                void window.planner?.appsDelete(app.id).then(onChanged)
+            onClick={async () => {
+              const ok = await confirm({
+                title: `Remove ${app.company}?`,
+                body: `${app.role} will be removed from the pipeline.`,
+                confirmLabel: 'Remove',
+                danger: true
+              })
+              if (ok) void window.planner?.appsDelete(app.id).then(onChanged)
             }}
             title="Remove from pipeline"
             aria-label={`Remove ${app.company} from pipeline`}
@@ -735,13 +742,18 @@ function AppCard({
               </button>
             )}
             <button
-              onClick={() => {
-                if (window.confirm(`Remove ${app.company} — ${app.role} from the pipeline?`))
-                  void window.planner?.appsDelete(app.id).then(onChanged)
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Remove ${app.company}?`,
+                  body: `${app.role} will be removed from the pipeline.`,
+                  confirmLabel: 'Remove',
+                  danger: true
+                })
+                if (ok) void window.planner?.appsDelete(app.id).then(onChanged)
               }}
-              className="text-muted/60 hover:text-coral ml-auto nums text-[12px] transition-colors"
+              className="text-muted/60 hover:text-coral ml-auto text-[12px] transition-colors"
             >
-              remove
+              Remove
             </button>
           </div>
         </div>

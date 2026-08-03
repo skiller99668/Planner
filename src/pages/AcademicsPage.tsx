@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useConfirm } from '../components/ConfirmProvider'
 import DateField from '../components/DateField'
 import type { Course, Lecture } from '../../shared/types'
 import ChatView from '../components/ChatView'
@@ -16,6 +17,7 @@ const inputCls =
   'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-azure/60'
 
 export default function AcademicsPage() {
+  const confirm = useConfirm()
   const [courses, setCourses] = useState<Course[]>([])
   const [loaded, setLoaded] = useState(false)
   const [courseId, setCourseId] = useState<string | null>(null)
@@ -73,7 +75,13 @@ export default function AcademicsPage() {
         onOpenLecture={setLectureId}
         onChanged={refreshLectures}
         onDeleteCourse={async () => {
-          if (!window.confirm(`Delete ${course.code} and all its lectures + chats?`)) return
+          const ok = await confirm({
+            title: `Delete ${course.code}?`,
+            body: 'Its lectures and chats go too.',
+            confirmLabel: 'Delete',
+            danger: true
+          })
+          if (!ok) return
           await window.planner!.coursesDelete(course.id)
           setCourseId(null)
           void refreshCourses()
@@ -297,6 +305,7 @@ function LectureDetail({
   onChanged: () => Promise<void>
   onDeleted: () => void
 }) {
+  const confirm = useConfirm()
   const [summary, setSummary] = useState(lecture.summary)
   const [savedFlash, setSavedFlash] = useState(false)
   const chat = useChat('lecture', lecture.id)
@@ -325,7 +334,13 @@ function LectureDetail({
         <span className="text-muted nums text-[12px]">{lecture.lectureDate}</span>
         <button
           onClick={async () => {
-            if (!window.confirm('Delete this lecture and its chat?')) return
+            const ok = await confirm({
+              title: 'Delete this lecture?',
+              body: 'Its chat goes too.',
+              confirmLabel: 'Delete',
+              danger: true
+            })
+            if (!ok) return
             await window.planner!.lecturesDelete(lecture.id)
             onDeleted()
           }}
