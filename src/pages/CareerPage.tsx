@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import DateField from '../components/DateField'
 import Select from '../components/Select'
 import type { JobSourceStatus } from '../../shared/ipc'
 import type {
@@ -719,15 +720,11 @@ function AppCard({
             }}
           />
           <div className="flex items-center gap-2">
-            <input
-              type="date"
-              aria-label="Next action date"
-              className={`${inputCls} py-1 nums text-[12px]`}
-              defaultValue={app.nextActionDate ?? ''}
-              onBlur={(e) => {
-                const v = e.target.value || null
-                if (v !== app.nextActionDate) void patch({ nextActionDate: v })
-              }}
+            <DateField
+              value={app.nextActionDate ?? ''}
+              ariaLabel="Next action date"
+              placeholder="Follow up"
+              onChange={(ymd) => void patch({ nextActionDate: ymd || null })}
             />
             {app.url && (
               <button
@@ -786,12 +783,11 @@ function WatchlistItem({ item }: { item: { name: string; url: string; note: stri
           <span className="text-sage nums text-[12px]">Added to Events</span>
         ) : (
           <>
-            <input
-              type="date"
-              aria-label={`${item.name} deadline date`}
-              className={`${inputCls} py-1 nums text-[12px]`}
+            <DateField
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              ariaLabel={`${item.name} deadline`}
+              placeholder="Deadline"
+              onChange={setDate}
             />
             <button
               onClick={() => void track()}

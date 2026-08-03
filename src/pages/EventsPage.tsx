@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import TimeField from '../components/TimeField'
+import DateField from '../components/DateField'
 import Select from '../components/Select'
 import type { EventKind, PlannerEvent } from '../../shared/types'
 
@@ -247,18 +249,16 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
           />
         </div>
         <div>
-          <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ev-date">
+          <span className="text-muted mb-1 block text-[12px] font-semibold">
             Date
-          </label>
-          <input id="ev-date" type="date" className={inputCls} value={date}
-            onChange={(e) => setDate(e.target.value)} />
+          </span>
+          <DateField value={date} ariaLabel="Event date" onChange={setDate} />
         </div>
         <div>
-          <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ev-time">
+          <span className="text-muted mb-1 block text-[12px] font-semibold">
             Time
-          </label>
-          <input id="ev-time" type="time" className={inputCls} value={time}
-            onChange={(e) => setTime(e.target.value)} />
+          </span>
+          <TimeField value={time} ariaLabel="Event time" placeholder="All day" onChange={setTime} />
         </div>
         <button
           onClick={() => void add()}

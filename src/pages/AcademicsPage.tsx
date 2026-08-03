@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import DateField from '../components/DateField'
 import type { Course, Lecture } from '../../shared/types'
 import ChatView from '../components/ChatView'
 import { todayYMD } from '../lib/dates'
@@ -235,11 +236,10 @@ function CourseDetail({
             onKeyDown={(e) => e.key === 'Enter' && void add()} />
         </div>
         <div>
-          <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="l-date">
+          <span className="text-muted mb-1 block text-[12px] font-semibold">
             Date
-          </label>
-          <input id="l-date" type="date" className={inputCls} value={date}
-            onChange={(e) => setDate(e.target.value)} />
+          </span>
+          <DateField value={date} ariaLabel="Lecture date" onChange={setDate} clearable={false} />
         </div>
         <button
           onClick={() => void add()}

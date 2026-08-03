@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateField from '../components/DateField'
 import Select from '../components/Select'
 import type { GymSession, GymType } from '../../shared/types'
 import { Burst, useCelebrate, useThresholdCross } from '../components/Celebrate'
@@ -274,16 +275,15 @@ function Backfill({ onLog }: { onLog: (date: string, type: GymType) => Promise<v
   return (
     <div className="bg-surface mt-2 flex flex-wrap items-end gap-3 rounded-[16px] p-4 shadow-[var(--shadow-soft)]">
       <div>
-        <label className="text-muted mb-1.5 block text-[12px] font-semibold" htmlFor="bf-date">
+        <span className="text-muted mb-1.5 block text-[12px] font-semibold">
           Day
-        </label>
-        <input
-          id="bf-date"
-          type="date"
-          max={todayYMD()}
-          className="bg-bg focus:ring-clay/60 rounded-[10px] px-3 py-2 text-[13.5px] outline-none focus:ring-1"
+        </span>
+        <DateField
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          ariaLabel="Day"
+          max={todayYMD()}
+          clearable={false}
+          onChange={setDate}
         />
       </div>
       <div>

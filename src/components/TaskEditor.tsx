@@ -2,6 +2,8 @@
 // Dumb component — the page converts FormValues to TaskInput / SeriesInput.
 
 import { useState } from 'react'
+import TimeField from './TimeField'
+import DateField from './DateField'
 import Select from './Select'
 import type { Priority, Task, TaskSeries } from '../../shared/types'
 import { hmOfIso, todayYMD, ymdOfIso } from '../lib/dates'
@@ -174,28 +176,28 @@ export default function TaskEditor({
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
-            <label className={labelCls} htmlFor="te-date">
+            <span className={labelCls}>
               {repeating ? 'Starts' : 'Due date'}
-            </label>
-            <input
-              id="te-date"
-              type="date"
-              className={`${inputCls} w-full`}
+            </span>
+            <DateField
               value={v.dueDate}
-              onChange={(e) => set('dueDate', e.target.value)}
+              ariaLabel={repeating ? 'Start date' : 'Due date'}
+              placeholder="No date"
+              className="w-full"
+              onChange={(ymd) => set('dueDate', ymd)}
             />
           </div>
           <div>
-            <label className={labelCls} htmlFor="te-time">
+            <span className={labelCls}>
               Time
-            </label>
-            <input
-              id="te-time"
-              type="time"
-              className={`${inputCls} w-full`}
+            </span>
+            <TimeField
               value={v.dueTime}
+              ariaLabel="Due time"
+              placeholder="All day"
+              className="w-full"
               disabled={!v.dueDate && !repeating}
-              onChange={(e) => set('dueTime', e.target.value)}
+              onChange={(hhmm) => set('dueTime', hhmm)}
             />
           </div>
           <div>
@@ -320,15 +322,16 @@ export default function TaskEditor({
             )}
             {repeating && (
               <div>
-                <label className={labelCls} htmlFor="te-end">
+                <span className={labelCls}>
                   Until
-                </label>
-                <input
-                  id="te-end"
-                  type="date"
-                  className={`${inputCls} w-full`}
+                </span>
+                <DateField
                   value={v.endDate}
-                  onChange={(e) => set('endDate', e.target.value)}
+                  ariaLabel="Repeat until"
+                  placeholder="Forever"
+                  className="w-full"
+                  min={v.dueDate || undefined}
+                  onChange={(ymd) => set('endDate', ymd)}
                 />
               </div>
             )}
