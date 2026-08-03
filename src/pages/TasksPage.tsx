@@ -8,7 +8,7 @@ import TaskEditor, {
   type FormValues
 } from '../components/TaskEditor'
 import { CheckCircle } from '../components/Celebrate'
-import TagChip, { TagPill } from '../components/TagChip'
+import TagChip, { ColorSwatch, TagPill, nextTagColor } from '../components/TagChip'
 import type { Tag } from '../../shared/types'
 import { addDaysYMD, dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
 import { useTasks, type TasksStore } from '../lib/useTasks'
@@ -195,7 +195,7 @@ export default function TasksPage() {
         tags={allTags}
         active={tagFilter}
         onFilter={(tag) => setTagFilter(tag)}
-        onCreate={(name) => void store.createTag(name)}
+        onCreate={(name, color) => void store.createTag(name, color)}
         onSetColor={(tag, color) => void store.setTagColor(tag, color)}
         onDelete={(tag) => {
           if (
@@ -288,12 +288,13 @@ function TagBar({
   tags: Tag[]
   active: string | null
   onFilter: (tag: string | null) => void
-  onCreate: (name: string) => void
+  onCreate: (name: string, color: string) => void
   onSetColor: (tag: string, color: string) => void
   onDelete: (tag: string) => void
 }) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
+  const [newColor, setNewColor] = useState<string>(() => nextTagColor(tags))
 
   const clean = normalizeTag(draft)
   const duplicate = clean.length > 0 && tags.some((t) => t.name === clean)
@@ -301,8 +302,10 @@ function TagBar({
 
   const create = () => {
     if (!canCreate) return
-    onCreate(clean)
+    onCreate(clean, newColor)
     setDraft('') // stay open so several tags can be added in a row
+    // Move on to the next unused colour so a run of new tags stays distinct.
+    setNewColor(nextTagColor([...tags, { name: clean, color: newColor }]))
   }
 
   return (
@@ -330,14 +333,23 @@ function TagBar({
       ))}
 
       {adding ? (
-        <span className="bg-surface flex items-center rounded-full pr-1 pl-3">
+        <span className="bg-surface flex items-center gap-1.5 rounded-full py-0.5 pr-1 pl-1.5">
+          <ColorSwatch
+            color={newColor}
+            onPick={setNewColor}
+            ariaLabel="Colour for new tag"
+          />
           <input
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             // Closing without creating — blur used to create silently, which
             // made stray tags whenever you clicked away.
-            onBlur={() => {
+            onBlur={(e) => {
+              // Picking a colour moves focus inside the palette; that must not
+              // cancel the tag being written.
+              if (e.relatedTarget instanceof HTMLElement && e.relatedTarget.closest('[role=dialog]'))
+                return
               setDraft('')
               setAdding(false)
             }}
@@ -352,9 +364,8 @@ function TagBar({
             }}
             placeholder="New tag"
             aria-label="New tag"
-            className={`placeholder:text-faint w-24 bg-transparent py-1.5 text-[12px] outline-none focus-visible:outline-none ${
-              duplicate ? 'text-coral' : ''
-            }`}
+            style={{ color: duplicate ? 'var(--color-coral)' : newColor }}
+            className="placeholder:text-faint w-24 bg-transparent py-1.5 text-[12px] font-medium outline-none focus-visible:outline-none"
           />
           <button
             onMouseDown={(e) => e.preventDefault()} // keep focus so blur can't cancel the click

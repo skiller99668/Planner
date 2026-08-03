@@ -72,12 +72,16 @@ export function listTags(): Tag[] {
   return out
 }
 
-export function createTag(raw: string): Tag[] {
+export function createTag(raw: string, color?: string): Tag[] {
   const name = normalizeTag(raw)
   if (name.length >= 1) {
+    const valid = color && (TAG_COLORS as readonly string[]).includes(color) ? color : null
     getDb()
-      .prepare('INSERT INTO tags (name, created_at) VALUES (?, ?) ON CONFLICT(name) DO NOTHING')
-      .run(name, new Date().toISOString())
+      .prepare(
+        `INSERT INTO tags (name, created_at, color) VALUES (?, ?, ?)
+         ON CONFLICT(name) DO UPDATE SET color = COALESCE(excluded.color, tags.color)`
+      )
+      .run(name, new Date().toISOString(), valid)
   }
   return listTags()
 }

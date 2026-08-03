@@ -161,7 +161,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
 
   // ---------- tags ----------
   ipcMain.handle(IPC.tagsList, () => listTags())
-  ipcMain.handle(IPC.tagsCreate, (_e, name: string) => createTag(name))
+  ipcMain.handle(IPC.tagsCreate, (_e, name: string, color?: string) => createTag(name, color))
   ipcMain.handle(IPC.tagsDelete, (_e, name: string) => deleteTag(name))
   ipcMain.handle(IPC.tagsSetColor, (_e, name: string, color: string) => setTagColor(name, color))
 }

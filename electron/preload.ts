@@ -84,7 +84,7 @@ const api: PlannerApi = {
   careerWeekStats: () => ipcRenderer.invoke(IPC.careerWeekStats),
   jobsFetch: (force?: boolean) => ipcRenderer.invoke(IPC.jobsFetch, force),
   tagsList: () => ipcRenderer.invoke(IPC.tagsList),
-  tagsCreate: (name: string) => ipcRenderer.invoke(IPC.tagsCreate, name),
+  tagsCreate: (name: string, color?: string) => ipcRenderer.invoke(IPC.tagsCreate, name, color),
   tagsDelete: (name: string) => ipcRenderer.invoke(IPC.tagsDelete, name),
   tagsSetColor: (name: string, color: string) => ipcRenderer.invoke(IPC.tagsSetColor, name, color),
 

@@ -26,7 +26,7 @@ export interface TasksStore {
   createSeries: (input: SeriesInput) => Promise<void>
   updateSeries: (id: string, patch: SeriesPatch) => Promise<void>
   deleteSeries: (id: string) => Promise<void>
-  createTag: (name: string) => Promise<void>
+  createTag: (name: string, color?: string) => Promise<void>
   deleteTag: (name: string) => Promise<void>
   setTagColor: (name: string, color: string) => Promise<void>
 }
@@ -83,7 +83,7 @@ export function useTasks(): TasksStore {
     createSeries: (input) => wrap(() => window.planner!.seriesCreate(input)),
     updateSeries: (id, patch) => wrap(() => window.planner!.seriesUpdate(id, patch)),
     deleteSeries: (id) => wrap(() => window.planner!.seriesDelete(id)),
-    createTag: (name) => wrap(() => window.planner!.tagsCreate(name)),
+    createTag: (name, color) => wrap(() => window.planner!.tagsCreate(name, color)),
     deleteTag: (name) => wrap(() => window.planner!.tagsDelete(name)),
     setTagColor: (name, color) => wrap(() => window.planner!.tagsSetColor(name, color))
   }

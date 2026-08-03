@@ -196,7 +196,7 @@ export interface PlannerApi {
 
   /** Tag vocabulary: standalone tags plus every tag in use, with colours. */
   tagsList(): Promise<Tag[]>
-  tagsCreate(name: string): Promise<Tag[]>
+  tagsCreate(name: string, color?: string): Promise<Tag[]>
   /** Deletes the tag and strips it from every task and series. */
   tagsDelete(name: string): Promise<Tag[]>
   tagsSetColor(name: string, color: string): Promise<Tag[]>
