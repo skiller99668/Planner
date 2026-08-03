@@ -28,6 +28,7 @@ import type {
   SeriesInput,
   SeriesPatch,
   Settings,
+  Tag,
   Task,
   TaskInput,
   TaskPatch,
@@ -80,6 +81,7 @@ export const IPC = {
   tagsList: 'tags:list',
   tagsCreate: 'tags:create',
   tagsDelete: 'tags:delete',
+  tagsSetColor: 'tags:setColor',
   jobsFetch: 'jobs:fetch'
 } as const
 
@@ -192,9 +194,10 @@ export interface PlannerApi {
    *  `force` bypasses the cache for an explicit refresh. */
   jobsFetch(force?: boolean): Promise<JobsFetchResult>
 
-  /** Tag vocabulary: standalone tags plus every tag in use. */
-  tagsList(): Promise<string[]>
-  tagsCreate(name: string): Promise<string[]>
+  /** Tag vocabulary: standalone tags plus every tag in use, with colours. */
+  tagsList(): Promise<Tag[]>
+  tagsCreate(name: string): Promise<Tag[]>
   /** Deletes the tag and strips it from every task and series. */
-  tagsDelete(name: string): Promise<string[]>
+  tagsDelete(name: string): Promise<Tag[]>
+  tagsSetColor(name: string, color: string): Promise<Tag[]>
 }

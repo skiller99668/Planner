@@ -8,6 +8,8 @@ import TaskEditor, {
   type FormValues
 } from '../components/TaskEditor'
 import { CheckCircle } from '../components/Celebrate'
+import TagChip, { TagPill } from '../components/TagChip'
+import type { Tag } from '../../shared/types'
 import { addDaysYMD, dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
 import { useTasks, type TasksStore } from '../lib/useTasks'
 
@@ -72,6 +74,11 @@ export default function TasksPage() {
   )
   // Vocabulary comes from main: standalone tags plus everything in use.
   const allTags = store.tags
+  const tagNames = useMemo(() => allTags.map((t) => t.name), [allTags])
+  const tagColors = useMemo(
+    () => new Map(allTags.map((t) => [t.name, t.color])),
+    [allTags]
+  )
 
   const buckets = useMemo(() => {
     const today = todayYMD()
@@ -166,7 +173,7 @@ export default function TasksPage() {
             mode="create"
             initial={emptyForm(quickTitle)}
             submitLabel="Add"
-            knownTags={allTags}
+            knownTags={tagNames}
             onSave={(v) => void saveNew(v)}
             onCancel={() => setDetailsOpen(false)}
           />
@@ -177,7 +184,7 @@ export default function TasksPage() {
       {seriesOpen && (
         <SeriesPanel
           store={store}
-          knownTags={allTags}
+          knownTags={tagNames}
           editingId={editingSeriesId}
           setEditingId={setEditingSeriesId}
         />
@@ -189,6 +196,7 @@ export default function TasksPage() {
         active={tagFilter}
         onFilter={(tag) => setTagFilter(tag)}
         onCreate={(name) => void store.createTag(name)}
+        onSetColor={(tag, color) => void store.setTagColor(tag, color)}
         onDelete={(tag) => {
           if (
             !window.confirm(`Delete “${tag}”? It will be removed from every task using it.`)
@@ -221,7 +229,8 @@ export default function TasksPage() {
                     key={t.id}
                     task={t}
                     store={store}
-                    knownTags={allTags}
+                    knownTags={tagNames}
+                    tagColors={tagColors}
                     onLinger={linger}
                     editing={editingId === t.id}
                     onEdit={() => setEditingId(editingId === t.id ? null : t.id)}
@@ -250,7 +259,8 @@ export default function TasksPage() {
                   key={t.id}
                   task={t}
                   store={store}
-                  knownTags={allTags}
+                  knownTags={tagNames}
+                  tagColors={tagColors}
                   onLinger={linger}
                   editing={false}
                   onEdit={() => {}}
@@ -272,19 +282,21 @@ function TagBar({
   active,
   onFilter,
   onCreate,
+  onSetColor,
   onDelete
 }: {
-  tags: string[]
+  tags: Tag[]
   active: string | null
   onFilter: (tag: string | null) => void
   onCreate: (name: string) => void
+  onSetColor: (tag: string, color: string) => void
   onDelete: (tag: string) => void
 }) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
 
   const clean = normalizeTag(draft)
-  const duplicate = clean.length > 0 && tags.includes(clean)
+  const duplicate = clean.length > 0 && tags.some((t) => t.name === clean)
   const canCreate = clean.length >= 1 && !duplicate
 
   const create = () => {
@@ -306,34 +318,16 @@ function TagBar({
         </button>
       )}
 
-      {tags.map((tag) => {
-        const on = active === tag
-        return (
-          <span
-            key={tag}
-            className={`tactile group flex items-center rounded-full pr-1 pl-3 text-[12px] font-medium ${
-              on ? 'btn-primary' : 'bg-surface text-muted'
-            }`}
-          >
-            <button
-              onClick={() => onFilter(on ? null : tag)}
-              className={`py-1.5 ${on ? 'font-semibold' : 'hover:text-ink'}`}
-            >
-              {tag}
-            </button>
-            <button
-              onClick={() => onDelete(tag)}
-              aria-label={`Delete tag ${tag}`}
-              title={`Delete “${tag}”`}
-              className={`ml-1 flex h-4.5 w-4.5 items-center justify-center rounded-full text-[13px] leading-none opacity-45 transition-opacity group-hover:opacity-100 ${
-                on ? 'hover:bg-bg/25' : 'hover:text-coral'
-              }`}
-            >
-              ×
-            </button>
-          </span>
-        )
-      })}
+      {tags.map((tag) => (
+        <TagChip
+          key={tag.name}
+          tag={tag}
+          active={active === tag.name}
+          onFilter={() => onFilter(active === tag.name ? null : tag.name)}
+          onSetColor={(color) => onSetColor(tag.name, color)}
+          onDelete={() => onDelete(tag.name)}
+        />
+      ))}
 
       {adding ? (
         <span className="bg-surface flex items-center rounded-full pr-1 pl-3">
@@ -391,6 +385,7 @@ function TaskRow({
   task,
   store,
   knownTags,
+  tagColors,
   onLinger,
   editing,
   onEdit,
@@ -399,6 +394,7 @@ function TaskRow({
   task: Task
   store: TasksStore
   knownTags: string[]
+  tagColors: Map<string, string>
   onLinger: (id: string) => void
   editing: boolean
   onEdit: () => void
@@ -454,12 +450,7 @@ function TaskRow({
             {task.seriesId && <IconRepeat />}
             {task.reminderAt && !isDone && <IconBell />}
             {task.tags.map((tag) => (
-              <span
-                key={tag}
-                className="bg-raised text-muted rounded-full px-2 py-0.5 text-[11px] font-medium"
-              >
-                {tag}
-              </span>
+              <TagPill key={tag} name={tag} color={tagColors.get(tag) ?? '#93A4C8'} />
             ))}
           </span>
         </button>

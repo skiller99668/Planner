@@ -61,6 +61,40 @@ export interface TaskSeries {
 // The renderer speaks local date (YYYY-MM-DD) + time (HH:mm); the main process
 // composes UTC ISO dueAt/reminderAt from them. Reminders require a due time.
 
+/** A tag and the colour it renders in. */
+export interface Tag {
+  name: string
+  color: string
+}
+
+/** Tag palette: one hue family per swatch, all tuned to the same rough
+ *  luminance so no tag shouts louder than another on the midnight field. */
+export const TAG_COLORS = [
+  '#5B9CFF', // azure
+  '#7B7BFA', // indigo
+  '#A78BFA', // violet
+  '#C88BF5', // orchid
+  '#E86FD8', // magenta
+  '#FF7BB0', // pink
+  '#FF6B72', // coral
+  '#FF8F5E', // ember
+  '#F5C56B', // gold
+  '#D7D06B', // citron
+  '#8FD065', // leaf
+  '#4FD6AC', // mint
+  '#3FD0C9', // teal
+  '#4FC3F7', // sky
+  '#93A4C8' // slate
+] as const
+
+/** Stable colour for a tag that has never been assigned one, so the palette
+ *  looks deliberate from the first tag without anyone picking. */
+export function defaultTagColor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return TAG_COLORS[h % TAG_COLORS.length]
+}
+
 export interface TaskInput {
   title: string
   notes?: string | null

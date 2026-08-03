@@ -86,6 +86,7 @@ const api: PlannerApi = {
   tagsList: () => ipcRenderer.invoke(IPC.tagsList),
   tagsCreate: (name: string) => ipcRenderer.invoke(IPC.tagsCreate, name),
   tagsDelete: (name: string) => ipcRenderer.invoke(IPC.tagsDelete, name),
+  tagsSetColor: (name: string, color: string) => ipcRenderer.invoke(IPC.tagsSetColor, name, color),
 
   onTasksChanged: (cb: () => void) => {
     const listener = () => cb()

@@ -44,7 +44,7 @@ import { listMessages, listThreads } from './chatRepo'
 import { getDbPath, getSchemaVersion } from './db'
 import { createEvent, deleteEvent, importIcs, listEvents, updateEvent } from './eventsRepo'
 import { fetchJobs } from './jobsFeed'
-import { createTag, deleteTag, listTags } from './tagsRepo'
+import { createTag, deleteTag, listTags, setTagColor } from './tagsRepo'
 import { getGroqStatus, listModels, setGroqKey } from './groq'
 import {
   deleteGymSession,
@@ -163,4 +163,5 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.tagsList, () => listTags())
   ipcMain.handle(IPC.tagsCreate, (_e, name: string) => createTag(name))
   ipcMain.handle(IPC.tagsDelete, (_e, name: string) => deleteTag(name))
+  ipcMain.handle(IPC.tagsSetColor, (_e, name: string, color: string) => setTagColor(name, color))
 }

@@ -192,5 +192,14 @@ export const MIGRATIONS: Migration[] = [
         created_at TEXT NOT NULL
       );
     `
+  },
+  {
+    version: 4,
+    sql: `
+      -- Per-tag colour. NULL means "never chosen", which resolves to a stable
+      -- colour derived from the name, so existing tags look intentional
+      -- without anyone having to pick.
+      ALTER TABLE tags ADD COLUMN color TEXT;
+    `
   }
 ]

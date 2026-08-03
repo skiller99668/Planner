@@ -6,6 +6,7 @@ import type {
   SeriesInput,
   SeriesPatch,
   Task,
+  Tag,
   TaskInput,
   TaskPatch,
   TaskSeries
@@ -15,7 +16,7 @@ export interface TasksStore {
   tasks: Task[]
   series: TaskSeries[]
   /** Full tag vocabulary — includes tags not currently on any task. */
-  tags: string[]
+  tags: Tag[]
   loaded: boolean
   refresh: () => Promise<void>
   createTask: (input: TaskInput) => Promise<void>
@@ -27,12 +28,13 @@ export interface TasksStore {
   deleteSeries: (id: string) => Promise<void>
   createTag: (name: string) => Promise<void>
   deleteTag: (name: string) => Promise<void>
+  setTagColor: (name: string, color: string) => Promise<void>
 }
 
 export function useTasks(): TasksStore {
   const [tasks, setTasks] = useState<Task[]>([])
   const [series, setSeries] = useState<TaskSeries[]>([])
-  const [tags, setTags] = useState<string[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
   const [loaded, setLoaded] = useState(false)
 
   const refresh = useCallback(async () => {
@@ -82,6 +84,7 @@ export function useTasks(): TasksStore {
     updateSeries: (id, patch) => wrap(() => window.planner!.seriesUpdate(id, patch)),
     deleteSeries: (id) => wrap(() => window.planner!.seriesDelete(id)),
     createTag: (name) => wrap(() => window.planner!.tagsCreate(name)),
-    deleteTag: (name) => wrap(() => window.planner!.tagsDelete(name))
+    deleteTag: (name) => wrap(() => window.planner!.tagsDelete(name)),
+    setTagColor: (name, color) => wrap(() => window.planner!.tagsSetColor(name, color))
   }
 }
