@@ -17,6 +17,7 @@ import type {
   EventInput,
   EventKind,
   EventPatch,
+  FeedEvent,
   GymLogInput,
   GymPatch,
   LectureInput,
@@ -74,6 +75,8 @@ const api: PlannerApi = {
   eventsUpdate: (id: string, patch: EventPatch) => ipcRenderer.invoke(IPC.eventsUpdate, id, patch),
   eventsDelete: (id: string) => ipcRenderer.invoke(IPC.eventsDelete, id),
   eventsImportIcs: (kind: EventKind) => ipcRenderer.invoke(IPC.eventsImportIcs, kind),
+  eventsFetchBadminton: (force?: boolean) => ipcRenderer.invoke(IPC.eventsFetchBadminton, force),
+  eventsImportFeed: (events: FeedEvent[]) => ipcRenderer.invoke(IPC.eventsImportFeed, events),
 
   appsList: () => ipcRenderer.invoke(IPC.appsList),
   appsCreate: (input: ApplicationInput) => ipcRenderer.invoke(IPC.appsCreate, input),

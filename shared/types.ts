@@ -213,7 +213,7 @@ export interface ChatMessage {
 // ---------- Events (badminton tournaments, McGill career fairs, deadlines) ----------
 
 export type EventKind = 'badminton' | 'hackathon' | 'career' | 'academic' | 'other'
-export type EventSource = 'manual' | 'ics'
+export type EventSource = 'manual' | 'ics' | 'web'
 
 export interface PlannerEvent {
   id: string
@@ -249,6 +249,16 @@ export interface EventInput {
 }
 
 export type EventPatch = Partial<EventInput> & { registered?: boolean }
+
+/** A tournament found on a federation calendar, before it's imported. */
+export interface FeedEvent {
+  uid: string
+  title: string
+  startDate: string // YYYY-MM-DD
+  endDate: string | null
+  url: string | null
+  location: string | null
+}
 
 export interface IcsImportResult {
   imported: number

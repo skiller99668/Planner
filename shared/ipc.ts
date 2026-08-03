@@ -19,6 +19,7 @@ import type {
   GymLogInput,
   GymPatch,
   GymSession,
+  FeedEvent,
   IcsImportResult,
   JobPosting,
   Lecture,
@@ -71,6 +72,8 @@ export const IPC = {
   eventsUpdate: 'events:update',
   eventsDelete: 'events:delete',
   eventsImportIcs: 'events:importIcs',
+  eventsFetchBadminton: 'events:fetchBadminton',
+  eventsImportFeed: 'events:importFeed',
   appsList: 'apps:list',
   appsCreate: 'apps:create',
   appsUpdate: 'apps:update',
@@ -84,6 +87,10 @@ export const IPC = {
   tagsSetColor: 'tags:setColor',
   jobsFetch: 'jobs:fetch'
 } as const
+
+export type BadmintonFeedResult =
+  | { ok: true; events: FeedEvent[]; fetchedAt: string }
+  | { ok: false; error: string }
 
 export interface JobSourceStatus {
   id: string
@@ -181,6 +188,10 @@ export interface PlannerApi {
   eventsDelete(id: string): Promise<void>
   /** Opens a file dialog in main, imports VEVENTs under the given kind. */
   eventsImportIcs(kind: PlannerEvent['kind']): Promise<IcsImportResult>
+  /** Reads the Badminton Québec calendar (10-min cache). */
+  eventsFetchBadminton(force?: boolean): Promise<BadmintonFeedResult>
+  /** Imports the chosen feed events, computing BQ registration windows. */
+  eventsImportFeed(events: FeedEvent[]): Promise<IcsImportResult>
 
   appsList(): Promise<Application[]>
   appsCreate(input: ApplicationInput): Promise<Application>

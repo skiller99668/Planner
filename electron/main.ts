@@ -73,6 +73,21 @@ if (isSmokeTest) {
       return
     }
 
+    // PLANNER_BQ_TEST=1 fetches the Badminton Québec calendar and prints what
+    // the parser found — verifies the feed against the live site.
+    if (process.env.PLANNER_BQ_TEST) {
+      try {
+        const { fetchBadmintonQuebec } = await import('./badmintonFeed')
+        const res = await fetchBadmintonQuebec(true)
+        console.log('BQ ' + JSON.stringify(res).slice(0, 1500))
+        app.exit(res.ok ? 0 : 1)
+      } catch (err) {
+        console.error('BQ FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
     // PLANNER_EVENT_TEST=YYYY-MM-DD creates a badminton event through the real
     // path, prints the computed BQ window + queued reminders, cleans up, exits.
     const eventTestDate = process.env.PLANNER_EVENT_TEST

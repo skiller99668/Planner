@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import TimeField from '../components/TimeField'
 import DateField from '../components/DateField'
 import Select from '../components/Select'
-import type { EventKind, PlannerEvent } from '../../shared/types'
+import type { EventKind, FeedEvent, PlannerEvent } from '../../shared/types'
+import { addDaysYMD, localYMD, todayYMD } from '../lib/dates'
 
 const KIND_META: Record<EventKind, { label: string; cls: string }> = {
   badminton: { label: 'badminton', cls: 'text-violet border-violet/40 bg-violet/10' },
@@ -21,6 +22,21 @@ const HACKATHON_LINKS = [
   { name: 'Devpost hackathons', url: 'https://devpost.com/hackathons' }
 ]
 
+/** Chip colours for the month grid — hex, since these are inline styles. */
+const KIND_COLOR: Record<EventKind, string> = {
+  badminton: '#4FC3F7',
+  hackathon: '#A78BFA',
+  career: '#F5C56B',
+  academic: '#4FD6AC',
+  other: '#93A4C8'
+}
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+]
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
 const inputCls =
   'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-azure/60'
 
@@ -31,6 +47,17 @@ export default function EventsPage() {
   const [importKind, setImportKind] = useState<EventKind>('badminton')
   const [importMsg, setImportMsg] = useState<string | null>(null)
   const [showPast, setShowPast] = useState(false)
+  const [view, setView] = useState<'month' | 'list'>('month')
+  const [cursor, setCursor] = useState(() => new Date())
+  const [selected, setSelected] = useState<string | null>(todayYMD())
+  const [adding, setAdding] = useState(false)
+
+  // Badminton Québec import panel
+  const [bqOpen, setBqOpen] = useState(false)
+  const [bqEvents, setBqEvents] = useState<FeedEvent[]>([])
+  const [bqPicked, setBqPicked] = useState<ReadonlySet<string>>(new Set())
+  const [bqBusy, setBqBusy] = useState(false)
+  const [bqError, setBqError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     if (!window.planner) return
@@ -70,12 +97,57 @@ export default function EventsPage() {
     return groups
   }, [upcoming])
 
+  /** Every day an event covers, so multi-day events show across the grid. */
+  const byDay = useMemo(() => {
+    const map = new Map<string, PlannerEvent[]>()
+    for (const e of events) {
+      const start = localYMD(new Date(e.startAt))
+      const end = e.endAt ? localYMD(new Date(e.endAt)) : start
+      let d = start
+      for (let guard = 0; guard < 400 && d <= end; guard++) {
+        const list = map.get(d)
+        if (list) list.push(e)
+        else map.set(d, [e])
+        d = addDaysYMD(d, 1)
+      }
+    }
+    return map
+  }, [events])
+
   const doImport = async () => {
     if (!window.planner) return
     const res = await window.planner.eventsImportIcs(importKind)
     if (res.canceled) return
     setImportMsg(`Imported ${res.imported}${res.skipped ? ` · ${res.skipped} already known` : ''}`)
     setTimeout(() => setImportMsg(null), 5000)
+    await refresh()
+  }
+
+  const fetchBq = async () => {
+    if (!window.planner) return
+    setBqOpen(true)
+    setBqBusy(true)
+    setBqError(null)
+    const res = await window.planner.eventsFetchBadminton(bqEvents.length > 0)
+    setBqBusy(false)
+    if (res.ok) {
+      setBqEvents(res.events)
+      setBqPicked(new Set())
+    } else {
+      setBqError(res.error)
+    }
+  }
+
+  const importBq = async () => {
+    if (!window.planner) return
+    const chosen = bqEvents.filter((e) => bqPicked.has(e.uid))
+    if (chosen.length === 0) return
+    setBqBusy(true)
+    const res = await window.planner.eventsImportFeed(chosen)
+    setBqBusy(false)
+    setImportMsg(`Added ${res.imported}${res.skipped ? ` · ${res.skipped} already tracked` : ''}`)
+    setTimeout(() => setImportMsg(null), 5000)
+    setBqOpen(false)
     await refresh()
   }
 
@@ -87,65 +159,143 @@ export default function EventsPage() {
           <p className="text-muted mt-0.5 text-[13.5px]">Tournaments, fairs and deadlines</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select
-            value={importKind}
-            ariaLabel="Import as"
-            align="right"
-            className="bg-surface"
-            onChange={(val) => setImportKind(val as EventKind)}
-            options={[
-              { value: 'badminton', label: 'as badminton' },
-              { value: 'hackathon', label: 'as hackathon' },
-              { value: 'career', label: 'as career' },
-              { value: 'academic', label: 'as academic' },
-              { value: 'other', label: 'as other' }
-            ]}
-          />
+          <div className="bg-surface flex rounded-[11px] p-0.5" role="group" aria-label="View">
+            {(['month', 'list'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                aria-pressed={view === v}
+                className={`tactile rounded-[9px] px-3 py-1.5 text-[12.5px] font-medium capitalize ${
+                  view === v ? 'btn-primary' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
           <button
-            onClick={() => void doImport()}
-            className="bg-surface text-muted hover:text-ink rounded-[11px] px-3 py-1.5 text-[12.5px] transition-colors"
-            
+            onClick={() => setAdding((a) => !a)}
+            className="tactile btn-primary rounded-[11px] px-3.5 py-2 text-[13px] font-bold"
           >
-            Import .ics
+            {adding ? 'Close' : 'New event'}
           </button>
         </div>
       </div>
 
-      {importMsg && (
-        <p className="text-mint mt-2 nums text-[12px]">{importMsg}</p>
+      {adding && (
+        <AddEventForm
+          onCreated={async () => {
+            await refresh()
+            setAdding(false)
+          }}
+        />
       )}
 
-      <AddEventForm onCreated={refresh} />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => void fetchBq()}
+          className="tactile bg-surface text-muted hover:text-ink rounded-[11px] px-3 py-1.5 text-[12.5px] font-medium"
+        >
+          Badminton Québec
+        </button>
+        <Select
+          value={importKind}
+          ariaLabel="Import as"
+          className="bg-surface"
+          onChange={(val) => setImportKind(val as EventKind)}
+          options={[
+            { value: 'badminton', label: 'as badminton' },
+            { value: 'hackathon', label: 'as hackathon' },
+            { value: 'career', label: 'as career' },
+            { value: 'academic', label: 'as academic' },
+            { value: 'other', label: 'as other' }
+          ]}
+        />
+        <button
+          onClick={() => void doImport()}
+          className="tactile bg-surface text-muted hover:text-ink rounded-[11px] px-3 py-1.5 text-[12.5px] font-medium"
+        >
+          Import .ics
+        </button>
+        {importMsg && <span className="text-mint text-[12.5px]">{importMsg}</span>}
+      </div>
 
-      {upcoming.length === 0 && loaded ? (
-        <p className="text-muted mt-8 text-[13.5px]">
-          Nothing coming up.
-        </p>
+      {bqOpen && (
+        <BadmintonPanel
+          busy={bqBusy}
+          error={bqError}
+          events={bqEvents}
+          known={new Set(events.map((e) => e.externalUid).filter(Boolean) as string[])}
+          picked={bqPicked}
+          setPicked={setBqPicked}
+          onImport={() => void importBq()}
+          onClose={() => setBqOpen(false)}
+          onRefetch={() => void fetchBq()}
+        />
+      )}
+
+      {view === 'month' ? (
+        <MonthGrid
+          cursor={cursor}
+          setCursor={setCursor}
+          byDay={byDay}
+          selected={selected}
+          setSelected={setSelected}
+          expandedId={expandedId}
+          setExpandedId={setExpandedId}
+          onChanged={refresh}
+        />
       ) : (
-        byMonth.map((group) => (
-          <section key={group.label} className="mt-6">
-            <h2 className="text-muted text-[13px] font-bold">
-              {group.label}
-            </h2>
-            <ul className="mt-2 max-w-2xl space-y-1">
-              {group.items.map((e) => (
-                <EventRow
-                  key={e.id}
-                  event={e}
-                  expanded={expandedId === e.id}
-                  onToggle={() => setExpandedId(expandedId === e.id ? null : e.id)}
-                  onChanged={refresh}
-                />
-              ))}
-            </ul>
-          </section>
-        ))
+        <>
+          {upcoming.length === 0 && loaded ? (
+            <p className="text-muted mt-8 text-[13.5px]">Nothing coming up.</p>
+          ) : (
+            byMonth.map((group) => (
+              <section key={group.label} className="mt-6">
+                <h2 className="text-muted text-[13px] font-bold">{group.label}</h2>
+                <ul className="mt-2 max-w-2xl space-y-1">
+                  {group.items.map((e) => (
+                    <EventRow
+                      key={e.id}
+                      event={e}
+                      expanded={expandedId === e.id}
+                      onToggle={() => setExpandedId(expandedId === e.id ? null : e.id)}
+                      onChanged={refresh}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))
+          )}
+
+          {past.length > 0 && (
+            <section className="mt-8">
+              <button
+                onClick={() => setShowPast((s) => !s)}
+                className="text-muted hover:text-ink text-[13px] font-semibold transition-colors"
+              >
+                {showPast ? '▾' : '▸'} Past · {past.length}
+              </button>
+              {showPast && (
+                <ul className="mt-2 max-w-2xl space-y-1 opacity-60">
+                  {past.map((e) => (
+                    <EventRow
+                      key={e.id}
+                      event={e}
+                      expanded={expandedId === e.id}
+                      onToggle={() => setExpandedId(expandedId === e.id ? null : e.id)}
+                      onChanged={refresh}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+        </>
       )}
 
       <section className="mt-8 max-w-2xl">
-        <h2 className="text-muted text-[13px] font-bold">
-          Find hackathons
-        </h2>
+        <h2 className="text-muted text-[13px] font-bold">Find hackathons</h2>
         <p className="text-muted mt-1.5 text-[12.5px] leading-relaxed">
           Add the dates here once you find one — registration fills fast.
         </p>
@@ -154,42 +304,272 @@ export default function EventsPage() {
             <button
               key={h.url}
               onClick={() => void window.planner?.openExternal(h.url)}
-              className="text-violet text-[12.5px] hover:underline"
+              className="text-azure text-[12.5px] hover:underline"
             >
               {h.name} ↗
             </button>
           ))}
         </div>
       </section>
+    </div>
+  )
+}
 
-      {past.length > 0 && (
-        <section className="mt-8">
+// ---------- month grid ----------
+
+function MonthGrid({
+  cursor,
+  setCursor,
+  byDay,
+  selected,
+  setSelected,
+  expandedId,
+  setExpandedId,
+  onChanged
+}: {
+  cursor: Date
+  setCursor: (d: Date) => void
+  byDay: Map<string, PlannerEvent[]>
+  selected: string | null
+  setSelected: (d: string | null) => void
+  expandedId: string | null
+  setExpandedId: (id: string | null) => void
+  onChanged: () => Promise<void>
+}) {
+  const year = cursor.getFullYear()
+  const month = cursor.getMonth()
+  const first = new Date(year, month, 1)
+  const gridStart = addDaysYMD(localYMD(first), -first.getDay())
+  const weeks = Math.ceil((first.getDay() + new Date(year, month + 1, 0).getDate()) / 7)
+  const days = Array.from({ length: weeks * 7 }, (_, i) => addDaysYMD(gridStart, i))
+  const today = todayYMD()
+  const selectedEvents = selected ? (byDay.get(selected) ?? []) : []
+
+  return (
+    <div className="mt-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
           <button
-            onClick={() => setShowPast((s) => !s)}
-            className="text-muted hover:text-ink text-[13px] font-bold transition-colors"
+            onClick={() => setCursor(new Date(year, month - 1, 1))}
+            aria-label="Previous month"
+            className="tactile text-muted hover:text-ink rounded-lg px-2 py-1 text-[16px]"
           >
-            {showPast ? '▾' : '▸'} Past · {past.length}
+            &lsaquo;
           </button>
-          {showPast && (
-            <ul className="mt-2 max-w-2xl space-y-1 opacity-60">
-              {past.map((e) => (
+          <h2 className="min-w-40 text-center text-[15px] font-bold">
+            {MONTHS[month]} {year}
+          </h2>
+          <button
+            onClick={() => setCursor(new Date(year, month + 1, 1))}
+            aria-label="Next month"
+            className="tactile text-muted hover:text-ink rounded-lg px-2 py-1 text-[16px]"
+          >
+            &rsaquo;
+          </button>
+        </div>
+        <button
+          onClick={() => {
+            setCursor(new Date())
+            setSelected(today)
+          }}
+          className="tactile text-muted hover:text-ink rounded-[10px] px-3 py-1.5 text-[12.5px] font-medium"
+        >
+          Today
+        </button>
+      </div>
+
+      <div className="mt-3 grid grid-cols-7 gap-1">
+        {DOW.map((d) => (
+          <span key={d} className="text-faint pb-1 text-center text-[11px] font-semibold">
+            {d}
+          </span>
+        ))}
+        {days.map((ymd) => {
+          const d = new Date(`${ymd}T00:00:00`)
+          const outside = d.getMonth() !== month
+          const isToday = ymd === today
+          const isSel = ymd === selected
+          const list = byDay.get(ymd) ?? []
+          return (
+            <button
+              key={ymd}
+              onClick={() => setSelected(ymd)}
+              className={`bg-surface/70 hover:bg-raised min-h-[86px] rounded-[12px] p-1.5 text-left align-top transition-colors ${
+                outside ? 'opacity-40' : ''
+              } ${isSel ? 'ring-azure/70 ring-2' : ''}`}
+            >
+              <span
+                className={`nums inline-flex h-5 w-5 items-center justify-center rounded-full text-[11.5px] font-semibold ${
+                  isToday ? 'btn-primary' : 'text-muted'
+                }`}
+              >
+                {d.getDate()}
+              </span>
+              <span className="mt-1 flex flex-col gap-0.5">
+                {list.slice(0, 3).map((e) => (
+                  <span
+                    key={e.id}
+                    className="truncate rounded px-1 py-[1px] text-[10.5px] font-medium"
+                    style={{ color: KIND_COLOR[e.kind], background: `${KIND_COLOR[e.kind]}22` }}
+                  >
+                    {e.title}
+                  </span>
+                ))}
+                {list.length > 3 && (
+                  <span className="text-faint px-1 text-[10px]">+{list.length - 3} more</span>
+                )}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {selected && (
+        <div className="mt-5">
+          <h3 className="text-muted text-[13px] font-bold">
+            {new Date(`${selected}T00:00:00`).toLocaleDateString(undefined, {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric'
+            })}
+          </h3>
+          {selectedEvents.length === 0 ? (
+            <p className="text-muted mt-2 text-[13px]">Nothing on this day.</p>
+          ) : (
+            <ul className="mt-2 max-w-2xl space-y-1">
+              {selectedEvents.map((e) => (
                 <EventRow
                   key={e.id}
                   event={e}
                   expanded={expandedId === e.id}
                   onToggle={() => setExpandedId(expandedId === e.id ? null : e.id)}
-                  onChanged={refresh}
+                  onChanged={onChanged}
                 />
               ))}
             </ul>
           )}
-        </section>
+        </div>
       )}
     </div>
   )
 }
 
-// ---------- add form ----------
+// ---------- Badminton Québec import ----------
+
+function BadmintonPanel({
+  busy,
+  error,
+  events,
+  known,
+  picked,
+  setPicked,
+  onImport,
+  onClose,
+  onRefetch
+}: {
+  busy: boolean
+  error: string | null
+  events: FeedEvent[]
+  known: Set<string>
+  picked: ReadonlySet<string>
+  setPicked: (s: ReadonlySet<string>) => void
+  onImport: () => void
+  onClose: () => void
+  onRefetch: () => void
+}) {
+  const toggle = (uid: string) => {
+    const next = new Set(picked)
+    if (next.has(uid)) next.delete(uid)
+    else next.add(uid)
+    setPicked(next)
+  }
+
+  return (
+    <div className="bg-surface mt-3 max-w-2xl rounded-[16px] p-4 shadow-[var(--shadow-soft)]">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-bold">Badminton Québec calendar</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onRefetch}
+            disabled={busy}
+            className="text-muted hover:text-ink text-[12px] disabled:opacity-50"
+          >
+            {busy ? 'Fetching…' : 'Refresh'}
+          </button>
+          <button onClick={onClose} className="text-muted hover:text-ink text-[12px]">
+            Close
+          </button>
+        </div>
+      </div>
+
+      {error && <p className="text-coral mt-2 text-[12.5px]">{error}</p>}
+      {busy && events.length === 0 && (
+        <p className="text-muted mt-2 text-[13px]">Reading their calendar…</p>
+      )}
+
+      {events.length > 0 && (
+        <>
+          <ul className="mt-3 space-y-1">
+            {events.map((e) => {
+              const already = known.has(e.uid)
+              const on = picked.has(e.uid)
+              return (
+                <li key={e.uid}>
+                  <button
+                    onClick={() => !already && toggle(e.uid)}
+                    disabled={already}
+                    className={`flex w-full items-center gap-3 rounded-[11px] px-2.5 py-2 text-left transition-colors ${
+                      already ? 'opacity-45' : on ? 'bg-raised' : 'hover:bg-raised/60'
+                    }`}
+                  >
+                    <span
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border-2 ${
+                        on || already ? 'border-azure bg-azure text-bg' : 'border-line'
+                      }`}
+                    >
+                      {(on || already) && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path
+                            d="M5 12.5l4.5 4.5L19 7"
+                            stroke="currentColor"
+                            strokeWidth="3.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px]">{e.title}</span>
+                      <span className="text-muted nums block text-[11.5px]">
+                        {e.startDate}
+                        {e.endDate && e.endDate !== e.startDate ? ` → ${e.endDate}` : ''}
+                        {e.location ? ` · ${e.location}` : ''}
+                      </span>
+                    </span>
+                    {already && <span className="text-mint shrink-0 text-[11px]">tracked</span>}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-faint text-[11.5px]">
+              Registration alarms are computed for each one you add.
+            </p>
+            <button
+              onClick={onImport}
+              disabled={picked.size === 0 || busy}
+              className="tactile btn-primary rounded-[11px] px-4 py-2 text-[13px] font-bold disabled:opacity-35"
+            >
+              Add {picked.size || ''}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
   const [title, setTitle] = useState('')

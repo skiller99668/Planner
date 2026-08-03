@@ -12,7 +12,14 @@
 
 import { dialog } from 'electron'
 import fs from 'node:fs'
-import type { EventInput, EventKind, EventPatch, IcsImportResult, PlannerEvent } from '../shared/types'
+import type {
+  EventInput,
+  EventKind,
+  EventPatch,
+  FeedEvent,
+  IcsImportResult,
+  PlannerEvent
+} from '../shared/types'
 import { getDb } from './db'
 import { parseIcs } from './ics'
 
@@ -202,6 +209,47 @@ export async function importIcs(kind: EventKind): Promise<IcsImportResult> {
       ev.location,
       ev.url,
       ev.description,
+      ev.uid,
+      reg.opens,
+      reg.closes,
+      now,
+      now
+    )
+    if (res.changes > 0) {
+      imported++
+      syncEventReminders(getEvent(id))
+    } else {
+      skipped++
+    }
+  }
+  return { imported, skipped, canceled: false }
+}
+
+/** Import events picked from a federation calendar. Dedupes on external_uid,
+ *  so re-importing the same tournament is a no-op. */
+export function importFeedEvents(events: FeedEvent[]): IcsImportResult {
+  const now = new Date().toISOString()
+  const insert = getDb().prepare(
+    `INSERT INTO events (id, title, kind, start_at, end_at, location, url, notes, source,
+                         external_uid, reg_opens_at, reg_closes_at, registered,
+                         created_at, updated_at)
+     VALUES (?, ?, 'badminton', ?, ?, ?, ?, NULL, 'web', ?, ?, ?, 0, ?, ?)
+     ON CONFLICT (external_uid) DO NOTHING`
+  )
+
+  let imported = 0
+  let skipped = 0
+  for (const ev of events) {
+    const { dueAt: startAt } = { dueAt: composeStart(ev.startDate, null) }
+    const reg = computeRegWindow(ev.startDate)
+    const id = crypto.randomUUID()
+    const res = insert.run(
+      id,
+      ev.title,
+      startAt,
+      ev.endDate ? composeStart(ev.endDate, null) : null,
+      ev.location,
+      ev.url,
       ev.uid,
       reg.opens,
       reg.closes,

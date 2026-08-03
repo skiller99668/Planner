@@ -11,6 +11,7 @@ import type {
   EventInput,
   EventKind,
   EventPatch,
+  FeedEvent,
   GymLogInput,
   GymPatch,
   LectureInput,
@@ -42,7 +43,15 @@ import {
 } from './careerRepo'
 import { listMessages, listThreads } from './chatRepo'
 import { getDbPath, getSchemaVersion } from './db'
-import { createEvent, deleteEvent, importIcs, listEvents, updateEvent } from './eventsRepo'
+import { fetchBadmintonQuebec } from './badmintonFeed'
+import {
+  createEvent,
+  deleteEvent,
+  importFeedEvents,
+  importIcs,
+  listEvents,
+  updateEvent
+} from './eventsRepo'
 import { fetchJobs } from './jobsFeed'
 import { createTag, deleteTag, listTags, setTagColor } from './tagsRepo'
 import { getGroqStatus, listModels, setGroqKey } from './groq'
@@ -146,6 +155,10 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.eventsUpdate, (_e, id: string, patch: EventPatch) => updateEvent(id, patch))
   ipcMain.handle(IPC.eventsDelete, (_e, id: string) => deleteEvent(id))
   ipcMain.handle(IPC.eventsImportIcs, (_e, kind: EventKind) => importIcs(kind))
+  ipcMain.handle(IPC.eventsFetchBadminton, (_e, force?: boolean) =>
+    fetchBadmintonQuebec(force === true)
+  )
+  ipcMain.handle(IPC.eventsImportFeed, (_e, events: FeedEvent[]) => importFeedEvents(events))
 
   // ---------- career ----------
   ipcMain.handle(IPC.appsList, () => listApplications())
