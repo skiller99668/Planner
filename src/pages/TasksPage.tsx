@@ -69,18 +69,8 @@ export default function TasksPage() {
         .slice(0, 50),
     [store.tasks, tagFilter, lingering]
   )
-  // Vocabulary for the tag picker + filter row: everything already in use,
-  // including tags that live only on a recurring series.
-  const allTags = useMemo(
-    () =>
-      [
-        ...new Set([
-          ...store.tasks.flatMap((t) => t.tags),
-          ...store.series.flatMap((s) => s.tags)
-        ])
-      ].sort(),
-    [store.tasks, store.series]
-  )
+  // Vocabulary comes from main: standalone tags plus everything in use.
+  const allTags = store.tags
 
   const buckets = useMemo(() => {
     const today = todayYMD()
@@ -192,20 +182,21 @@ export default function TasksPage() {
         />
       )}
 
-      {/* Tag filter */}
-      {allTags.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-1.5">
-          <Chip label="All" active={!tagFilter} onClick={() => setTagFilter(null)} />
-          {allTags.map((tag) => (
-            <Chip
-              key={tag}
-              label={tag}
-              active={tagFilter === tag}
-              onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
-            />
-          ))}
-        </div>
-      )}
+      {/* Tags: filter, create, delete */}
+      <TagBar
+        tags={allTags}
+        active={tagFilter}
+        onFilter={(tag) => setTagFilter(tag)}
+        onCreate={(name) => void store.createTag(name)}
+        onDelete={(tag) => {
+          if (
+            !window.confirm(`Delete “${tag}”? It will be removed from every task using it.`)
+          )
+            return
+          if (tagFilter === tag) setTagFilter(null)
+          void store.deleteTag(tag)
+        }}
+      />
 
       {/* Buckets */}
       <div className="mt-2">
@@ -275,16 +266,97 @@ export default function TasksPage() {
 
 // ---------- pieces ----------
 
-function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function TagBar({
+  tags,
+  active,
+  onFilter,
+  onCreate,
+  onDelete
+}: {
+  tags: string[]
+  active: string | null
+  onFilter: (tag: string | null) => void
+  onCreate: (name: string) => void
+  onDelete: (tag: string) => void
+}) {
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  const create = () => {
+    const name = draft.trim()
+    if (name) onCreate(name)
+    setDraft('')
+    setAdding(false)
+  }
+
   return (
-    <button
-      onClick={onClick}
-      className={`tactile rounded-full px-3 py-1.5 text-[12px] font-medium ${
-        active ? 'bg-clay text-bg font-semibold' : 'bg-surface text-muted hover:text-ink'
-      }`}
-    >
-      {label}
-    </button>
+    <div className="mt-4 flex flex-wrap items-center gap-1.5">
+      {tags.length > 0 && (
+        <button
+          onClick={() => onFilter(null)}
+          className={`tactile rounded-full px-3 py-1.5 text-[12px] font-medium ${
+            !active ? 'bg-clay text-bg font-semibold' : 'bg-surface text-muted hover:text-ink'
+          }`}
+        >
+          All
+        </button>
+      )}
+
+      {tags.map((tag) => {
+        const on = active === tag
+        return (
+          <span
+            key={tag}
+            className={`tactile group flex items-center rounded-full pr-1 pl-3 text-[12px] font-medium ${
+              on ? 'bg-clay text-bg' : 'bg-surface text-muted'
+            }`}
+          >
+            <button
+              onClick={() => onFilter(on ? null : tag)}
+              className={`py-1.5 ${on ? 'font-semibold' : 'hover:text-ink'}`}
+            >
+              {tag}
+            </button>
+            <button
+              onClick={() => onDelete(tag)}
+              aria-label={`Delete tag ${tag}`}
+              title={`Delete “${tag}”`}
+              className={`ml-1 flex h-4.5 w-4.5 items-center justify-center rounded-full text-[13px] leading-none opacity-45 transition-opacity group-hover:opacity-100 ${
+                on ? 'hover:bg-bg/25' : 'hover:text-rose'
+              }`}
+            >
+              ×
+            </button>
+          </span>
+        )
+      })}
+
+      {adding ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={create}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') create()
+            if (e.key === 'Escape') {
+              setDraft('')
+              setAdding(false)
+            }
+          }}
+          placeholder="Tag name"
+          aria-label="New tag"
+          className="bg-surface placeholder:text-faint focus:ring-clay/50 w-28 rounded-full px-3 py-1.5 text-[12px] outline-none focus:ring-1"
+        />
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="tactile text-muted hover:text-ink rounded-full px-2.5 py-1.5 text-[12px] font-medium"
+        >
+          + Tag
+        </button>
+      )}
+    </div>
   )
 }
 

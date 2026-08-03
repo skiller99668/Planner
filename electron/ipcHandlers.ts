@@ -44,6 +44,7 @@ import { listMessages, listThreads } from './chatRepo'
 import { getDbPath, getSchemaVersion } from './db'
 import { createEvent, deleteEvent, importIcs, listEvents, updateEvent } from './eventsRepo'
 import { fetchJobs } from './jobsFeed'
+import { createTag, deleteTag, listTags } from './tagsRepo'
 import { getGroqStatus, listModels, setGroqKey } from './groq'
 import {
   deleteGymSession,
@@ -157,4 +158,9 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.careerLogUndo, (_e, kind: CareerLogKind) => undoCareerLog(kind))
   ipcMain.handle(IPC.careerWeekStats, () => careerWeekStats())
   ipcMain.handle(IPC.jobsFetch, (_e, force?: boolean) => fetchJobs(force === true))
+
+  // ---------- tags ----------
+  ipcMain.handle(IPC.tagsList, () => listTags())
+  ipcMain.handle(IPC.tagsCreate, (_e, name: string) => createTag(name))
+  ipcMain.handle(IPC.tagsDelete, (_e, name: string) => deleteTag(name))
 }

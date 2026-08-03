@@ -77,6 +77,9 @@ export const IPC = {
   careerLogAdd: 'career:logAdd',
   careerLogUndo: 'career:logUndo',
   careerWeekStats: 'career:weekStats',
+  tagsList: 'tags:list',
+  tagsCreate: 'tags:create',
+  tagsDelete: 'tags:delete',
   jobsFetch: 'jobs:fetch'
 } as const
 
@@ -188,4 +191,10 @@ export interface PlannerApi {
   /** On-demand fetch of the aggregated internship feeds (10-min cache).
    *  `force` bypasses the cache for an explicit refresh. */
   jobsFetch(force?: boolean): Promise<JobsFetchResult>
+
+  /** Tag vocabulary: standalone tags plus every tag in use. */
+  tagsList(): Promise<string[]>
+  tagsCreate(name: string): Promise<string[]>
+  /** Deletes the tag and strips it from every task and series. */
+  tagsDelete(name: string): Promise<string[]>
 }

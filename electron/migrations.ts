@@ -178,5 +178,19 @@ export const MIGRATIONS: Migration[] = [
       -- tournaments): silences the "registration closes soon" reminder.
       ALTER TABLE events ADD COLUMN registered INTEGER NOT NULL DEFAULT 0;
     `
+  },
+  {
+    version: 3,
+    sql: `
+      -- Tags were implicit: they existed only as strings inside tasks.tags.
+      -- This table lets a tag exist on its own (created ahead of any task)
+      -- and lets one be deleted deliberately rather than vanishing when the
+      -- last task using it goes away. The live vocabulary is this table
+      -- UNION the tags currently in use.
+      CREATE TABLE tags (
+        name TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL
+      );
+    `
   }
 ]

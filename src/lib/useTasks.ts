@@ -14,6 +14,8 @@ import type {
 export interface TasksStore {
   tasks: Task[]
   series: TaskSeries[]
+  /** Full tag vocabulary — includes tags not currently on any task. */
+  tags: string[]
   loaded: boolean
   refresh: () => Promise<void>
   createTask: (input: TaskInput) => Promise<void>
@@ -23,18 +25,26 @@ export interface TasksStore {
   createSeries: (input: SeriesInput) => Promise<void>
   updateSeries: (id: string, patch: SeriesPatch) => Promise<void>
   deleteSeries: (id: string) => Promise<void>
+  createTag: (name: string) => Promise<void>
+  deleteTag: (name: string) => Promise<void>
 }
 
 export function useTasks(): TasksStore {
   const [tasks, setTasks] = useState<Task[]>([])
   const [series, setSeries] = useState<TaskSeries[]>([])
+  const [tags, setTags] = useState<string[]>([])
   const [loaded, setLoaded] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!window.planner) return
-    const [t, s] = await Promise.all([window.planner.tasksList(), window.planner.seriesList()])
+    const [t, s, g] = await Promise.all([
+      window.planner.tasksList(),
+      window.planner.seriesList(),
+      window.planner.tagsList()
+    ])
     setTasks(t)
     setSeries(s)
+    setTags(g)
     setLoaded(true)
   }, [])
 
@@ -56,6 +66,7 @@ export function useTasks(): TasksStore {
   return {
     tasks,
     series,
+    tags,
     loaded,
     refresh,
     createTask: (input) => wrap(() => window.planner!.tasksCreate(input)),
@@ -69,6 +80,8 @@ export function useTasks(): TasksStore {
     deleteTask: (id) => wrap(() => window.planner!.tasksDelete(id)),
     createSeries: (input) => wrap(() => window.planner!.seriesCreate(input)),
     updateSeries: (id, patch) => wrap(() => window.planner!.seriesUpdate(id, patch)),
-    deleteSeries: (id) => wrap(() => window.planner!.seriesDelete(id))
+    deleteSeries: (id) => wrap(() => window.planner!.seriesDelete(id)),
+    createTag: (name) => wrap(() => window.planner!.tagsCreate(name)),
+    deleteTag: (name) => wrap(() => window.planner!.tagsDelete(name))
   }
 }

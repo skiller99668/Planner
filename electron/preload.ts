@@ -83,6 +83,9 @@ const api: PlannerApi = {
   careerLogUndo: (kind: CareerLogKind) => ipcRenderer.invoke(IPC.careerLogUndo, kind),
   careerWeekStats: () => ipcRenderer.invoke(IPC.careerWeekStats),
   jobsFetch: (force?: boolean) => ipcRenderer.invoke(IPC.jobsFetch, force),
+  tagsList: () => ipcRenderer.invoke(IPC.tagsList),
+  tagsCreate: (name: string) => ipcRenderer.invoke(IPC.tagsCreate, name),
+  tagsDelete: (name: string) => ipcRenderer.invoke(IPC.tagsDelete, name),
 
   onTasksChanged: (cb: () => void) => {
     const listener = () => cb()
