@@ -40,9 +40,9 @@ const PIPELINE: { id: ApplicationStatus; label: string; hint?: string }[] = [
 const CLOSED: ApplicationStatus[] = ['rejected', 'ghosted']
 
 const TRACK_META: Record<ApplicationTrack, { label: string; cls: string }> = {
-  swe: { label: 'swe', cls: 'text-lilac' },
-  hardware: { label: 'hw', cls: 'text-clay' },
-  research: { label: 'research', cls: 'text-sage' }
+  swe: { label: 'swe', cls: 'text-violet' },
+  hardware: { label: 'hw', cls: 'text-azure' },
+  research: { label: 'research', cls: 'text-mint' }
 }
 
 // Stable, top-level links only — labels carry the guidance.
@@ -78,7 +78,7 @@ const WATCHLIST = [
 ]
 
 const inputCls =
-  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-clay/60'
+  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-azure/60'
 
 export default function CareerPage() {
   const [apps, setApps] = useState<Application[]>([])
@@ -135,7 +135,7 @@ export default function CareerPage() {
               key={f}
               onClick={() => void setFocus(f)}
               className={`tactile rounded-[9px] px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
-                focus === f ? 'bg-clay text-bg font-semibold' : 'text-muted hover:text-ink'
+                focus === f ? 'btn-primary font-semibold' : 'text-muted hover:text-ink'
               }`}
             >
               {f === 'swe' ? 'SWE' : 'Hardware'}
@@ -254,7 +254,7 @@ export default function CareerPage() {
             <li key={r.name} className="flex items-baseline gap-2 text-[13px]">
               <button
                 onClick={() => void window.planner?.openExternal(r.url)}
-                className="text-lilac shrink-0 hover:underline"
+                className="text-violet shrink-0 hover:underline"
               >
                 {r.name}
               </button>
@@ -368,7 +368,7 @@ function JobFeed({
       </div>
 
       {error && (
-        <p className="text-rose mt-2 nums text-[12px]">
+        <p className="text-coral mt-2 nums text-[12px]">
           Feed unavailable: {error}. Try again in a minute.
         </p>
       )}
@@ -400,7 +400,7 @@ function JobFeed({
                   onClick={() => { setRegion(id); setLimit(40) }}
                   aria-pressed={region === id}
                   className={`rounded px-2.5 py-1 nums text-[12px] transition-colors ${
-                    region === id ? 'bg-clay text-bg font-semibold' : 'text-muted hover:text-ink'
+                    region === id ? 'btn-primary font-semibold' : 'text-muted hover:text-ink'
                   }`}
                 >
                   {label}
@@ -418,7 +418,7 @@ function JobFeed({
               className={`rounded-full border px-2.5 py-1 nums text-[12px] transition-colors ${
                 trackOnly
                   ? 'border-line text-muted hover:text-ink'
-                  : 'border-clay/60 text-clay bg-clay/10'
+                  : 'border-azure/60 text-azure bg-azure/10'
               }`}
             >
               {trackOnly ? `${focus === 'swe' ? 'swe' : 'hardware'} only` : 'all roles'}
@@ -449,13 +449,13 @@ function JobFeed({
                         </p>
                         <p className="text-muted mt-0.5 truncate nums text-[11.5px]">
                           {p.locations.join(' · ') || 'location n/a'}
-                          {p.salary && <span className="text-sage"> · {p.salary}</span>}
+                          {p.salary && <span className="text-mint"> · {p.salary}</span>}
                           {p.postedAt && ` · ${relAge(p.postedAt)}`}
                         </p>
                       </div>
                       <button
                         onClick={() => void window.planner?.openExternal(p.url)}
-                        className="text-lilac shrink-0 nums text-[12px] hover:underline"
+                        className="text-violet shrink-0 nums text-[12px] hover:underline"
                       >
                         open ↗
                       </button>
@@ -477,8 +477,8 @@ function JobFeed({
                         title={existingId ? 'Remove from pipeline' : 'Add to pipeline'}
                         className={`shrink-0 rounded-[11px] border px-2 py-1 nums text-[12px] transition-colors ${
                           existingId
-                            ? 'border-sage/40 text-sage hover:border-rose/60 hover:text-rose'
-                            : 'border-line text-muted hover:border-clay/60 hover:text-ink'
+                            ? 'border-mint/40 text-mint hover:border-coral/60 hover:text-coral'
+                            : 'border-line text-muted hover:border-azure/60 hover:text-ink'
                         }`}
                       >
                         {existingId ? 'Added' : 'Add'}
@@ -490,7 +490,7 @@ function JobFeed({
               {matching.length > visible.length && (
                 <button
                   onClick={() => setLimit((l) => l + 40)}
-                  className="text-muted hover:text-clay mt-2 nums text-[12px] transition-colors"
+                  className="text-muted hover:text-azure mt-2 nums text-[12px] transition-colors"
                 >
                   show more ({matching.length - visible.length} more)
                 </button>
@@ -541,7 +541,7 @@ function ScoreTile({
       <p className="text-muted text-[12px] font-semibold">{label}</p>
       <div className="mt-1 flex items-center justify-between">
         <p className="font-mono text-lg leading-none font-semibold">
-          <span className={met ? 'text-sage' : ''}>{value}</span>
+          <span className={met ? 'text-mint' : ''}>{value}</span>
           <span className="text-muted text-[12px]"> / {target}</span>
         </p>
         {onAdd && (
@@ -550,7 +550,7 @@ function ScoreTile({
               <button
                 onClick={onUndo}
                 aria-label={`Undo ${label}`}
-                className="border-line text-muted hover:text-rose h-6 w-6 rounded border nums text-[12.5px] transition-colors"
+                className="border-line text-muted hover:text-coral h-6 w-6 rounded border nums text-[12.5px] transition-colors"
               >
                 −
               </button>
@@ -558,7 +558,7 @@ function ScoreTile({
             <button
               onClick={onAdd}
               aria-label={`Log ${label}`}
-              className="bg-clay text-bg h-6 w-6 rounded font-mono text-[13px] font-bold"
+              className="bg-azure text-bg h-6 w-6 rounded font-mono text-[13px] font-bold"
             >
               +
             </button>
@@ -627,7 +627,7 @@ function AddApplication({
       <button
         onClick={() => void add()}
         disabled={!company.trim() || !role.trim()}
-        className="bg-clay text-bg rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
+        className="btn-primary rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
       >
         Add
       </button>
@@ -666,7 +666,7 @@ function AppCard({
           <p className={`mt-0.5 nums text-[11px] ${meta.cls}`}>
             {meta.label}
             {app.deadline && <span className="text-muted"> · due {app.deadline}</span>}
-            {app.nextActionDate && <span className="text-clay"> · next {app.nextActionDate}</span>}
+            {app.nextActionDate && <span className="text-azure"> · next {app.nextActionDate}</span>}
           </p>
         </button>
         <div className="flex shrink-0 flex-col items-center gap-1">
@@ -675,7 +675,7 @@ function AppCard({
               onClick={() => void patch({ status: PIPELINE[idx + 1].id })}
               title={`Move to ${PIPELINE[idx + 1].label}`}
               aria-label={`Advance ${app.company} to ${PIPELINE[idx + 1].label}`}
-              className="text-muted hover:text-clay font-mono text-[13px] leading-none transition-colors"
+              className="text-muted hover:text-azure font-mono text-[13px] leading-none transition-colors"
             >
               →
             </button>
@@ -687,7 +687,7 @@ function AppCard({
             }}
             title="Remove from pipeline"
             aria-label={`Remove ${app.company} from pipeline`}
-            className="text-muted/60 hover:text-rose font-mono text-[15px] leading-none transition-colors"
+            className="text-muted/60 hover:text-coral font-mono text-[15px] leading-none transition-colors"
           >
             ×
           </button>
@@ -729,7 +729,7 @@ function AppCard({
             {app.url && (
               <button
                 onClick={() => void window.planner?.openExternal(app.url!)}
-                className="text-lilac nums text-[12px] hover:underline"
+                className="text-violet nums text-[12px] hover:underline"
               >
                 posting ↗
               </button>
@@ -739,7 +739,7 @@ function AppCard({
                 if (window.confirm(`Remove ${app.company} — ${app.role} from the pipeline?`))
                   void window.planner?.appsDelete(app.id).then(onChanged)
               }}
-              className="text-muted/60 hover:text-rose ml-auto nums text-[12px] transition-colors"
+              className="text-muted/60 hover:text-coral ml-auto nums text-[12px] transition-colors"
             >
               remove
             </button>
@@ -772,7 +772,7 @@ function WatchlistItem({ item }: { item: { name: string; url: string; note: stri
       <div className="flex items-baseline gap-2">
         <button
           onClick={() => void window.planner?.openExternal(item.url)}
-          className="text-sage text-[13px] font-medium hover:underline"
+          className="text-mint text-[13px] font-medium hover:underline"
         >
           {item.name}
         </button>
@@ -780,7 +780,7 @@ function WatchlistItem({ item }: { item: { name: string; url: string; note: stri
       <p className="text-muted mt-1 text-[12px] leading-relaxed">{item.note}</p>
       <div className="mt-2 flex items-center gap-2">
         {tracked ? (
-          <span className="text-sage nums text-[12px]">Added to Events</span>
+          <span className="text-mint nums text-[12px]">Added to Events</span>
         ) : (
           <>
             <DateField
@@ -792,7 +792,7 @@ function WatchlistItem({ item }: { item: { name: string; url: string; note: stri
             <button
               onClick={() => void track()}
               disabled={!date}
-              className="bg-surface2 hover:border-clay/60 rounded-[11px] px-2.5 py-1 nums text-[12px] transition-colors disabled:opacity-40"
+              className="bg-surface2 hover:border-azure/60 rounded-[11px] px-2.5 py-1 nums text-[12px] transition-colors disabled:opacity-40"
             >
               Track deadline
             </button>

@@ -89,7 +89,7 @@ export default function Select<T extends string>({
         disabled={disabled}
         onClick={() => (pop.open ? pop.close() : openMenu())}
         onKeyDown={onKeyDown}
-        className={`${FIELD_CLASS} ${pop.open ? 'ring-clay/60 ring-1' : ''} ${className}`}
+        className={`${FIELD_CLASS} ${pop.open ? 'ring-azure/60 ring-1' : ''} ${className}`}
       >
         <span className={`truncate ${mono ? 'font-mono text-[12px]' : ''}`}>
           {selected?.label ?? ''}
@@ -117,7 +117,7 @@ export default function Select<T extends string>({
                 onClick={() => commit(o.value)}
                 className={`flex w-full items-center gap-2 rounded-[9px] px-2.5 py-1.5 text-left text-[13.5px] whitespace-nowrap transition-colors ${
                   i === active ? 'bg-surface text-ink' : 'text-muted'
-                } ${isSelected ? 'text-clay font-semibold' : ''}`}
+                } ${isSelected ? 'text-azure font-semibold' : ''}`}
               >
                 <span className={`flex-1 ${mono ? 'font-mono text-[12px]' : ''}`}>{o.label}</span>
                 {isSelected && (

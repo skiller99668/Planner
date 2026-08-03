@@ -87,7 +87,7 @@ export function normalizeTag(raw: string): string {
 const MAX_TAGS = 6
 
 const inputCls =
-  'bg-bg rounded-[10px] px-3 py-2 text-[13.5px] placeholder:text-faint outline-none focus:ring-1 focus:ring-clay/60'
+  'bg-bg rounded-[10px] px-3 py-2 text-[13.5px] placeholder:text-faint outline-none focus:ring-1 focus:ring-azure/60'
 const labelCls = 'text-muted mb-1.5 block text-[12px] font-semibold'
 // Display order Sun..Sat (Skyler's week convention); values stay 0=Mon..6=Sun.
 const WEEKDAY_ORDER = [6, 0, 1, 2, 3, 4, 5]
@@ -310,7 +310,7 @@ export default function TaskEditor({
                           )
                         }
                         className={`tactile h-8 w-8 rounded-full text-[12px] font-semibold ${
-                          on ? 'bg-clay text-bg' : 'bg-bg text-muted hover:text-ink'
+                          on ? 'btn-primary' : 'bg-bg text-muted hover:text-ink'
                         }`}
                       >
                         {label}
@@ -343,7 +343,7 @@ export default function TaskEditor({
         {onDelete && (
           <button
             onClick={onDelete}
-            className="text-muted hover:text-rose rounded-lg px-2 py-2 text-[13px] transition-colors"
+            className="text-muted hover:text-coral rounded-lg px-2 py-2 text-[13px] transition-colors"
           >
             Delete
           </button>
@@ -358,7 +358,7 @@ export default function TaskEditor({
         <button
           onClick={submit}
           disabled={!canSave}
-          className="tactile bg-clay text-bg rounded-[11px] px-4 py-2 text-[13px] font-bold disabled:opacity-35"
+          className="tactile btn-primary rounded-[11px] px-4 py-2 text-[13px] font-bold disabled:opacity-35"
         >
           {submitLabel}
         </button>
@@ -403,7 +403,7 @@ function TagPicker({
           {tags.map((tag) => (
             <span
               key={tag}
-              className="bg-clay/15 text-clay flex items-center gap-1 rounded-full py-1 pr-1.5 pl-3 text-[12px] font-medium"
+              className="bg-azure/15 text-azure flex items-center gap-1 rounded-full py-1 pr-1.5 pl-3 text-[12px] font-medium"
             >
               {tag}
               <button
@@ -411,7 +411,7 @@ function TagPicker({
                 onClick={() => remove(tag)}
                 aria-label={`Remove tag ${tag}`}
                 title={`Remove ${tag}`}
-                className="hover:bg-clay/30 flex h-4 w-4 items-center justify-center rounded-full leading-none transition-colors"
+                className="hover:bg-azure/30 flex h-4 w-4 items-center justify-center rounded-full leading-none transition-colors"
               >
                 ×
               </button>
@@ -423,7 +423,7 @@ function TagPicker({
       <div className="bg-bg flex items-center rounded-[10px] pr-1.5">
         <input
           className={`placeholder:text-faint min-w-0 flex-1 bg-transparent px-3 py-2 text-[13.5px] outline-none focus-visible:outline-none ${
-            duplicate ? 'text-rose' : ''
+            duplicate ? 'text-coral' : ''
           }`}
           value={draft}
           disabled={full}
@@ -454,7 +454,7 @@ function TagPicker({
           aria-label="Add tag"
           title={duplicate ? `“${clean}” is already on this task` : 'Add tag'}
           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] transition-colors ${
-            canAdd ? 'bg-clay text-bg' : 'text-faint'
+            canAdd ? 'btn-primary' : 'text-faint'
           }`}
         >
           →

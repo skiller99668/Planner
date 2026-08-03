@@ -5,10 +5,10 @@ import Select from '../components/Select'
 import type { EventKind, PlannerEvent } from '../../shared/types'
 
 const KIND_META: Record<EventKind, { label: string; cls: string }> = {
-  badminton: { label: 'badminton', cls: 'text-lilac border-lilac/40 bg-lilac/10' },
+  badminton: { label: 'badminton', cls: 'text-violet border-violet/40 bg-violet/10' },
   hackathon: { label: 'hackathon', cls: 'text-[#c792ea] border-[#c792ea]/40 bg-[#c792ea]/10' },
-  career: { label: 'career', cls: 'text-clay border-clay/40 bg-clay/10' },
-  academic: { label: 'academic', cls: 'text-sage border-sage/40 bg-sage/10' },
+  career: { label: 'career', cls: 'text-azure border-azure/40 bg-azure/10' },
+  academic: { label: 'academic', cls: 'text-mint border-mint/40 bg-mint/10' },
   other: { label: 'other', cls: 'text-muted bg-surface2' }
 }
 
@@ -22,7 +22,7 @@ const HACKATHON_LINKS = [
 ]
 
 const inputCls =
-  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-clay/60'
+  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-azure/60'
 
 export default function EventsPage() {
   const [events, setEvents] = useState<PlannerEvent[]>([])
@@ -112,7 +112,7 @@ export default function EventsPage() {
       </div>
 
       {importMsg && (
-        <p className="text-sage mt-2 nums text-[12px]">{importMsg}</p>
+        <p className="text-mint mt-2 nums text-[12px]">{importMsg}</p>
       )}
 
       <AddEventForm onCreated={refresh} />
@@ -154,7 +154,7 @@ export default function EventsPage() {
             <button
               key={h.url}
               onClick={() => void window.planner?.openExternal(h.url)}
-              className="text-lilac text-[12.5px] hover:underline"
+              className="text-violet text-[12.5px] hover:underline"
             >
               {h.name} ↗
             </button>
@@ -263,7 +263,7 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
         <button
           onClick={() => void add()}
           disabled={!title.trim() || !date}
-          className="bg-clay text-bg rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
+          className="btn-primary rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
         >
           Add
         </button>
@@ -304,9 +304,9 @@ function EventRow({
 
   return (
     <li>
-      <div className="group bg-surface hover:bg-surface flex items-center gap-3 rounded-[16px] px-3 py-2.5 transition-colors">
+      <div className="group bg-surface hover:bg-raised flex items-center gap-3 rounded-[16px] px-3 py-2.5 shadow-[var(--shadow-soft)] transition-colors">
         <div className="w-12 shrink-0 text-center">
-          <div className="text-clay font-mono text-[15px] leading-none font-semibold">
+          <div className="text-coral nums text-[15px] leading-none font-semibold">
             {d.getDate()}
           </div>
           <div className="text-muted font-mono text-[9px] uppercase">
@@ -331,7 +331,7 @@ function EventRow({
             onClick={() => void window.planner?.eventsUpdate(event.id, { registered: !event.registered }).then(onChanged)}
             className={`rounded-[11px] border px-2 py-1 nums text-[12px] transition-colors ${
               event.registered
-                ? 'border-sage/50 text-sage bg-sage/10'
+                ? 'border-mint/50 text-mint bg-mint/10'
                 : 'border-line text-muted hover:text-ink'
             }`}
             title={event.registered ? 'Registered' : 'Mark as registered'}
@@ -342,7 +342,7 @@ function EventRow({
         <button
           onClick={() => void window.planner?.eventsDelete(event.id).then(onChanged)}
           aria-label={`Delete ${event.title}`}
-          className="text-muted hover:text-rose px-1 opacity-45 transition-all group-hover:opacity-100"
+          className="text-muted hover:text-coral px-1 opacity-45 transition-all group-hover:opacity-100"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.75" strokeLinecap="round" aria-hidden>
@@ -375,7 +375,7 @@ function EventRow({
             <p className="mt-1">
               <button
                 onClick={() => void window.planner?.openExternal(event.url!)}
-                className="text-lilac hover:underline"
+                className="text-violet hover:underline"
               >
                 {event.url}
               </button>
@@ -407,13 +407,13 @@ function RegBadge({ event }: { event: PlannerEvent }) {
   }
   if (now < closes) {
     return (
-      <span className="border-clay/60 text-clay bg-clay/10 animate-pulse rounded-full border px-2 py-0.5 nums text-[11px] font-semibold">
+      <span className="border-azure/60 text-azure bg-azure/10 animate-pulse rounded-full border px-2 py-0.5 nums text-[11px] font-semibold">
         REG OPEN · closes {relDays(closes)}
       </span>
     )
   }
   return (
-    <span className="text-rose/80 border-rose/40 rounded-full border px-2 py-0.5 nums text-[11px]">
+    <span className="text-coral/80 border-coral/40 rounded-full border px-2 py-0.5 nums text-[11px]">
       reg closed
     </span>
   )

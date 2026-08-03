@@ -151,7 +151,7 @@ export default function TimeField({
       <div
         ref={pop.triggerRef}
         className={`bg-bg flex items-center rounded-[10px] pr-1 ${
-          pop.open ? 'ring-clay/60 ring-1' : ''
+          pop.open ? 'ring-azure/60 ring-1' : ''
         } ${disabled ? 'opacity-40' : ''} ${className}`}
       >
         <input
@@ -190,7 +190,7 @@ export default function TimeField({
               setDraft(null)
               pop.close()
             }}
-            className="text-faint hover:text-rose shrink-0 rounded-md px-1.5 py-1 text-[13px]"
+            className="text-faint hover:text-coral shrink-0 rounded-md px-1.5 py-1 text-[13px]"
           >
             ×
           </button>
@@ -222,7 +222,7 @@ export default function TimeField({
                 onClick={() => commit(o)}
                 className={`nums flex w-full items-center justify-between rounded-[9px] px-2.5 py-1.5 text-left text-[13px] transition-colors ${
                   i === active ? 'bg-surface text-ink' : 'text-muted'
-                } ${o === value ? 'text-clay font-bold' : ''}`}
+                } ${o === value ? 'text-azure font-bold' : ''}`}
               >
                 <span>{formatTimeLabel(o)}</span>
                 <span className="text-faint text-[11.5px]">{o}</span>

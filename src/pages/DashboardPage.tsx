@@ -58,11 +58,11 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
         <div className="flex items-baseline justify-between">
           <h2 className="text-[15px] font-bold">
             Today
-            {overdue > 0 && <span className="text-rose ml-2 text-[13px]">{overdue} overdue</span>}
+            {overdue > 0 && <span className="text-coral ml-2 text-[13px]">{overdue} overdue</span>}
           </h2>
           <button
             onClick={() => onNavigate('tasks')}
-            className="text-muted hover:text-clay text-[12.5px] font-medium transition-colors"
+            className="text-muted hover:text-azure text-[12.5px] font-medium transition-colors"
           >
             All tasks
           </button>
@@ -110,7 +110,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
                     {t.title}
                   </span>
                   {t.dueAt && (
-                    <span className={`nums text-[12px] ${isOverdue ? 'text-rose' : 'text-muted'}`}>
+                    <span className={`nums text-[12px] ${isOverdue ? 'text-coral' : 'text-muted'}`}>
                       {dueLabel(t.dueAt, t.allDay)}
                     </span>
                   )}
@@ -130,7 +130,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
           <div className="flex items-baseline justify-between">
             <h2 className="text-[15px] font-bold">Gym</h2>
             <span className="nums text-muted text-[12.5px]">
-              <span className={g.weekMet ? 'text-sage font-bold' : 'text-ink font-bold'}>
+              <span className={g.weekMet ? 'text-mint font-bold' : 'text-ink font-bold'}>
                 {g.weekCount}
               </span>
               /{gymTarget}
@@ -138,7 +138,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
           </div>
 
           {g.today.length > 0 ? (
-            <p className="text-sage mt-3 text-[17px] font-bold">
+            <p className="text-mint mt-3 text-[17px] font-bold">
               {[...new Set(g.today.map((s) => GYM_LABEL[s.type]))].join(' + ')} done
             </p>
           ) : (
@@ -148,7 +148,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
                   fireGym()
                   void gym.log({ date: todayYMD(), type: g.nextType })
                 }}
-                className="tactile bg-clay text-bg rounded-[13px] px-4 py-2.5 text-[13.5px] font-bold"
+                className="tactile btn-primary rounded-[13px] px-4 py-2.5 text-[13.5px] font-bold"
               >
                 Log {GYM_LABEL[g.nextType]}
               </button>
@@ -161,7 +161,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
               <span
                 key={d}
                 className={`h-1.5 flex-1 rounded-full ${
-                  g.byDate.has(d) ? 'bg-sage' : d === today ? 'bg-clay/40' : 'bg-raised'
+                  g.byDate.has(d) ? 'bg-mint' : d === today ? 'bg-azure/40' : 'bg-raised'
                 }`}
               />
             ))}
@@ -174,7 +174,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
             <h2 className="text-[15px] font-bold">Coming up</h2>
             <button
               onClick={() => onNavigate('events')}
-              className="text-muted hover:text-clay text-[12.5px] font-medium transition-colors"
+              className="text-muted hover:text-azure text-[12.5px] font-medium transition-colors"
             >
               Events
             </button>
@@ -193,12 +193,12 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
                   Date.now() < new Date(e.regClosesAt).getTime()
                 return (
                   <li key={e.id} className="flex items-baseline gap-3 text-[13px]">
-                    <span className="nums text-clay w-11 shrink-0 font-semibold">
+                    <span className="nums text-coral w-11 shrink-0 font-semibold">
                       {d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{e.title}</span>
                     {regOpen && (
-                      <span className="bg-butter/20 text-butter shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold">
+                      <span className="bg-gold/20 text-gold shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold">
                         register
                       </span>
                     )}

@@ -49,14 +49,14 @@ export default function GymPage() {
         {!loggedToday ? (
           <>
             <p className="text-muted text-[13px] font-medium">Up next</p>
-            <p className="text-clay mt-1 text-[30px] leading-tight font-bold">
+            <p className="text-azure mt-1 text-[30px] leading-tight font-bold">
               {TYPE_LABEL[g.nextType]}
             </p>
           </>
         ) : (
           <>
             <p className="text-muted text-[13px] font-medium">Done today</p>
-            <p className="text-sage mt-1 flex items-baseline gap-2.5 text-[30px] leading-tight font-bold">
+            <p className="text-mint mt-1 flex items-baseline gap-2.5 text-[30px] leading-tight font-bold">
               {[...new Set(g.today.map((s) => TYPE_LABEL[s.type]))].join(' + ')}
               <span className="text-muted text-[13px] font-medium">
                 {TYPE_LABEL[g.nextType]} tomorrow
@@ -78,9 +78,9 @@ export default function GymPage() {
                   }}
                   className={`tactile w-full rounded-[14px] px-3 py-3.5 text-[14.5px] font-bold ${
                     doneToday
-                      ? 'bg-sage/15 text-sage'
+                      ? 'bg-mint/15 text-mint'
                       : suggested
-                        ? 'bg-clay text-bg shadow-[var(--shadow-soft)]'
+                        ? 'bg-azure text-bg shadow-[var(--shadow-soft)]'
                         : 'bg-raised text-muted hover:text-ink'
                   }`}
                 >
@@ -94,7 +94,7 @@ export default function GymPage() {
         {loggedToday && (
           <button
             onClick={() => void store.remove(g.today[0].id)}
-            className="text-faint hover:text-rose mt-3 text-[12.5px] transition-colors"
+            className="text-faint hover:text-coral mt-3 text-[12.5px] transition-colors"
           >
             Undo
           </button>
@@ -113,7 +113,7 @@ export default function GymPage() {
               onClick={() => setWeekOffset((o) => Math.max(-MAX_WEEKS_BACK, o - 1))}
               disabled={weekOffset <= -MAX_WEEKS_BACK}
               aria-label="Previous week"
-              className="text-muted hover:text-clay tactile rounded-lg px-1.5 text-[16px] disabled:opacity-25"
+              className="text-muted hover:text-azure tactile rounded-lg px-1.5 text-[16px] disabled:opacity-25"
             >
               ‹
             </button>
@@ -124,21 +124,21 @@ export default function GymPage() {
               onClick={() => setWeekOffset((o) => Math.min(0, o + 1))}
               disabled={weekOffset === 0}
               aria-label="Next week"
-              className="text-muted hover:text-clay tactile rounded-lg px-1.5 text-[16px] disabled:opacity-25"
+              className="text-muted hover:text-azure tactile rounded-lg px-1.5 text-[16px] disabled:opacity-25"
             >
               ›
             </button>
             {weekOffset !== 0 && (
               <button
                 onClick={() => setWeekOffset(0)}
-                className="text-muted hover:text-clay ml-1 text-[12.5px] transition-colors"
+                className="text-muted hover:text-azure ml-1 text-[12.5px] transition-colors"
               >
                 Today
               </button>
             )}
           </div>
           <p className="nums text-[13px] font-semibold">
-            <span className={viewMet ? 'text-sage' : 'text-ink'}>{viewCount}</span>
+            <span className={viewMet ? 'text-mint' : 'text-ink'}>{viewCount}</span>
             <span className="text-faint"> / {target}</span>
           </p>
         </div>
@@ -152,8 +152,8 @@ export default function GymPage() {
               <div
                 key={date}
                 className={`flex h-16 flex-col items-center justify-center gap-1 rounded-[13px] text-center transition-colors ${
-                  isToday ? 'ring-clay/60 ring-2' : ''
-                } ${sessions.length ? 'bg-sage/15' : 'bg-bg'} ${isFuture ? 'opacity-40' : ''}`}
+                  isToday ? 'ring-azure/60 ring-2' : ''
+                } ${sessions.length ? 'bg-mint/15' : 'bg-bg'} ${isFuture ? 'opacity-40' : ''}`}
                 title={`${date}${sessions.length ? ` · ${sessions.map((s) => TYPE_LABEL[s.type]).join(', ')}` : ''}`}
               >
                 <span className="text-faint text-[10.5px] font-semibold">
@@ -161,7 +161,7 @@ export default function GymPage() {
                 </span>
                 <span
                   className={`text-[13px] font-bold ${
-                    sessions.length ? 'text-sage' : 'text-faint/50'
+                    sessions.length ? 'text-mint' : 'text-faint/50'
                   }`}
                 >
                   {sessions.length
@@ -175,14 +175,14 @@ export default function GymPage() {
 
         <div className="bg-bg mt-4 h-1.5 overflow-hidden rounded-full">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${viewMet ? 'bg-sage' : 'bg-clay'}`}
+            className={`h-full rounded-full transition-all duration-500 ${viewMet ? 'bg-mint' : 'bg-azure'}`}
             style={{ width: `${Math.min(100, (viewCount / target) * 100)}%` }}
           />
         </div>
 
         <div className="text-muted mt-4 flex gap-6 text-[12.5px]">
           <span>
-            <span className={`nums font-bold ${g.weekStreak > 0 ? 'text-butter' : 'text-ink'}`}>
+            <span className={`nums font-bold ${g.weekStreak > 0 ? 'text-gold' : 'text-ink'}`}>
               {g.weekStreak}
             </span>{' '}
             week streak
@@ -199,7 +199,7 @@ export default function GymPage() {
           <h2 className="text-[15px] font-bold">History</h2>
           <button
             onClick={() => setBackfillOpen((o) => !o)}
-            className="text-muted hover:text-clay text-[12.5px] font-medium transition-colors"
+            className="text-muted hover:text-azure text-[12.5px] font-medium transition-colors"
           >
             {backfillOpen ? 'Close' : 'Log a past day'}
           </button>
@@ -223,7 +223,7 @@ export default function GymPage() {
             {store.sessions.slice(0, 30).map((s) => (
               <li key={s.id}>
                 <div className="group bg-surface hover:bg-raised flex items-center gap-3 rounded-[14px] px-3.5 py-2.5 shadow-[var(--shadow-soft)] transition-colors">
-                  <span className="bg-sage/15 text-sage w-10 shrink-0 rounded-full py-1 text-center text-[11.5px] font-bold">
+                  <span className="bg-mint/15 text-mint w-10 shrink-0 rounded-full py-1 text-center text-[11.5px] font-bold">
                     {TYPE_SHORT[s.type]}
                   </span>
                   <button
@@ -242,7 +242,7 @@ export default function GymPage() {
                   <button
                     onClick={() => void store.remove(s.id)}
                     aria-label={`Delete session ${s.date}`}
-                    className="text-faint hover:text-rose tactile rounded-lg p-1.5"
+                    className="text-faint hover:text-coral tactile rounded-lg p-1.5"
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       strokeWidth="1.9" strokeLinecap="round" aria-hidden>
@@ -305,7 +305,7 @@ function Backfill({ onLog }: { onLog: (date: string, type: GymType) => Promise<v
       <button
         onClick={() => void onLog(date, type)}
         disabled={!date || date > todayYMD()}
-        className="tactile bg-clay text-bg rounded-[11px] px-4 py-2 text-[13px] font-bold disabled:opacity-35"
+        className="tactile btn-primary rounded-[11px] px-4 py-2 text-[13px] font-bold disabled:opacity-35"
       >
         Log
       </button>
@@ -332,7 +332,7 @@ function SessionEditor({
             key={t}
             onClick={() => setType(t)}
             className={`tactile rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold ${
-              type === t ? 'bg-clay text-bg' : 'bg-raised text-muted hover:text-ink'
+              type === t ? 'btn-primary' : 'bg-raised text-muted hover:text-ink'
             }`}
           >
             {TYPE_LABEL[t]}
@@ -341,7 +341,7 @@ function SessionEditor({
       </div>
       <textarea
         rows={3}
-        className="bg-bg placeholder:text-faint focus:ring-clay/60 mt-3 w-full resize-y rounded-[10px] px-3 py-2 text-[13px] outline-none focus:ring-1"
+        className="bg-bg placeholder:text-faint focus:ring-azure/60 mt-3 w-full resize-y rounded-[10px] px-3 py-2 text-[13px] outline-none focus:ring-1"
         placeholder={'Sets & reps, PRs, how it felt…\nBench 80×5×3 · OHP 45×8×3'}
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
@@ -352,7 +352,7 @@ function SessionEditor({
         </button>
         <button
           onClick={() => void onSave({ type, notes: notes.trim() || null })}
-          className="tactile bg-clay text-bg rounded-[11px] px-4 py-2 text-[13px] font-bold"
+          className="tactile btn-primary rounded-[11px] px-4 py-2 text-[13px] font-bold"
         >
           Save
         </button>

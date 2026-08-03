@@ -10,24 +10,23 @@
 }
 
 /* ---------------------------------------------------------------
-   Soft Tactile — warm charcoal, pillowy surfaces, botanical accents.
-   Nothing here is pure grey: every neutral carries a little red/yellow
-   so the UI reads warm rather than clinical.
+   Nocturne — midnight blue with real violet chroma (never neutral
+   slate), azure for action, coral as the warm counterweight.
    --------------------------------------------------------------- */
 @theme {
-  --color-bg: #171419;
-  --color-surface: #211d25;
-  --color-raised: #2b2530;
-  --color-line: #383040;
-  --color-ink: #f3eeea;
-  --color-muted: #a79ea6;
-  --color-faint: #6f6673;
+  --color-bg: #0b1120;
+  --color-surface: #121c31;
+  --color-raised: #1a2743;
+  --color-line: #24345a;
+  --color-ink: #e9f0ff;
+  --color-muted: #93a4c8;
+  --color-faint: #5d6d91;
 
-  --color-clay: #e8a87c; /* primary accent — actions, focus */
-  --color-sage: #9bc7a6; /* done, on-target */
-  --color-butter: #f2d399; /* streaks, highlights */
-  --color-lilac: #b9a5d9; /* secondary category */
-  --color-rose: #e88b8b; /* destructive, overdue */
+  --color-azure: #5b9cff; /* primary action, focus, active nav */
+  --color-coral: #ff6b72; /* warm counterweight — urgent, destructive */
+  --color-mint: #4fd6ac; /* done, on target */
+  --color-gold: #f5c56b; /* streaks, milestones */
+  --color-violet: #a78bfa; /* secondary category */
 
   --font-sans: 'Jakarta', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
@@ -35,9 +34,11 @@
   --radius-card: 18px;
   --radius-control: 11px;
 
-  /* Layered, low-contrast shadows — depth without harsh edges. */
-  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.28), 0 6px 18px -6px rgb(0 0 0 / 0.4);
-  --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.3), 0 16px 32px -12px rgb(0 0 0 / 0.55);
+  /* Shadows carry a blue cast so elevation reads as depth in this field,
+     not as grey haze sitting on top of it. */
+  --shadow-soft: 0 1px 2px rgb(4 9 20 / 0.5), 0 8px 22px -8px rgb(4 9 20 / 0.6);
+  --shadow-lift: 0 2px 8px rgb(4 9 20 / 0.55), 0 20px 40px -14px rgb(4 9 20 / 0.75);
+  --shadow-glow: 0 4px 16px -3px rgb(91 156 255 / 0.45);
 
   /* One spring, used everywhere, so motion feels like one hand made it. */
   --ease-spring: linear(
@@ -52,6 +53,15 @@
   ::before,
   ::after {
     border-color: var(--color-line);
+  }
+
+  /* Must live in @layer base: unlayered rules outrank every Tailwind utility
+     no matter the specificity, so an unlayered version could never be
+     overridden by `focus-visible:outline-none` on an individual control. */
+  :focus-visible {
+    outline: 2px solid var(--color-azure);
+    outline-offset: 2px;
+    border-radius: 8px;
   }
 }
 
@@ -70,17 +80,32 @@ body {
   color-scheme: dark;
 }
 
-/* Warm ambient wash so large empty areas aren't flat black. */
+/* Aurora: azure and violet bleed down from the top, a whisper of coral in the
+   far corner. Large empty areas get depth instead of flat black. */
 .app-canvas {
   background:
-    radial-gradient(120% 90% at 12% 0%, rgb(232 168 124 / 0.05), transparent 55%),
-    radial-gradient(90% 80% at 100% 8%, rgb(155 199 166 / 0.045), transparent 60%);
+    radial-gradient(120% 85% at 8% -10%, rgb(91 156 255 / 0.14), transparent 60%),
+    radial-gradient(90% 70% at 78% -6%, rgb(167 139 250 / 0.1), transparent 62%),
+    radial-gradient(70% 60% at 105% 105%, rgb(255 107 114 / 0.07), transparent 65%);
+}
+
+.sidebar-wash {
+  /* Flat tint, not a vertical ramp — a ramp made the top nav rows look
+     selected. Depth comes from the hairline edge instead. */
+  background: rgb(18 28 49 / 0.55);
+  box-shadow: inset -1px 0 0 rgb(36 52 90 / 0.5);
+}
+
+/* Signature: the mark carries both halves of the palette. */
+.logo-mark {
+  background-image: linear-gradient(140deg, var(--color-azure), var(--color-coral));
+  box-shadow: 0 3px 12px -2px rgb(91 156 255 / 0.5);
 }
 
 h1,
 h2,
 h3 {
-  letter-spacing: -0.02em;
+  letter-spacing: -0.022em;
 }
 
 /* Tabular figures wherever numbers change in place. */
@@ -89,33 +114,21 @@ h3 {
 }
 
 ::selection {
-  background: rgb(232 168 124 / 0.3);
+  background: rgb(91 156 255 / 0.32);
 }
 
-/* Must live in @layer base: unlayered rules outrank every Tailwind utility
-   no matter the specificity, so an unlayered version of this could never be
-   overridden by `focus-visible:outline-none` on an individual control. */
-@layer base {
-  :focus-visible {
-    outline: 2px solid var(--color-clay);
-    outline-offset: 2px;
-    border-radius: 8px;
-  }
-}
-
-/* Scrollbars that don't look like Windows 95 */
 ::-webkit-scrollbar {
   width: 11px;
   height: 11px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #3a3341;
+  background: #2a3a63;
   border-radius: 99px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #4b4353;
+  background: #384c7d;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-track {
@@ -126,16 +139,29 @@ h3 {
    Motion
    --------------------------------------------------------------- */
 
-/* Anything that should feel physical when pressed. */
 .tactile {
   transition:
     transform 0.18s var(--ease-spring),
     background-color 0.18s ease,
     border-color 0.18s ease,
-    box-shadow 0.18s ease;
+    box-shadow 0.18s ease,
+    color 0.18s ease;
 }
 .tactile:active {
   transform: scale(0.97);
+}
+
+/* The primary action: azure→violet with a glow that lifts on hover. */
+.btn-primary {
+  background-image: linear-gradient(135deg, #5b9cff, #7b7bfa);
+  color: #08101f;
+  box-shadow: var(--shadow-glow);
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 22px -3px rgb(91 156 255 / 0.6);
+}
+.btn-primary:disabled {
+  box-shadow: none;
 }
 
 @keyframes pop-in {
@@ -166,15 +192,15 @@ h3 {
   animation: rise-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* The completion moment: card lifts, tints sage, settles back. */
+/* The completion moment: card lifts, tints mint, settles back. */
 @keyframes complete-swell {
   0% {
     transform: scale(1);
   }
   32% {
     transform: scale(1.022);
-    background-color: rgb(155 199 166 / 0.14);
-    border-color: rgb(155 199 166 / 0.5);
+    background-color: rgb(79 214 172 / 0.14);
+    border-color: rgb(79 214 172 / 0.5);
   }
   100% {
     transform: scale(1);
@@ -184,7 +210,6 @@ h3 {
   animation: complete-swell 0.62s var(--ease-spring);
 }
 
-/* Checkbox tick draws itself instead of appearing. */
 @keyframes draw-check {
   from {
     stroke-dashoffset: 22;
@@ -198,7 +223,6 @@ h3 {
   animation: draw-check 0.3s cubic-bezier(0.65, 0, 0.35, 1) 0.04s both;
 }
 
-/* Particles thrown from a completed item. Angle/distance per particle. */
 @keyframes particle-fly {
   0% {
     opacity: 0;
@@ -220,7 +244,6 @@ h3 {
   animation: particle-fly 0.78s cubic-bezier(0.16, 0.9, 0.3, 1) both;
 }
 
-/* Milestone flourish — a light sweep across a panel. */
 @keyframes sheen {
   from {
     transform: translateX(-120%);
@@ -233,17 +256,17 @@ h3 {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg, transparent 20%, rgb(242 211 153 / 0.22), transparent 80%);
+  background: linear-gradient(100deg, transparent 20%, rgb(245 197 107 / 0.24), transparent 80%);
   animation: sheen 1.1s cubic-bezier(0.3, 0, 0.2, 1);
   pointer-events: none;
 }
 
 @keyframes ring-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgb(155 199 166 / 0.5);
+    box-shadow: 0 0 0 0 rgb(79 214 172 / 0.5);
   }
   100% {
-    box-shadow: 0 0 0 18px rgb(155 199 166 / 0);
+    box-shadow: 0 0 0 18px rgb(79 214 172 / 0);
   }
 }
 .animate-ring {

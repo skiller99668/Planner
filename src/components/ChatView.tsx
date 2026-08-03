@@ -49,7 +49,7 @@ export default function ChatView({
         ))}
         {pending && (
           <div className="flex items-center gap-2">
-            <span className="bg-clay h-2 w-2 animate-pulse rounded-full" aria-hidden />
+            <span className="bg-azure h-2 w-2 animate-pulse rounded-full" aria-hidden />
             <span className="text-muted text-[12.5px]">Thinking…</span>
           </div>
         )}
@@ -74,7 +74,7 @@ export default function ChatView({
         <div className="flex items-end gap-2">
           <textarea
             rows={draft.includes('\n') ? 3 : 1}
-            className="bg-bg placeholder:text-faint focus:ring-clay/50 max-h-40 flex-1 resize-none rounded-[14px] px-4 py-2.5 text-[13.5px] outline-none focus:ring-1"
+            className="bg-bg placeholder:text-faint focus:ring-azure/50 max-h-40 flex-1 resize-none rounded-[14px] px-4 py-2.5 text-[13.5px] outline-none focus:ring-1"
             placeholder={disabled ? (disabledHint ?? placeholder) : placeholder}
             value={draft}
             disabled={disabled}
@@ -89,7 +89,7 @@ export default function ChatView({
           <button
             onClick={() => send(draft)}
             disabled={!draft.trim() || pending || disabled}
-            className="tactile bg-clay text-bg rounded-[14px] px-4 py-2.5 text-[13.5px] font-bold disabled:opacity-35"
+            className="tactile btn-primary rounded-[14px] px-4 py-2.5 text-[13.5px] font-bold disabled:opacity-35"
           >
             Send
           </button>
@@ -120,7 +120,7 @@ function MessageRow({ message }: { message: ChatMessage }) {
           {receipts.map((r, i) => (
             <span
               key={i}
-              className="bg-sage/15 text-sage rounded-full px-2.5 py-1 text-[11.5px] font-semibold"
+              className="bg-mint/15 text-mint rounded-full px-2.5 py-1 text-[11.5px] font-semibold"
             >
               {r}
             </span>

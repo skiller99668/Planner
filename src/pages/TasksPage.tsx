@@ -14,8 +14,8 @@ import { useTasks, type TasksStore } from '../lib/useTasks'
 type BucketId = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'someday'
 
 const BUCKETS: { id: BucketId; label: string; tone: string }[] = [
-  { id: 'overdue', label: 'Overdue', tone: 'text-rose' },
-  { id: 'today', label: 'Today', tone: 'text-clay' },
+  { id: 'overdue', label: 'Overdue', tone: 'text-coral' },
+  { id: 'today', label: 'Today', tone: 'text-azure' },
   { id: 'tomorrow', label: 'Tomorrow', tone: 'text-ink' },
   { id: 'week', label: 'Next 7 days', tone: 'text-ink' },
   { id: 'later', label: 'Later', tone: 'text-muted' },
@@ -156,7 +156,7 @@ export default function TasksPage() {
             <button
               onClick={quickAdd}
               disabled={!quickTitle.trim()}
-              className="tactile bg-clay text-bg rounded-[14px] px-5 py-3 text-[13.5px] font-bold shadow-[var(--shadow-soft)] disabled:opacity-35"
+              className="tactile btn-primary rounded-[14px] px-5 py-3 text-[13.5px] font-bold shadow-[var(--shadow-soft)] disabled:opacity-35"
             >
               Add
             </button>
@@ -299,7 +299,7 @@ function TagBar({
         <button
           onClick={() => onFilter(null)}
           className={`tactile rounded-full px-3 py-1.5 text-[12px] font-medium ${
-            !active ? 'bg-clay text-bg font-semibold' : 'bg-surface text-muted hover:text-ink'
+            !active ? 'btn-primary font-semibold' : 'bg-surface text-muted hover:text-ink'
           }`}
         >
           All
@@ -312,7 +312,7 @@ function TagBar({
           <span
             key={tag}
             className={`tactile group flex items-center rounded-full pr-1 pl-3 text-[12px] font-medium ${
-              on ? 'bg-clay text-bg' : 'bg-surface text-muted'
+              on ? 'btn-primary' : 'bg-surface text-muted'
             }`}
           >
             <button
@@ -326,7 +326,7 @@ function TagBar({
               aria-label={`Delete tag ${tag}`}
               title={`Delete “${tag}”`}
               className={`ml-1 flex h-4.5 w-4.5 items-center justify-center rounded-full text-[13px] leading-none opacity-45 transition-opacity group-hover:opacity-100 ${
-                on ? 'hover:bg-bg/25' : 'hover:text-rose'
+                on ? 'hover:bg-bg/25' : 'hover:text-coral'
               }`}
             >
               ×
@@ -359,7 +359,7 @@ function TagBar({
             placeholder="New tag"
             aria-label="New tag"
             className={`placeholder:text-faint w-24 bg-transparent py-1.5 text-[12px] outline-none focus-visible:outline-none ${
-              duplicate ? 'text-rose' : ''
+              duplicate ? 'text-coral' : ''
             }`}
           />
           <button
@@ -369,7 +369,7 @@ function TagBar({
             aria-label="Create tag"
             title={duplicate ? `“${clean}” already exists` : 'Create tag'}
             className={`flex h-5 w-5 items-center justify-center rounded-full text-[12px] transition-colors ${
-              canCreate ? 'bg-clay text-bg' : 'text-faint'
+              canCreate ? 'btn-primary' : 'text-faint'
             }`}
           >
             →
@@ -442,12 +442,12 @@ function TaskRow({
               <span
                 aria-label={['', 'low', 'medium', 'high'][task.priority] + ' priority'}
                 className={`inline-block h-[7px] w-[7px] rounded-full ${
-                  ['', 'bg-lilac', 'bg-butter', 'bg-rose'][task.priority]
+                  ['', 'bg-violet', 'bg-gold', 'bg-coral'][task.priority]
                 }`}
               />
             )}
             {task.dueAt && (
-              <span className={`nums text-[12px] ${overdue ? 'text-rose' : 'text-muted'}`}>
+              <span className={`nums text-[12px] ${overdue ? 'text-coral' : 'text-muted'}`}>
                 {dueLabel(task.dueAt, task.allDay)}
               </span>
             )}
@@ -467,7 +467,7 @@ function TaskRow({
         <button
           onClick={() => void store.deleteTask(task.id)}
           aria-label={`Delete: ${task.title}`}
-          className="text-faint hover:text-rose tactile shrink-0 rounded-lg p-1.5"
+          className="text-faint hover:text-coral tactile shrink-0 rounded-lg p-1.5"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.9" strokeLinecap="round" aria-hidden>
@@ -533,7 +533,7 @@ function SeriesPanel({
           {store.series.map((s) => (
             <li key={s.id}>
               <div className="group hover:bg-raised flex items-center gap-3 rounded-[11px] px-2.5 py-2 transition-colors">
-                <span className="text-clay"><IconRepeat /></span>
+                <span className="text-azure"><IconRepeat /></span>
                 <button
                   className="min-w-0 flex-1 text-left"
                   onClick={() => setEditingId(editingId === s.id ? null : s.id)}
@@ -547,7 +547,7 @@ function SeriesPanel({
                     if (window.confirm(`Stop repeating “${s.title}”?`))
                       void store.deleteSeries(s.id)
                   }}
-                  className="text-faint hover:text-rose px-1 text-[12px] transition-colors"
+                  className="text-faint hover:text-coral px-1 text-[12px] transition-colors"
                 >
                   Remove
                 </button>

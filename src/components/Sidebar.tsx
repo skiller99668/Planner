@@ -35,9 +35,9 @@ export default function Sidebar({
   }, [])
 
   return (
-    <aside className="bg-surface/60 flex w-[212px] shrink-0 flex-col px-3 py-4">
+    <aside className="sidebar-wash flex w-[212px] shrink-0 flex-col px-3 py-4">
       <div className="flex items-center gap-2.5 px-3 pt-1 pb-6">
-        <span className="bg-clay/20 text-clay flex h-7 w-7 items-center justify-center rounded-[9px]">
+        <span className="logo-mark text-bg flex h-7 w-7 items-center justify-center rounded-[9px]">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M5 12.5l4.5 4.5L19 7"
@@ -91,13 +91,19 @@ function NavButton({
     <button
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
-      className={`tactile flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[14px] ${
+      className={`tactile relative flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[14px] ${
         active
           ? 'bg-raised text-ink font-semibold shadow-[var(--shadow-soft)]'
           : 'text-muted hover:bg-raised/50 hover:text-ink font-medium'
       }`}
     >
-      <span className={active ? 'text-clay' : ''}>{item.icon}</span>
+      {active && (
+        <span
+          aria-hidden
+          className="bg-azure absolute top-1/2 -left-0.5 h-5 w-[3px] -translate-y-1/2 rounded-full shadow-[0_0_10px_var(--color-azure)]"
+        />
+      )}
+      <span className={active ? 'text-azure' : ''}>{item.icon}</span>
       {item.label}
     </button>
   )

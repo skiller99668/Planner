@@ -48,12 +48,12 @@ export default function AssistantPage() {
       </div>
 
       {disabled && (
-        <div className="border-clay/40 bg-clay/10 mt-4 rounded-[16px] px-4 py-3 text-[13px]">
+        <div className="border-azure/40 bg-azure/10 mt-4 rounded-[16px] px-4 py-3 text-[13px]">
           Add a Groq API key in Settings to turn the assistant on.
         </div>
       )}
       {chat.error && (
-        <div className="border-rose/40 bg-rose/10 mt-4 rounded-[16px] px-4 py-3 text-[13px]">
+        <div className="border-coral/40 bg-coral/10 mt-4 rounded-[16px] px-4 py-3 text-[13px]">
           {chat.error}
         </div>
       )}

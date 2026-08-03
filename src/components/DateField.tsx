@@ -100,7 +100,7 @@ export default function DateField({
             pop.openPopup()
           }
         }}
-        className={`${FIELD_CLASS} ${pop.open ? 'ring-clay/60 ring-1' : ''} ${className}`}
+        className={`${FIELD_CLASS} ${pop.open ? 'ring-azure/60 ring-1' : ''} ${className}`}
       >
         <span className={value ? '' : 'text-faint'}>
           {value ? formatDateLabel(value) : placeholder}
@@ -159,13 +159,13 @@ export default function DateField({
                   aria-current={isToday ? 'date' : undefined}
                   className={`nums h-8 rounded-[9px] text-[12.5px] transition-colors ${
                     isSelected
-                      ? 'bg-clay text-bg font-bold'
+                      ? 'btn-primary font-bold'
                       : blocked
                         ? 'text-faint/35'
                         : outside
                           ? 'text-faint hover:bg-surface'
                           : 'text-ink hover:bg-surface'
-                  } ${isToday && !isSelected ? 'ring-clay/50 ring-1' : ''}`}
+                  } ${isToday && !isSelected ? 'ring-azure/50 ring-1' : ''}`}
                 >
                   {d.getDate()}
                 </button>
@@ -192,7 +192,7 @@ export default function DateField({
               <button
                 type="button"
                 onClick={() => pick('')}
-                className="tactile text-muted hover:text-rose rounded-[9px] px-2.5 py-1.5 text-[12.5px]"
+                className="tactile text-muted hover:text-coral rounded-[9px] px-2.5 py-1.5 text-[12.5px]"
               >
                 Clear
               </button>

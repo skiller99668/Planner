@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const PALETTE = ['var(--color-sage)', 'var(--color-butter)', 'var(--color-clay)']
+const PALETTE = ['var(--color-mint)', 'var(--color-gold)', 'var(--color-azure)']
 
 /** Particles thrown outward from the centre of the nearest positioned parent. */
 export function Burst({
@@ -99,8 +99,8 @@ export function CheckCircle({
         style={{ width: size, height: size }}
         className={`tactile flex items-center justify-center rounded-full border-2 ${
           checked
-            ? 'border-sage bg-sage text-bg'
-            : 'border-line hover:border-sage/70 bg-transparent'
+            ? 'border-mint bg-mint text-bg'
+            : 'border-line hover:border-mint/70 bg-transparent'
         }`}
       >
         {checked && (

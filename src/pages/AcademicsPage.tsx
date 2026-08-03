@@ -13,7 +13,7 @@ const LECTURE_ACTIONS = [
 ]
 
 const inputCls =
-  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-clay/60'
+  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-azure/60'
 
 export default function AcademicsPage() {
   const [courses, setCourses] = useState<Course[]>([])
@@ -143,7 +143,7 @@ function CourseList({
         <button
           onClick={() => void add()}
           disabled={!code.trim() || !name.trim()}
-          className="bg-clay text-bg rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
+          className="btn-primary rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
         >
           Add course
         </button>
@@ -159,7 +159,7 @@ function CourseList({
             <button
               key={c.id}
               onClick={() => onOpen(c.id)}
-              className="bg-surface hover:border-clay/50 rounded-[16px] p-4 text-left transition-colors"
+              className="bg-surface hover:border-azure/50 rounded-[16px] p-4 text-left transition-colors"
             >
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.color }} aria-hidden />
@@ -209,7 +209,7 @@ function CourseDetail({
 
   return (
     <div>
-      <button onClick={onBack} className="text-muted hover:text-clay text-[12.5px] font-medium transition-colors">
+      <button onClick={onBack} className="text-muted hover:text-azure text-[12.5px] font-medium transition-colors">
         ← Courses
       </button>
       <div className="mt-1 flex items-baseline gap-3">
@@ -219,7 +219,7 @@ function CourseDetail({
         <span className="text-muted nums text-[12px]">{course.term}</span>
         <button
           onClick={() => void onDeleteCourse()}
-          className="text-muted/60 hover:text-rose ml-auto nums text-[12px] transition-colors"
+          className="text-muted/60 hover:text-coral ml-auto nums text-[12px] transition-colors"
         >
           delete course
         </button>
@@ -244,7 +244,7 @@ function CourseDetail({
         <button
           onClick={() => void add()}
           disabled={!title.trim()}
-          className="bg-clay text-bg rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
+          className="btn-primary rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
         >
           Add
         </button>
@@ -270,7 +270,7 @@ function CourseDetail({
                       {l.summary.length > 70 ? `${l.summary.slice(0, 70)}…` : l.summary}
                     </span>
                   ) : (
-                    <span className="text-clay/70 ml-2 nums text-[12px]">no summary</span>
+                    <span className="text-azure/70 ml-2 nums text-[12px]">no summary</span>
                   )}
                 </span>
               </button>
@@ -317,7 +317,7 @@ function LectureDetail({
 
   return (
     <div>
-      <button onClick={onBack} className="text-muted hover:text-clay text-[12.5px] font-medium transition-colors">
+      <button onClick={onBack} className="text-muted hover:text-azure text-[12.5px] font-medium transition-colors">
         ← {course.code}
       </button>
       <div className="mt-1 flex items-baseline gap-3">
@@ -329,7 +329,7 @@ function LectureDetail({
             await window.planner!.lecturesDelete(lecture.id)
             onDeleted()
           }}
-          className="text-muted/60 hover:text-rose ml-auto nums text-[12px] transition-colors"
+          className="text-muted/60 hover:text-coral ml-auto nums text-[12px] transition-colors"
         >
           delete
         </button>
@@ -344,7 +344,7 @@ function LectureDetail({
             onClick={() => void saveSummary()}
             disabled={!dirty}
             className={`nums text-[12px] transition-colors ${
-              savedFlash ? 'text-sage' : dirty ? 'text-clay hover:text-ink' : 'text-muted/50'
+              savedFlash ? 'text-mint' : dirty ? 'text-azure hover:text-ink' : 'text-muted/50'
             }`}
           >
             {savedFlash ? 'saved ✓' : 'save'}
@@ -353,7 +353,7 @@ function LectureDetail({
         <textarea
           id="lec-summary"
           rows={3}
-          className="bg-surface border-line placeholder:text-muted/60 focus:border-clay/60 mt-1.5 w-full resize-y rounded-[16px] px-3 py-2 text-[13px] leading-relaxed"
+          className="bg-surface border-line placeholder:text-muted/60 focus:border-azure/60 mt-1.5 w-full resize-y rounded-[16px] px-3 py-2 text-[13px] leading-relaxed"
           placeholder="A few sentences on what this lecture covered…"
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
@@ -362,7 +362,7 @@ function LectureDetail({
       </div>
 
       {chat.error && (
-        <div className="border-rose/40 bg-rose/10 mt-3 rounded-[16px] border px-4 py-2.5 text-[13px]">
+        <div className="border-coral/40 bg-coral/10 mt-3 rounded-[16px] border px-4 py-2.5 text-[13px]">
           {chat.error}
         </div>
       )}

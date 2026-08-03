@@ -65,7 +65,7 @@ export default function SettingsPage() {
               <p className="text-[13.5px] font-medium">Groq API key</p>
               {groqConfigured !== null && (
                 <span
-                  className={`led ${groqConfigured ? 'text-sage' : 'text-line'}`}
+                  className={`led ${groqConfigured ? 'text-mint' : 'text-line'}`}
                   title={groqConfigured ? 'Key stored' : 'No key'}
                   aria-hidden
                 />
@@ -80,7 +80,7 @@ export default function SettingsPage() {
             <div className="mt-3 flex gap-2">
               <input
                 type="password"
-                className="bg-bg placeholder:text-faint focus:ring-clay/60 flex-1 rounded-[10px] px-3 py-2 text-[13.5px] outline-none focus:ring-1"
+                className="bg-bg placeholder:text-faint focus:ring-azure/60 flex-1 rounded-[10px] px-3 py-2 text-[13.5px] outline-none focus:ring-1"
                 placeholder={groqConfigured ? 'Paste a new key to replace' : 'gsk_…'}
                 value={keyDraft}
                 onChange={(e) => setKeyDraft(e.target.value)}
@@ -89,14 +89,14 @@ export default function SettingsPage() {
               <button
                 onClick={() => void saveKey()}
                 disabled={!keyDraft.trim()}
-                className="tactile bg-clay text-bg rounded-[10px] px-4 py-2 text-[13px] font-bold disabled:opacity-35"
+                className="tactile btn-primary rounded-[10px] px-4 py-2 text-[13px] font-bold disabled:opacity-35"
               >
                 {keySaved ? 'Saved' : 'Save'}
               </button>
               {groqConfigured && (
                 <button
                   onClick={() => { setKeyDraft(''); void window.planner?.groqSetKey('').then((r) => setGroqConfigured(r.configured)) }}
-                  className="text-muted hover:text-rose rounded-[11px] px-2 py-1.5 text-[12.5px] transition-colors"
+                  className="text-muted hover:text-coral rounded-[11px] px-2 py-1.5 text-[12.5px] transition-colors"
                 >
                   Remove
                 </button>
@@ -142,7 +142,7 @@ export default function SettingsPage() {
               min={1}
               max={7}
               aria-label="Gym sessions per week"
-              className="bg-bg focus:ring-clay/60 nums mt-0.5 w-16 rounded-[10px] px-2.5 py-2 text-center text-[13.5px] outline-none focus:ring-1"
+              className="bg-bg focus:ring-azure/60 nums mt-0.5 w-16 rounded-[10px] px-2.5 py-2 text-center text-[13.5px] outline-none focus:ring-1"
               value={settings.targets.gymPerWeek}
               disabled={saving}
               onChange={(e) => {
@@ -170,7 +170,7 @@ export default function SettingsPage() {
                     type="number"
                     min={0}
                     max={50}
-                    className="bg-bg focus:ring-clay/60 nums w-16 rounded-[10px] px-2.5 py-2 text-center text-[13.5px] outline-none focus:ring-1"
+                    className="bg-bg focus:ring-azure/60 nums w-16 rounded-[10px] px-2.5 py-2 text-center text-[13.5px] outline-none focus:ring-1"
                     value={settings.targets[key]}
                     disabled={saving}
                     onChange={(e) => {
@@ -214,7 +214,7 @@ function Toggle({
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={`relative mt-0.5 h-5.5 w-10 shrink-0 rounded-full transition-colors ${
-          checked ? 'bg-clay' : 'bg-line'
+          checked ? 'bg-azure' : 'bg-line'
         } ${disabled ? 'opacity-60' : ''}`}
       >
         <span
