@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TimeField from '../components/TimeField'
 import DateField from '../components/DateField'
 import Select from '../components/Select'
@@ -51,6 +51,21 @@ export default function EventsPage() {
   const [cursor, setCursor] = useState(() => new Date())
   const [selected, setSelected] = useState<string | null>(todayYMD())
   const [adding, setAdding] = useState(false)
+  const [formDate, setFormDate] = useState('')
+  const formRef = useRef<HTMLDivElement>(null)
+
+  /** Clicking a day selects it. It never starts a new event on its own — but
+   *  while one is being written, it retargets the date and leaves the rest of
+   *  what's been typed alone. */
+  const pickDay = (ymd: string) => {
+    setSelected(ymd)
+    if (!adding) return
+    setFormDate(ymd)
+    // `nearest` only scrolls if the form is off-screen, so this stays calm.
+    requestAnimationFrame(() =>
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    )
+  }
 
   // Badminton Québec import panel
   const [bqOpen, setBqOpen] = useState(false)
@@ -174,7 +189,10 @@ export default function EventsPage() {
             ))}
           </div>
           <button
-            onClick={() => setAdding((a) => !a)}
+            onClick={() => {
+              if (!adding && !formDate) setFormDate(selected ?? todayYMD())
+              setAdding((a) => !a)
+            }}
             className="tactile btn-primary rounded-[11px] px-3.5 py-2 text-[13px] font-bold"
           >
             {adding ? 'Close' : 'New event'}
@@ -183,12 +201,16 @@ export default function EventsPage() {
       </div>
 
       {adding && (
-        <AddEventForm
-          onCreated={async () => {
-            await refresh()
-            setAdding(false)
-          }}
-        />
+        <div ref={formRef}>
+          <AddEventForm
+            date={formDate}
+            onDateChange={setFormDate}
+            onCreated={async () => {
+              await refresh()
+              setAdding(false)
+            }}
+          />
+        </div>
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -240,7 +262,7 @@ export default function EventsPage() {
           setCursor={setCursor}
           byDay={byDay}
           selected={selected}
-          setSelected={setSelected}
+          onPickDay={pickDay}
           expandedId={expandedId}
           setExpandedId={setExpandedId}
           onChanged={refresh}
@@ -322,7 +344,7 @@ function MonthGrid({
   setCursor,
   byDay,
   selected,
-  setSelected,
+  onPickDay,
   expandedId,
   setExpandedId,
   onChanged
@@ -331,7 +353,7 @@ function MonthGrid({
   setCursor: (d: Date) => void
   byDay: Map<string, PlannerEvent[]>
   selected: string | null
-  setSelected: (d: string | null) => void
+  onPickDay: (ymd: string) => void
   expandedId: string | null
   setExpandedId: (id: string | null) => void
   onChanged: () => Promise<void>
@@ -370,7 +392,7 @@ function MonthGrid({
         <button
           onClick={() => {
             setCursor(new Date())
-            setSelected(today)
+            onPickDay(today)
           }}
           className="tactile text-muted hover:text-ink rounded-[10px] px-3 py-1.5 text-[12.5px] font-medium"
         >
@@ -393,7 +415,7 @@ function MonthGrid({
           return (
             <button
               key={ymd}
-              onClick={() => setSelected(ymd)}
+              onClick={() => onPickDay(ymd)}
               className={`bg-surface/70 hover:bg-raised min-h-[86px] rounded-[12px] p-1.5 text-left align-top transition-colors ${
                 outside ? 'opacity-40' : ''
               } ${isSel ? 'ring-azure/70 ring-2' : ''}`}
@@ -571,10 +593,18 @@ function BadmintonPanel({
   )
 }
 
-function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
+function AddEventForm({
+  date,
+  onDateChange,
+  onCreated
+}: {
+  /** Controlled by the page so clicking a calendar day fills it. */
+  date: string
+  onDateChange: (ymd: string) => void
+  onCreated: () => Promise<void>
+}) {
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<EventKind>('badminton')
-  const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [location, setLocation] = useState('')
   const [url, setUrl] = useState('')
@@ -592,7 +622,7 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
       autoRegWindow: kind === 'badminton' ? autoReg : false
     })
     setTitle('')
-    setDate('')
+    onDateChange('')
     setTime('')
     setLocation('')
     setUrl('')
@@ -632,7 +662,7 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
           <span className="text-muted mb-1 block text-[12px] font-semibold">
             Date
           </span>
-          <DateField value={date} ariaLabel="Event date" onChange={setDate} />
+          <DateField value={date} ariaLabel="Event date" onChange={onDateChange} />
         </div>
         <div>
           <span className="text-muted mb-1 block text-[12px] font-semibold">
