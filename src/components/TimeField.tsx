@@ -1,14 +1,18 @@
-// Time field. Replaces <input type="time"> (Chromium's picker is unstyleable).
-// Value is a 24h "HH:mm" string; the UI shows local 12/24h formatting.
+// Time combobox: type it or pick it. Replaces <input type="time">, whose
+// popup is drawn by Chromium and can't be styled.
 //
-// Every hour is visible at once in a grid — scrolling lists inside a popup are
-// fiddly and made the picker feel broken. Pick an hour, then a minute; the
-// minute completes the choice and closes.
+// Value is a 24h "HH:mm" string. The list runs 00:00 → 23:30 in half hours;
+// typing accepts far more than that ("5pm", "1730", "5:45", "17.45").
 
-import { Chevron, FIELD_CLASS, POPUP_CLASS, usePopoverAnchor } from './Popover'
+import { useEffect, useRef, useState } from 'react'
+import { POPUP_CLASS, usePopoverAnchor } from './Popover'
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i)
-const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+/** 00:00 → 23:30 on the half hour. */
+const OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2)
+  const m = i % 2 === 0 ? 0 : 30
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+})
 
 export function formatTimeLabel(hhmm: string): string {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm)
@@ -18,11 +22,34 @@ export function formatTimeLabel(hhmm: string): string {
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
-/** Compact hour label: "12a", "9a", "5p" — keeps the grid narrow. */
-function hourLabel(h: number): string {
-  const suffix = h < 12 ? 'a' : 'p'
-  const twelve = h % 12 === 0 ? 12 : h % 12
-  return `${twelve}${suffix}`
+/** Parse loose input into "HH:mm", or null. Accepts 5pm, 5:30 pm, 1730, 17.30, 17. */
+export function parseTimeInput(raw: string): string | null {
+  const s = raw.trim().toLowerCase().replace(/\s+/g, '')
+  if (!s) return null
+
+  const ampm = /(am|a)$/.test(s) ? 'am' : /(pm|p)$/.test(s) ? 'pm' : null
+  const body = s.replace(/(am|pm|a|p)$/, '')
+
+  let h: number
+  let m = 0
+  let match: RegExpExecArray | null
+  if ((match = /^(\d{1,2})[:.h](\d{1,2})$/.exec(body))) {
+    h = Number(match[1])
+    m = Number(match[2])
+  } else if ((match = /^(\d{3,4})$/.exec(body))) {
+    // 930 -> 9:30, 1730 -> 17:30
+    h = Number(body.slice(0, body.length - 2))
+    m = Number(body.slice(-2))
+  } else if ((match = /^(\d{1,2})$/.exec(body))) {
+    h = Number(match[1])
+  } else {
+    return null
+  }
+
+  if (ampm === 'pm' && h < 12) h += 12
+  if (ampm === 'am' && h === 12) h = 0
+  if (!Number.isInteger(h) || !Number.isInteger(m) || h > 23 || m > 59) return null
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
 export default function TimeField({
@@ -42,104 +69,165 @@ export default function TimeField({
   title?: string
   className?: string
 }) {
-  const pop = usePopoverAnchor()
-  const [h, mm] = value ? value.split(':').map(Number) : [null, null]
+  const pop = usePopoverAnchor<HTMLDivElement>()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const [draft, setDraft] = useState<string | null>(null) // null = not editing
+  const [active, setActive] = useState(0)
 
-  const set = (hour: number, minute: number) =>
-    onChange(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`)
+  const typing = draft !== null
+  const query = (draft ?? '').trim().toLowerCase().replace(/[^0-9a-z:.]/g, '')
+  const parsed = typing ? parseTimeInput(draft!) : null
+
+  // While typing, narrow the list — but never to nothing.
+  const filtered = (() => {
+    if (!typing || !query) return OPTIONS
+    const hit = OPTIONS.filter(
+      (o) =>
+        o.replace(':', '').startsWith(query.replace(':', '')) ||
+        formatTimeLabel(o).toLowerCase().replace(/[^0-9a-z]/g, '').startsWith(query.replace(/[:.]/g, ''))
+    )
+    return hit.length ? hit : OPTIONS
+  })()
+
+  // Keep the highlight on the current value (or the parse) and in view.
+  useEffect(() => {
+    if (!pop.open) return
+    const target = parsed ?? value
+    const i = filtered.indexOf(target)
+    setActive(i >= 0 ? i : 0)
+  }, [pop.open, parsed, value, filtered])
+
+  useEffect(() => {
+    if (!pop.open) return
+    const el = listRef.current?.children[active] as HTMLElement | undefined
+    const list = listRef.current
+    if (!el || !list) return
+    const top = el.offsetTop
+    const bottom = top + el.clientHeight
+    if (top < list.scrollTop) list.scrollTop = top - 4
+    else if (bottom > list.scrollTop + list.clientHeight)
+      list.scrollTop = bottom - list.clientHeight + 4
+  }, [active, pop.open])
+
+  const commit = (hhmm: string) => {
+    onChange(hhmm)
+    setDraft(null)
+    pop.close()
+  }
+
+  const openFor = () => {
+    setDraft(value ? formatTimeLabel(value) : '')
+    pop.openPopup()
+    requestAnimationFrame(() => inputRef.current?.select())
+  }
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!pop.open) return openFor()
+      setActive((i) =>
+        e.key === 'ArrowDown' ? Math.min(filtered.length - 1, i + 1) : Math.max(0, i - 1)
+      )
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      e.stopPropagation() // don't submit the surrounding form
+      // What you typed wins; otherwise take the highlighted row.
+      const next = parseTimeInput(draft ?? '') ?? filtered[active]
+      if (next) commit(next)
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setDraft(null)
+      pop.close()
+    } else if (e.key === 'Tab') {
+      const next = parseTimeInput(draft ?? '')
+      if (next) commit(next)
+      else setDraft(null)
+    }
+  }
 
   return (
     <>
-      <button
+      <div
         ref={pop.triggerRef}
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={pop.open}
-        aria-label={ariaLabel}
-        title={title}
-        disabled={disabled}
-        onClick={pop.toggle}
-        onKeyDown={(e) => {
-          if (!pop.open && (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown')) {
-            e.preventDefault()
-            pop.openPopup()
-          }
-        }}
-        className={`${FIELD_CLASS} ${pop.open ? 'ring-clay/60 ring-1' : ''} ${className}`}
+        className={`bg-bg flex items-center rounded-[10px] pr-1 ${
+          pop.open ? 'ring-clay/60 ring-1' : ''
+        } ${disabled ? 'opacity-40' : ''} ${className}`}
       >
-        <span className={value ? 'nums' : 'text-faint'}>
-          {value ? formatTimeLabel(value) : placeholder}
-        </span>
-        <Chevron open={pop.open} />
-      </button>
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          role="combobox"
+          aria-expanded={pop.open}
+          aria-label={ariaLabel}
+          title={title}
+          disabled={disabled}
+          placeholder={placeholder}
+          value={typing ? draft! : value ? formatTimeLabel(value) : ''}
+          onFocus={openFor}
+          onClick={() => !pop.open && openFor()}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            if (!pop.open) pop.openPopup()
+          }}
+          onBlur={() => {
+            // Commit a valid typed time; otherwise silently restore.
+            const next = parseTimeInput(draft ?? '')
+            if (next && next !== value) onChange(next)
+            setDraft(null)
+          }}
+          onKeyDown={onKeyDown}
+          className="placeholder:text-faint nums min-w-0 flex-1 bg-transparent px-3 py-2 text-[13.5px] outline-none"
+        />
+        {value && !disabled && (
+          <button
+            type="button"
+            aria-label="Clear time"
+            onMouseDown={(e) => e.preventDefault()} // keep focus so blur doesn't fight this
+            onClick={() => {
+              onChange('')
+              setDraft(null)
+              pop.close()
+            }}
+            className="text-faint hover:text-rose shrink-0 rounded-md px-1.5 py-1 text-[13px]"
+          >
+            ×
+          </button>
+        )}
+      </div>
 
       {pop.open && (
         <div
           ref={pop.popupRef}
-          role="dialog"
-          aria-label={ariaLabel ?? 'Choose a time'}
-          className={`${POPUP_CLASS} w-[252px]`}
+          className={`${POPUP_CLASS} p-1.5`}
           style={pop.popupStyle}
+          role="listbox"
+          aria-label={ariaLabel ?? 'Times'}
         >
-          <p className="text-faint px-1 pb-1 text-[11px] font-semibold">Hour</p>
-          <div className="grid grid-cols-6 gap-1">
-            {HOURS.map((hour) => (
+          {typing && draft && (
+            <p className="text-faint px-2 pt-0.5 pb-1.5 text-[11px]">
+              {parsed ? `Enter sets ${formatTimeLabel(parsed)}` : 'Try 5pm, 17:30 or 1730'}
+            </p>
+          )}
+          <div ref={listRef} className="max-h-56 overflow-y-auto">
+            {filtered.map((o, i) => (
               <button
-                key={hour}
+                key={o}
                 type="button"
-                // Keep the popup open so the minute can still be adjusted.
-                onClick={() => set(hour, mm ?? 0)}
-                className={`nums rounded-[8px] py-1.5 text-center text-[12px] transition-colors ${
-                  h === hour ? 'bg-clay text-bg font-bold' : 'text-muted hover:bg-surface'
-                }`}
+                role="option"
+                aria-selected={o === value}
+                onMouseEnter={() => setActive(i)}
+                onMouseDown={(e) => e.preventDefault()} // don't blur before the click lands
+                onClick={() => commit(o)}
+                className={`nums flex w-full items-center justify-between rounded-[9px] px-2.5 py-1.5 text-left text-[13px] transition-colors ${
+                  i === active ? 'bg-surface text-ink' : 'text-muted'
+                } ${o === value ? 'text-clay font-bold' : ''}`}
               >
-                {hourLabel(hour)}
+                <span>{formatTimeLabel(o)}</span>
+                <span className="text-faint text-[11.5px]">{o}</span>
               </button>
             ))}
-          </div>
-
-          <p className="text-faint px-1 pt-2.5 pb-1 text-[11px] font-semibold">Minute</p>
-          <div className="grid grid-cols-6 gap-1">
-            {MINUTES.map((minute) => (
-              <button
-                key={minute}
-                type="button"
-                onClick={() => {
-                  set(h ?? 9, minute)
-                  pop.close() // minute completes the choice
-                }}
-                className={`nums rounded-[8px] py-1.5 text-center text-[12px] transition-colors ${
-                  mm === minute ? 'bg-clay text-bg font-bold' : 'text-muted hover:bg-surface'
-                }`}
-              >
-                {String(minute).padStart(2, '0')}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-2.5 flex items-center gap-1 border-t border-(--color-line) pt-2">
-            <span className="nums text-ink flex-1 px-1 text-[13px] font-semibold">
-              {value ? formatTimeLabel(value) : '—'}
-            </span>
-            {value && (
-              <button
-                type="button"
-                onClick={() => {
-                  onChange('')
-                  pop.close()
-                }}
-                className="tactile text-muted hover:text-rose rounded-[8px] px-2 py-1 text-[12px]"
-              >
-                Clear
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={pop.close}
-              className="tactile bg-clay text-bg rounded-[8px] px-3 py-1 text-[12px] font-bold"
-            >
-              Done
-            </button>
           </div>
         </div>
       )}

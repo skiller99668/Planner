@@ -6,22 +6,25 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-export interface PopoverAnchor {
+export interface PopoverAnchor<T extends HTMLElement> {
   open: boolean
   openPopup: () => void
   close: () => void
   toggle: () => void
-  triggerRef: React.RefObject<HTMLButtonElement | null>
+  triggerRef: React.RefObject<T | null>
   popupRef: React.RefObject<HTMLDivElement | null>
   /** Style for the popup element; spread onto its `style`. */
   popupStyle: React.CSSProperties
 }
 
-export function usePopoverAnchor(align: 'left' | 'right' = 'left'): PopoverAnchor {
+/** `T` is the element the popup measures from — a button, or a field wrapper. */
+export function usePopoverAnchor<T extends HTMLElement = HTMLButtonElement>(
+  align: 'left' | 'right' = 'left'
+): PopoverAnchor<T> {
   const [open, setOpen] = useState(false)
   const [rect, setRect] = useState<DOMRect | null>(null)
   const [flip, setFlip] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement>(null)
+  const triggerRef = useRef<T>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
   const openPopup = useCallback(() => {
