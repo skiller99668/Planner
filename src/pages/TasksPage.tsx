@@ -6,16 +6,17 @@ import TaskEditor, {
   taskToForm,
   type FormValues
 } from '../components/TaskEditor'
+import { CheckCircle } from '../components/Celebrate'
 import { addDaysYMD, dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
 import { useTasks, type TasksStore } from '../lib/useTasks'
 
 type BucketId = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'someday'
 
 const BUCKETS: { id: BucketId; label: string; tone: string }[] = [
-  { id: 'overdue', label: 'Overdue', tone: 'text-danger' },
-  { id: 'today', label: 'Today', tone: 'text-amber' },
-  { id: 'tomorrow', label: 'Tomorrow', tone: 'text-ink/80' },
-  { id: 'week', label: 'Next 7 days', tone: 'text-ink/80' },
+  { id: 'overdue', label: 'Overdue', tone: 'text-rose' },
+  { id: 'today', label: 'Today', tone: 'text-clay' },
+  { id: 'tomorrow', label: 'Tomorrow', tone: 'text-ink' },
+  { id: 'week', label: 'Next 7 days', tone: 'text-ink' },
   { id: 'later', label: 'Later', tone: 'text-muted' },
   { id: 'someday', label: 'No date', tone: 'text-muted' }
 ]
@@ -29,21 +30,44 @@ export default function TasksPage() {
   const [showDone, setShowDone] = useState(false)
   const [seriesOpen, setSeriesOpen] = useState(false)
   const [editingSeriesId, setEditingSeriesId] = useState<string | null>(null)
+  // A task ticked off stays in its bucket for a beat, otherwise it re-buckets
+  // instantly and the completion animation unmounts before you see it.
+  const [lingering, setLingering] = useState<ReadonlySet<string>>(new Set())
+
+  const linger = (id: string) => {
+    setLingering((prev) => new Set(prev).add(id))
+    setTimeout(
+      () =>
+        setLingering((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        }),
+      1000
+    )
+  }
 
   const open = useMemo(
     () =>
       store.tasks.filter(
-        (t) => t.status === 'open' && (!tagFilter || t.tags.includes(tagFilter))
+        (t) =>
+          (t.status === 'open' || lingering.has(t.id)) &&
+          (!tagFilter || t.tags.includes(tagFilter))
       ),
-    [store.tasks, tagFilter]
+    [store.tasks, tagFilter, lingering]
   )
   const done = useMemo(
     () =>
       store.tasks
-        .filter((t) => t.status === 'done' && (!tagFilter || t.tags.includes(tagFilter)))
+        .filter(
+          (t) =>
+            t.status === 'done' &&
+            !lingering.has(t.id) &&
+            (!tagFilter || t.tags.includes(tagFilter))
+        )
         .sort((a, b) => (b.doneAt ?? '').localeCompare(a.doneAt ?? ''))
         .slice(0, 50),
-    [store.tasks, tagFilter]
+    [store.tasks, tagFilter, lingering]
   )
   // Vocabulary for the tag picker + filter row: everything already in use,
   // including tags that live only on a recurring series.
@@ -102,22 +126,22 @@ export default function TasksPage() {
 
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-4">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-            {open.length} open{done.length ? ` · ${done.length} done` : ''}
+          <h1 className="text-[26px] font-bold">Tasks</h1>
+          <p className="text-muted mt-0.5 text-[13.5px]">
+            {open.length === 0
+              ? 'Nothing on the list'
+              : `${open.length} to go${done.length ? ` · ${done.length} done` : ''}`}
           </p>
-          <h1 className="font-display mt-1 text-xl font-semibold">Tasks</h1>
         </div>
         <button
           onClick={() => { setSeriesOpen((o) => !o); setEditingSeriesId(null) }}
-          className={`rounded-md border px-3 py-1.5 text-[12.5px] transition-colors ${
-            seriesOpen
-              ? 'border-amber/60 text-ink bg-panel2'
-              : 'border-line text-muted hover:text-ink bg-panel'
+          className={`tactile rounded-[12px] px-3.5 py-2 text-[13px] font-medium ${
+            seriesOpen ? 'bg-raised text-ink' : 'text-muted hover:bg-raised/60 hover:text-ink'
           }`}
         >
-          ↻ Repeating ({store.series.length})
+          Repeating · {store.series.length}
         </button>
       </div>
 
@@ -126,22 +150,22 @@ export default function TasksPage() {
         {!detailsOpen ? (
           <div className="flex gap-2">
             <input
-              className="bg-panel border-line placeholder:text-muted/60 focus:border-amber/60 flex-1 rounded-lg border px-3.5 py-2.5 text-[13.5px]"
-              placeholder="Add a task — Enter to save, Details for dates and repeats"
+              className="bg-surface placeholder:text-faint focus:bg-raised flex-1 rounded-[14px] px-4 py-3 text-[14px] shadow-[var(--shadow-soft)] transition-colors outline-none"
+              placeholder="What needs doing?"
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && quickAdd()}
             />
             <button
               onClick={() => setDetailsOpen(true)}
-              className="border-line bg-panel text-muted hover:text-ink rounded-lg border px-3 py-2 text-[12.5px] transition-colors"
+              className="tactile bg-surface text-muted hover:text-ink rounded-[14px] px-4 py-3 text-[13px] font-medium shadow-[var(--shadow-soft)]"
             >
               Details
             </button>
             <button
               onClick={quickAdd}
               disabled={!quickTitle.trim()}
-              className="bg-amber text-bench rounded-lg px-4 py-2 text-[13px] font-semibold transition-opacity disabled:opacity-40"
+              className="tactile bg-clay text-bg rounded-[14px] px-5 py-3 text-[13.5px] font-bold shadow-[var(--shadow-soft)] disabled:opacity-35"
             >
               Add
             </button>
@@ -188,15 +212,16 @@ export default function TasksPage() {
         {open.length === 0 && store.loaded && (
           <p className="text-muted mt-8 text-[13.5px]">
             {tagFilter
-              ? `No open tasks tagged “${tagFilter}”.`
-              : 'No tasks yet. Add one above — start with this week’s lab.'}
+              ? `Nothing tagged “${tagFilter}” right now.`
+              : 'All clear. Add something above when it comes up.'}
           </p>
         )}
         {BUCKETS.map(({ id, label, tone }) =>
           buckets[id].length === 0 ? null : (
             <section key={id} className="mt-5">
-              <h2 className={`font-mono text-[11px] tracking-[0.16em] uppercase ${tone}`}>
-                {label} <span className="opacity-60">· {buckets[id].length}</span>
+              <h2 className={`text-[13px] font-bold ${tone}`}>
+                {label}
+                <span className="text-faint ml-1.5 font-medium">{buckets[id].length}</span>
               </h2>
               <ul className="mt-2 space-y-1">
                 {buckets[id].map((t) => (
@@ -205,6 +230,7 @@ export default function TasksPage() {
                     task={t}
                     store={store}
                     knownTags={allTags}
+                    onLinger={linger}
                     editing={editingId === t.id}
                     onEdit={() => setEditingId(editingId === t.id ? null : t.id)}
                     onClose={() => setEditingId(null)}
@@ -221,7 +247,7 @@ export default function TasksPage() {
         <section className="mt-8">
           <button
             onClick={() => setShowDone((s) => !s)}
-            className="text-muted hover:text-ink font-mono text-[11px] tracking-[0.16em] uppercase transition-colors"
+            className="text-muted hover:text-ink text-[13px] font-semibold transition-colors"
           >
             {showDone ? '▾' : '▸'} Completed · {done.length}
           </button>
@@ -233,6 +259,7 @@ export default function TasksPage() {
                   task={t}
                   store={store}
                   knownTags={allTags}
+                  onLinger={linger}
                   editing={false}
                   onEdit={() => {}}
                   onClose={() => {}}
@@ -252,8 +279,8 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-2.5 py-1 font-mono text-[11px] transition-colors ${
-        active ? 'bg-amber text-bench font-semibold' : 'bg-panel text-muted hover:text-ink'
+      className={`tactile rounded-full px-3 py-1.5 text-[12px] font-medium ${
+        active ? 'bg-clay text-bg font-semibold' : 'bg-surface text-muted hover:text-ink'
       }`}
     >
       {label}
@@ -265,6 +292,7 @@ function TaskRow({
   task,
   store,
   knownTags,
+  onLinger,
   editing,
   onEdit,
   onClose
@@ -272,69 +300,65 @@ function TaskRow({
   task: Task
   store: TasksStore
   knownTags: string[]
+  onLinger: (id: string) => void
   editing: boolean
   onEdit: () => void
   onClose: () => void
 }) {
   const isDone = task.status === 'done'
   const overdue = !isDone && task.dueAt !== null && ymdOfIso(task.dueAt) < todayYMD()
+  // Toggling a class (rather than remounting via key) replays the swell
+  // without destroying the checkbox's burst, which lives in child state.
+  const [swelling, setSwelling] = useState(false)
+  const swell = () => {
+    setSwelling(true)
+    setTimeout(() => setSwelling(false), 640)
+  }
 
   return (
     <li>
       <div
-        className={`group border-line/60 bg-panel/60 hover:bg-panel flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
-          isDone ? 'opacity-55' : ''
-        }`}
+        className={`group bg-surface hover:bg-raised relative flex items-center gap-3 rounded-[14px] border border-transparent px-3.5 py-2.5 shadow-[var(--shadow-soft)] transition-colors ${
+          isDone ? 'opacity-60' : ''
+        } ${swelling ? 'animate-complete' : ''}`}
       >
-        <button
-          role="checkbox"
-          aria-checked={isDone}
-          aria-label={`${isDone ? 'Reopen' : 'Complete'}: ${task.title}`}
-          onClick={() => void store.toggleTask(task)}
-          className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
-            isDone
-              ? 'bg-amber border-amber text-bench'
-              : 'border-line hover:border-amber/70 bg-bench'
-          }`}
-        >
-          {isDone && (
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
-              <path d="m2.5 6.5 2.5 2.5 4.5-6" stroke="currentColor" strokeWidth="2"
-                strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </button>
+        <CheckCircle
+          checked={isDone}
+          label={`${isDone ? 'Reopen' : 'Complete'}: ${task.title}`}
+          onChange={() => {
+            if (!isDone) {
+              swell()
+              onLinger(task.id)
+            }
+            void store.toggleTask(task)
+          }}
+        />
 
-        <button onClick={onEdit} className="min-w-0 flex-1 text-left" title="Edit task">
-          <span className={`text-[13.5px] ${isDone ? 'line-through' : ''}`}>{task.title}</span>
+        <button onClick={onEdit} className="min-w-0 flex-1 text-left">
+          <span className={`text-[14px] ${isDone ? 'text-muted line-through' : ''}`}>
+            {task.title}
+          </span>
           <span className="ml-2 inline-flex flex-wrap items-center gap-1.5 align-middle">
             {task.priority > 0 && (
               <span
                 aria-label={['', 'low', 'medium', 'high'][task.priority] + ' priority'}
-                className={`inline-block h-1.5 w-1.5 rounded-full ${
-                  ['', 'bg-cyan', 'bg-amber', 'bg-danger'][task.priority]
+                className={`inline-block h-[7px] w-[7px] rounded-full ${
+                  ['', 'bg-lilac', 'bg-butter', 'bg-rose'][task.priority]
                 }`}
               />
             )}
             {task.dueAt && (
-              <span
-                className={`font-mono text-[10.5px] ${overdue ? 'text-danger' : 'text-muted'}`}
-              >
+              <span className={`nums text-[12px] ${overdue ? 'text-rose' : 'text-muted'}`}>
                 {dueLabel(task.dueAt, task.allDay)}
               </span>
             )}
-            {task.seriesId && (
-              <span className="text-muted font-mono text-[10.5px]" title="Repeats">
-                ↻
-              </span>
-            )}
-            {task.reminderAt && !isDone && (
-              <span className="text-muted font-mono text-[10.5px]" title="Reminder set">
-                ⏰
-              </span>
-            )}
+            {task.seriesId && <IconRepeat />}
+            {task.reminderAt && !isDone && <IconBell />}
             {task.tags.map((tag) => (
-              <span key={tag} className="bg-panel2 text-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
+              <span
+                key={tag}
+                className="bg-raised text-muted rounded-full px-2 py-0.5 text-[11px] font-medium"
+              >
                 {tag}
               </span>
             ))}
@@ -344,21 +368,20 @@ function TaskRow({
         <button
           onClick={() => void store.deleteTask(task.id)}
           aria-label={`Delete: ${task.title}`}
-          title={task.seriesId ? 'Skip this occurrence' : 'Delete'}
-          className="text-muted hover:text-danger px-1 opacity-45 transition-all group-hover:opacity-100"
+          className="text-faint hover:text-rose tactile shrink-0 rounded-lg p-1.5"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="1.75" strokeLinecap="round" aria-hidden>
-            <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="1.9" strokeLinecap="round" aria-hidden>
+            <path d="M5 7.5h14M10 11v5.5M14 11v5.5M6.5 7.5 7.5 19h9l1-11.5M9.5 7.5V5h5v2.5" />
           </svg>
         </button>
       </div>
 
       {editing && (
-        <div className="mt-1 mb-2">
+        <div className="mt-1.5 mb-2">
           {task.seriesId && (
-            <p className="text-muted mb-1 px-1 font-mono text-[10.5px]">
-              ↻ part of a repeating series — this edits only this occurrence
+            <p className="text-faint mb-1.5 px-1 text-[12px]">
+              Edits apply to this occurrence only.
             </p>
           )}
           <TaskEditor
@@ -400,35 +423,32 @@ function SeriesPanel({
   setEditingId: (id: string | null) => void
 }) {
   return (
-    <div className="border-line bg-panel/60 mt-4 rounded-lg border p-4">
-      <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-        Repeating tasks
-      </p>
+    <div className="bg-surface mt-4 rounded-[16px] p-4 shadow-[var(--shadow-soft)]">
+      <p className="text-[13px] font-bold">Repeating</p>
       {store.series.length === 0 ? (
         <p className="text-muted mt-2 text-[13px]">
-          Nothing repeats yet. Use Details → Repeat when adding a task — your weekly lab
-          belongs here.
+          Nothing repeats yet — your weekly lab belongs here.
         </p>
       ) : (
         <ul className="mt-2 space-y-1">
           {store.series.map((s) => (
             <li key={s.id}>
-              <div className="group hover:bg-panel flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors">
-                <span className="text-amber font-mono text-[11px]">↻</span>
+              <div className="group hover:bg-raised flex items-center gap-3 rounded-[11px] px-2.5 py-2 transition-colors">
+                <span className="text-clay"><IconRepeat /></span>
                 <button
                   className="min-w-0 flex-1 text-left"
                   onClick={() => setEditingId(editingId === s.id ? null : s.id)}
                   title="Edit series"
                 >
-                  <span className="text-[13px]">{s.title}</span>
-                  <span className="text-muted ml-2 font-mono text-[10.5px]">{humanRule(s)}</span>
+                  <span className="text-[13.5px]">{s.title}</span>
+                  <span className="text-muted nums ml-2 text-[12px]">{humanRule(s)}</span>
                 </button>
                 <button
                   onClick={() => {
-                    if (window.confirm(`Stop repeating “${s.title}”? Past completions are kept.`))
+                    if (window.confirm(`Stop repeating “${s.title}”?`))
                       void store.deleteSeries(s.id)
                   }}
-                  className="text-muted hover:text-danger px-1 text-[11px] opacity-45 transition-all group-hover:opacity-100"
+                  className="text-faint hover:text-rose px-1 text-[12px] transition-colors"
                 >
                   Remove
                 </button>
@@ -518,4 +538,24 @@ function formToSeriesInput(v: FormValues) {
     dueTime: v.dueTime || null,
     reminderOffsetMin: v.reminderOffset === '' ? null : Number(v.reminderOffset)
   }
+}
+
+function IconRepeat() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-label="Repeats">
+      <path d="M4 9.5A6 6 0 0 1 10 4h7M20 14.5A6 6 0 0 1 14 20H7" />
+      <path d="m14.5 1.5 3 2.5-3 2.5M9.5 17.5 6.5 20l3 2.5" />
+    </svg>
+  )
+}
+
+function IconBell() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Reminder set">
+      <path d="M6 9a6 6 0 1 1 12 0c0 4.5 1.5 6 1.5 6h-15S6 13.5 6 9Z" />
+      <path d="M10.5 19a2 2 0 0 0 3 0" />
+    </svg>
+  )
 }

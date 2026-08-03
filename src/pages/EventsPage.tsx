@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { EventKind, PlannerEvent } from '../../shared/types'
 
 const KIND_META: Record<EventKind, { label: string; cls: string }> = {
-  badminton: { label: 'badminton', cls: 'text-cyan border-cyan/40 bg-cyan/10' },
+  badminton: { label: 'badminton', cls: 'text-lilac border-lilac/40 bg-lilac/10' },
   hackathon: { label: 'hackathon', cls: 'text-[#c792ea] border-[#c792ea]/40 bg-[#c792ea]/10' },
-  career: { label: 'career', cls: 'text-amber border-amber/40 bg-amber/10' },
-  academic: { label: 'academic', cls: 'text-ok border-ok/40 bg-ok/10' },
-  other: { label: 'other', cls: 'text-muted border-line bg-panel2' }
+  career: { label: 'career', cls: 'text-clay border-clay/40 bg-clay/10' },
+  academic: { label: 'academic', cls: 'text-sage border-sage/40 bg-sage/10' },
+  other: { label: 'other', cls: 'text-muted bg-surface2' }
 }
 
 /** Hackathons worth knowing about — opened in the browser, not scraped. */
@@ -19,7 +19,7 @@ const HACKATHON_LINKS = [
 ]
 
 const inputCls =
-  'bg-bench border-line rounded-md border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-amber/60'
+  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-clay/60'
 
 export default function EventsPage() {
   const [events, setEvents] = useState<PlannerEvent[]>([])
@@ -78,17 +78,15 @@ export default function EventsPage() {
 
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-4">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-            Tournaments · career fairs · deadlines
-          </p>
-          <h1 className="font-display mt-1 text-xl font-semibold">Events</h1>
+          <h1 className="text-[26px] font-bold">Events</h1>
+          <p className="text-muted mt-0.5 text-[13.5px]">Tournaments, fairs and deadlines</p>
         </div>
         <div className="flex items-center gap-2">
           <select
             aria-label="Import kind"
-            className="bg-panel border-line text-muted rounded-md border px-2 py-1.5 font-mono text-[11px]"
+            className="bg-surface border-line text-muted rounded-[11px] px-2 py-1.5 nums text-[12px]"
             value={importKind}
             onChange={(e) => setImportKind(e.target.value as EventKind)}
           >
@@ -100,8 +98,8 @@ export default function EventsPage() {
           </select>
           <button
             onClick={() => void doImport()}
-            className="border-line bg-panel text-muted hover:text-ink rounded-md border px-3 py-1.5 text-[12.5px] transition-colors"
-            title="Import a .ics file (Badminton Québec event pages export these)"
+            className="bg-surface text-muted hover:text-ink rounded-[11px] px-3 py-1.5 text-[12.5px] transition-colors"
+            
           >
             Import .ics
           </button>
@@ -109,19 +107,19 @@ export default function EventsPage() {
       </div>
 
       {importMsg && (
-        <p className="text-ok mt-2 font-mono text-[11px]">{importMsg}</p>
+        <p className="text-sage mt-2 nums text-[12px]">{importMsg}</p>
       )}
 
       <AddEventForm onCreated={refresh} />
 
       {upcoming.length === 0 && loaded ? (
         <p className="text-muted mt-8 text-[13.5px]">
-          Nothing coming up. Add a tournament above — registration alarms come free.
+          Nothing coming up.
         </p>
       ) : (
         byMonth.map((group) => (
           <section key={group.label} className="mt-6">
-            <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+            <h2 className="text-muted text-[13px] font-bold">
               {group.label}
             </h2>
             <ul className="mt-2 max-w-2xl space-y-1">
@@ -140,20 +138,18 @@ export default function EventsPage() {
       )}
 
       <section className="mt-8 max-w-2xl">
-        <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+        <h2 className="text-muted text-[13px] font-bold">
           Find hackathons
         </h2>
         <p className="text-muted mt-1.5 text-[12.5px] leading-relaxed">
-          These don&apos;t publish machine-readable calendars — open one, then add the dates
-          above as a <span className="text-[#c792ea]">hackathon</span> event so the reminder
-          fires. Registration for the big ones fills in days.
+          Add the dates here once you find one — registration fills fast.
         </p>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
           {HACKATHON_LINKS.map((h) => (
             <button
               key={h.url}
               onClick={() => void window.planner?.openExternal(h.url)}
-              className="text-cyan text-[12.5px] hover:underline"
+              className="text-lilac text-[12.5px] hover:underline"
             >
               {h.name} ↗
             </button>
@@ -165,7 +161,7 @@ export default function EventsPage() {
         <section className="mt-8">
           <button
             onClick={() => setShowPast((s) => !s)}
-            className="text-muted hover:text-ink font-mono text-[11px] tracking-[0.16em] uppercase transition-colors"
+            className="text-muted hover:text-ink text-[13px] font-bold transition-colors"
           >
             {showPast ? '▾' : '▸'} Past · {past.length}
           </button>
@@ -219,10 +215,10 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
   }
 
   return (
-    <div className="border-line bg-panel mt-5 max-w-2xl rounded-lg border p-4">
+    <div className="bg-surface mt-5 max-w-2xl rounded-[16px] p-4">
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-44 flex-1">
-          <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ev-title">
+          <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ev-title">
             New event
           </label>
           <input id="ev-title" className={`${inputCls} w-full`}
@@ -231,7 +227,7 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
             onKeyDown={(e) => e.key === 'Enter' && void add()} />
         </div>
         <div>
-          <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ev-kind">
+          <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ev-kind">
             Kind
           </label>
           <select id="ev-kind" className={inputCls} value={kind}
@@ -244,14 +240,14 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
           </select>
         </div>
         <div>
-          <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ev-date">
+          <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ev-date">
             Date
           </label>
           <input id="ev-date" type="date" className={inputCls} value={date}
             onChange={(e) => setDate(e.target.value)} />
         </div>
         <div>
-          <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ev-time">
+          <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ev-time">
             Time
           </label>
           <input id="ev-time" type="time" className={inputCls} value={time}
@@ -260,7 +256,7 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
         <button
           onClick={() => void add()}
           disabled={!title.trim() || !date}
-          className="bg-amber text-bench rounded-md px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
+          className="bg-clay text-bg rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
         >
           Add
         </button>
@@ -271,7 +267,7 @@ function AddEventForm({ onCreated }: { onCreated: () => Promise<void> }) {
         <input className={`${inputCls} min-w-40 flex-1`} placeholder="URL (optional)"
           aria-label="URL" value={url} onChange={(e) => setUrl(e.target.value)} />
         {kind === 'badminton' && (
-          <label className="text-muted flex items-center gap-1.5 font-mono text-[10.5px]">
+          <label className="text-muted flex items-center gap-1.5 nums text-[12px]">
             <input type="checkbox" className="accent-(--color-amber)" checked={autoReg}
               onChange={(e) => setAutoReg(e.target.checked)} />
             BQ registration alarms
@@ -301,9 +297,9 @@ function EventRow({
 
   return (
     <li>
-      <div className="group border-line/60 bg-panel/60 hover:bg-panel flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors">
+      <div className="group bg-surface hover:bg-surface flex items-center gap-3 rounded-[16px] px-3 py-2.5 transition-colors">
         <div className="w-12 shrink-0 text-center">
-          <div className="text-amber font-mono text-[15px] leading-none font-semibold">
+          <div className="text-clay font-mono text-[15px] leading-none font-semibold">
             {d.getDate()}
           </div>
           <div className="text-muted font-mono text-[9px] uppercase">
@@ -313,12 +309,12 @@ function EventRow({
         <button onClick={onToggle} className="min-w-0 flex-1 text-left">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[13.5px]">{event.title}</span>
-            <span className={`rounded-full border px-2 py-0.5 font-mono text-[9.5px] ${meta.cls}`}>
+            <span className={`rounded-full border px-2 py-0.5 nums text-[11px] ${meta.cls}`}>
               {meta.label}
             </span>
             <RegBadge event={event} />
           </div>
-          <div className="text-muted mt-0.5 font-mono text-[10.5px]">
+          <div className="text-muted mt-0.5 nums text-[12px]">
             {allDay ? 'all day' : d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
             {event.location ? ` · ${event.location}` : ''}
           </div>
@@ -326,20 +322,20 @@ function EventRow({
         {event.kind === 'badminton' && event.regClosesAt && (
           <button
             onClick={() => void window.planner?.eventsUpdate(event.id, { registered: !event.registered }).then(onChanged)}
-            className={`rounded-md border px-2 py-1 font-mono text-[10.5px] transition-colors ${
+            className={`rounded-[11px] border px-2 py-1 nums text-[12px] transition-colors ${
               event.registered
-                ? 'border-ok/50 text-ok bg-ok/10'
+                ? 'border-sage/50 text-sage bg-sage/10'
                 : 'border-line text-muted hover:text-ink'
             }`}
-            title={event.registered ? 'You are registered' : 'Mark as registered (silences close alarm)'}
+            title={event.registered ? 'Registered' : 'Mark as registered'}
           >
-            {event.registered ? 'registered ✓' : 'registered?'}
+            {event.registered ? 'Registered' : 'Register?'}
           </button>
         )}
         <button
           onClick={() => void window.planner?.eventsDelete(event.id).then(onChanged)}
           aria-label={`Delete ${event.title}`}
-          className="text-muted hover:text-danger px-1 opacity-45 transition-all group-hover:opacity-100"
+          className="text-muted hover:text-rose px-1 opacity-45 transition-all group-hover:opacity-100"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.75" strokeLinecap="round" aria-hidden>
@@ -349,7 +345,7 @@ function EventRow({
       </div>
 
       {expanded && (
-        <div className="border-line bg-panel mt-1 mb-2 rounded-lg border p-3 font-mono text-[11px]">
+        <div className="bg-surface mt-1 mb-2 rounded-[16px] p-3 nums text-[12px]">
           {event.regOpensAt && (
             <p>
               <span className="text-muted">reg opens&nbsp;&nbsp;</span>
@@ -365,14 +361,14 @@ function EventRow({
           {event.regOpensAt && (
             <p>
               <span className="text-muted">draws&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-              {fmtDT(drawsAt(event.startAt))} (posted by BQ)
+              {fmtDT(drawsAt(event.startAt))}
             </p>
           )}
           {event.url && (
             <p className="mt-1">
               <button
                 onClick={() => void window.planner?.openExternal(event.url!)}
-                className="text-cyan hover:underline"
+                className="text-lilac hover:underline"
               >
                 {event.url}
               </button>
@@ -380,7 +376,7 @@ function EventRow({
           )}
           {event.notes && <p className="text-muted mt-1 whitespace-pre-wrap">{event.notes}</p>}
           {!event.regOpensAt && !event.url && !event.notes && (
-            <p className="text-muted">No extra details. Reminder fires the day before.</p>
+            <p className="text-muted">Reminder fires the day before.</p>
           )}
         </div>
       )}
@@ -397,20 +393,20 @@ function RegBadge({ event }: { event: PlannerEvent }) {
   if (event.registered) return null // row shows the green "registered ✓" control
   if (now < opens) {
     return (
-      <span className="text-muted border-line rounded-full border px-2 py-0.5 font-mono text-[9.5px]">
+      <span className="text-muted border-line rounded-full border px-2 py-0.5 nums text-[11px]">
         reg opens {relDays(opens)}
       </span>
     )
   }
   if (now < closes) {
     return (
-      <span className="border-amber/60 text-amber bg-amber/10 animate-pulse rounded-full border px-2 py-0.5 font-mono text-[9.5px] font-semibold">
+      <span className="border-clay/60 text-clay bg-clay/10 animate-pulse rounded-full border px-2 py-0.5 nums text-[11px] font-semibold">
         REG OPEN · closes {relDays(closes)}
       </span>
     )
   }
   return (
-    <span className="text-danger/80 border-danger/40 rounded-full border px-2 py-0.5 font-mono text-[9.5px]">
+    <span className="text-rose/80 border-rose/40 rounded-full border px-2 py-0.5 nums text-[11px]">
       reg closed
     </span>
   )

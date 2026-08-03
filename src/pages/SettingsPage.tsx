@@ -39,25 +39,22 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-        Configuration
-      </p>
-      <h1 className="font-display mt-1 text-xl font-semibold">Settings</h1>
+      <h1 className="text-[26px] font-bold">Settings</h1>
 
       {!settings ? (
         <p className="text-muted mt-4 text-[13px]">Settings unavailable — bridge offline.</p>
       ) : (
-        <div className="border-line bg-panel mt-6 max-w-xl divide-y divide-(--color-line) rounded-lg border">
+        <div className="bg-surface mt-6 max-w-xl divide-y divide-(--color-line) rounded-[16px]">
           <Toggle
             label="Start with Windows"
-            hint="Launches hidden in the tray at login so reminders always fire. Applies to the installed app, not dev mode."
+            hint="Launches hidden in the tray so reminders still fire."
             checked={settings.autostart}
             disabled={saving}
             onChange={(v) => patch({ autostart: v })}
           />
           <Toggle
             label="Close to tray"
-            hint="Closing the window keeps Planner running in the tray. Quit from the tray menu."
+            hint="Closing the window keeps Planner in the tray."
             checked={settings.closeToTray}
             disabled={saving}
             onChange={(v) => patch({ closeToTray: v })}
@@ -67,24 +64,22 @@ export default function SettingsPage() {
               <p className="text-[13.5px] font-medium">Groq API key</p>
               {groqConfigured !== null && (
                 <span
-                  className={`led ${groqConfigured ? 'text-ok' : 'text-line'}`}
+                  className={`led ${groqConfigured ? 'text-sage' : 'text-line'}`}
                   title={groqConfigured ? 'Key stored' : 'No key'}
                   aria-hidden
                 />
               )}
-              <span className="text-muted font-mono text-[10.5px]">
+              <span className="text-muted text-[12px] font-medium">
                 {groqConfigured ? 'configured' : 'not set'}
               </span>
             </div>
             <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
-              Powers the Assistant and lecture chats. Stored encrypted with Windows
-              credentials — never as plain text, never shown again. Get a free key at
-              console.groq.com.
+              Powers the Assistant and lecture chats. Stored encrypted on this machine.
             </p>
             <div className="mt-3 flex gap-2">
               <input
                 type="password"
-                className="bg-bench border-line placeholder:text-muted/60 focus:border-amber/60 flex-1 rounded-md border px-2.5 py-1.5 text-[13px]"
+                className="bg-bg placeholder:text-faint focus:ring-clay/60 flex-1 rounded-[10px] px-3 py-2 text-[13.5px] outline-none focus:ring-1"
                 placeholder={groqConfigured ? 'Paste a new key to replace' : 'gsk_…'}
                 value={keyDraft}
                 onChange={(e) => setKeyDraft(e.target.value)}
@@ -93,14 +88,14 @@ export default function SettingsPage() {
               <button
                 onClick={() => void saveKey()}
                 disabled={!keyDraft.trim()}
-                className="bg-amber text-bench rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-opacity disabled:opacity-40"
+                className="tactile bg-clay text-bg rounded-[10px] px-4 py-2 text-[13px] font-bold disabled:opacity-35"
               >
                 {keySaved ? 'Saved' : 'Save'}
               </button>
               {groqConfigured && (
                 <button
                   onClick={() => { setKeyDraft(''); void window.planner?.groqSetKey('').then((r) => setGroqConfigured(r.configured)) }}
-                  className="text-muted hover:text-danger rounded-md px-2 py-1.5 text-[12.5px] transition-colors"
+                  className="text-muted hover:text-rose rounded-[11px] px-2 py-1.5 text-[12.5px] transition-colors"
                 >
                   Remove
                 </button>
@@ -111,14 +106,13 @@ export default function SettingsPage() {
             <div>
               <p className="text-[13.5px] font-medium">Assistant model</p>
               <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
-                Used by the Assistant and lecture chats. Default picks a tool-capable Groq
-                model; change it here if Groq retires it.
+                Used by the Assistant and lecture chats.
               </p>
             </div>
             {models.length > 0 ? (
               <select
                 aria-label="Assistant model"
-                className="bg-bench border-line focus:border-amber/60 mt-0.5 max-w-52 rounded-md border px-2 py-1.5 font-mono text-[11.5px]"
+                className="bg-bg focus:ring-clay/60 mt-0.5 max-w-52 rounded-[10px] px-2.5 py-2 font-mono text-[12px] outline-none focus:ring-1"
                 value={settings.groqModel ?? ''}
                 disabled={saving}
                 onChange={(e) => void patch({ groqModel: e.target.value || null })}
@@ -129,7 +123,7 @@ export default function SettingsPage() {
                 ))}
               </select>
             ) : (
-              <span className="text-muted mt-1 font-mono text-[10.5px]">
+              <span className="text-muted mt-1 text-[12px] font-medium">
                 {groqConfigured ? 'loading…' : 'needs key'}
               </span>
             )}
@@ -138,8 +132,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-[13.5px] font-medium">Gym target</p>
               <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
-                Sessions per week that count as hitting the goal — drives the weekly bar and
-                the streak counter.
+                Sessions per week to hit your goal.
               </p>
             </div>
             <input
@@ -147,7 +140,7 @@ export default function SettingsPage() {
               min={1}
               max={7}
               aria-label="Gym sessions per week"
-              className="bg-bench border-line focus:border-amber/60 mt-0.5 w-16 rounded-md border px-2.5 py-1.5 text-center font-mono text-[13px]"
+              className="bg-bg focus:ring-clay/60 nums mt-0.5 w-16 rounded-[10px] px-2.5 py-2 text-center text-[13.5px] outline-none focus:ring-1"
               value={settings.targets.gymPerWeek}
               disabled={saving}
               onChange={(e) => {
@@ -159,7 +152,7 @@ export default function SettingsPage() {
           <div className="px-5 py-4">
             <p className="text-[13.5px] font-medium">Career weekly targets</p>
             <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
-              The Career scoreboard measures each week (Sun–Sat) against these.
+              Measured Sunday to Saturday.
             </p>
             <div className="mt-3 flex gap-5">
               {(
@@ -169,13 +162,13 @@ export default function SettingsPage() {
                   ['networkingPerWeek', 'networking']
                 ] as const
               ).map(([key, label]) => (
-                <label key={key} className="text-muted flex flex-col gap-1 font-mono text-[10px] uppercase">
+                <label key={key} className="text-muted flex flex-col gap-1.5 text-[12px] font-medium">
                   {label}
                   <input
                     type="number"
                     min={0}
                     max={50}
-                    className="bg-bench border-line focus:border-amber/60 w-16 rounded-md border px-2.5 py-1.5 text-center font-mono text-[13px] normal-case"
+                    className="bg-bg focus:ring-clay/60 nums w-16 rounded-[10px] px-2.5 py-2 text-center text-[13.5px] outline-none focus:ring-1"
                     value={settings.targets[key]}
                     disabled={saving}
                     onChange={(e) => {
@@ -219,12 +212,12 @@ function Toggle({
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={`relative mt-0.5 h-5.5 w-10 shrink-0 rounded-full transition-colors ${
-          checked ? 'bg-amber' : 'bg-line'
+          checked ? 'bg-clay' : 'bg-line'
         } ${disabled ? 'opacity-60' : ''}`}
       >
         <span
           aria-hidden
-          className={`bg-bench absolute top-0.5 h-4.5 w-4.5 rounded-full transition-all ${
+          className={`bg-bg absolute top-0.5 h-4.5 w-4.5 rounded-full transition-all ${
             checked ? 'left-5' : 'left-0.5'
           }`}
         />

@@ -25,22 +25,22 @@ function matchesTrack(p: JobPosting, focus: 'swe' | 'hardware'): boolean {
 }
 
 const PIPELINE: { id: ApplicationStatus; label: string; hint?: string }[] = [
-  { id: 'wishlist', label: 'Wishlist', hint: 'Found it, not applied yet' },
-  { id: 'applied', label: 'Applied', hint: 'Application submitted — counts toward your weekly target' },
+  { id: 'wishlist', label: 'Wishlist' },
+  { id: 'applied', label: 'Applied' },
   {
     id: 'oa',
     label: 'OA — online assessment',
     hint: 'Online Assessment: the timed coding/aptitude test companies send after you apply, usually on HackerRank or CodeSignal'
   },
-  { id: 'interview', label: 'Interview', hint: 'Phone screen, technical, or final round' },
-  { id: 'offer', label: 'Offer', hint: 'They said yes' }
+  { id: 'interview', label: 'Interview' },
+  { id: 'offer', label: 'Offer' }
 ]
 const CLOSED: ApplicationStatus[] = ['rejected', 'ghosted']
 
 const TRACK_META: Record<ApplicationTrack, { label: string; cls: string }> = {
-  swe: { label: 'swe', cls: 'text-cyan' },
-  hardware: { label: 'hw', cls: 'text-amber' },
-  research: { label: 'research', cls: 'text-ok' }
+  swe: { label: 'swe', cls: 'text-lilac' },
+  hardware: { label: 'hw', cls: 'text-clay' },
+  research: { label: 'research', cls: 'text-sage' }
 }
 
 // Stable, top-level links only — labels carry the guidance.
@@ -76,7 +76,7 @@ const WATCHLIST = [
 ]
 
 const inputCls =
-  'bg-bench border-line rounded-md border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-amber/60'
+  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-clay/60'
 
 export default function CareerPage() {
   const [apps, setApps] = useState<Application[]>([])
@@ -124,18 +124,16 @@ export default function CareerPage() {
     <div>
       <div className="flex items-baseline justify-between gap-4">
         <div>
-          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-            Summer 2027 pipeline
-          </p>
-          <h1 className="font-display mt-1 text-xl font-semibold">Career</h1>
+          <h1 className="text-[26px] font-bold">Career</h1>
+          <p className="text-muted mt-0.5 text-[13.5px]">Summer 2027</p>
         </div>
-        <div className="border-line bg-panel flex rounded-md border p-0.5" role="group" aria-label="Track focus">
+        <div className="bg-surface flex rounded-[11px] p-0.5" role="group" aria-label="Track focus">
           {(['swe', 'hardware'] as const).map((f) => (
             <button
               key={f}
               onClick={() => void setFocus(f)}
-              className={`rounded px-3 py-1 font-mono text-[11px] transition-colors ${
-                focus === f ? 'bg-amber text-bench font-semibold' : 'text-muted hover:text-ink'
+              className={`tactile rounded-[9px] px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
+                focus === f ? 'bg-clay text-bg font-semibold' : 'text-muted hover:text-ink'
               }`}
             >
               {f === 'swe' ? 'SWE' : 'Hardware'}
@@ -151,7 +149,6 @@ export default function CareerPage() {
             label="applications"
             value={stats.applications}
             target={targets.applicationsPerWeek}
-            hint="counted when a card moves to Applied"
           />
           <ScoreTile
             label="dsa problems"
@@ -179,7 +176,7 @@ export default function CareerPage() {
           return (
             <div key={col.id} className="w-52 shrink-0">
               <p
-                className="text-muted font-mono text-[10.5px] tracking-[0.14em] uppercase"
+                className="text-muted text-[12px] font-semibold"
                 title={col.hint}
               >
                 {col.label} <span className="opacity-60">· {items.length}</span>
@@ -195,7 +192,7 @@ export default function CareerPage() {
                   />
                 ))}
                 {items.length === 0 && (
-                  <div className="border-line/40 text-muted/40 rounded-md border border-dashed px-2 py-3 text-center font-mono text-[10px]">
+                  <div className="border-line/40 text-muted/40 rounded-[11px] border border-dashed px-2 py-3 text-center nums text-[11.5px]">
                     —
                   </div>
                 )}
@@ -209,7 +206,7 @@ export default function CareerPage() {
         <div className="mt-2">
           <button
             onClick={() => setShowClosed((s) => !s)}
-            className="text-muted hover:text-ink font-mono text-[11px] tracking-[0.16em] uppercase transition-colors"
+            className="text-muted hover:text-ink text-[13px] font-bold transition-colors"
           >
             {showClosed ? '▾' : '▸'} Closed · {closed.length}
           </button>
@@ -235,7 +232,7 @@ export default function CareerPage() {
 
       {/* Research watchlist (the 15%) */}
       <section className="mt-8 max-w-2xl">
-        <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+        <h2 className="text-muted text-[13px] font-bold">
           Research watchlist — SURE / USRA
         </h2>
         <div className="mt-2 space-y-2">
@@ -247,7 +244,7 @@ export default function CareerPage() {
 
       {/* Resource shelf */}
       <section className="mt-8 max-w-2xl">
-        <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+        <h2 className="text-muted text-[13px] font-bold">
           Resources · {focus === 'swe' ? 'software' : 'hardware'} focus
         </h2>
         <ul className="mt-2 space-y-1">
@@ -255,7 +252,7 @@ export default function CareerPage() {
             <li key={r.name} className="flex items-baseline gap-2 text-[13px]">
               <button
                 onClick={() => void window.planner?.openExternal(r.url)}
-                className="text-cyan shrink-0 hover:underline"
+                className="text-lilac shrink-0 hover:underline"
               >
                 {r.name}
               </button>
@@ -348,35 +345,34 @@ function JobFeed({
   return (
     <section className="mt-8 max-w-2xl">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
+        <h2 className="text-muted text-[13px] font-bold">
           Live postings · Summer 2027
         </h2>
-        <span className="text-muted/60 font-mono text-[9.5px]">
-          SimplifyJobs · vanshb03 · speedyapply
+        <span className="text-muted/60 nums text-[11px]">
         </span>
         <div className="flex-1" />
         {fetchedAt && (
-          <span className="text-muted/60 font-mono text-[9.5px]">
+          <span className="text-muted/60 nums text-[11px]">
             {postings.length} jobs · {new Date(fetchedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
         <button
           onClick={() => void load(postings.length > 0)}
           disabled={loading}
-          className="border-line bg-panel text-muted hover:text-ink rounded-md border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
+          className="bg-surface text-muted hover:text-ink rounded-[11px] px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-50"
         >
           {loading ? 'Fetching…' : postings.length ? 'Refresh' : 'Fetch postings'}
         </button>
       </div>
 
       {error && (
-        <p className="text-danger mt-2 font-mono text-[11px]">
+        <p className="text-rose mt-2 nums text-[12px]">
           Feed unavailable: {error}. Try again in a minute.
         </p>
       )}
 
       {sources.some((s) => !s.ok) && (
-        <p className="text-muted/70 mt-2 font-mono text-[10px]">
+        <p className="text-muted/70 mt-2 nums text-[11.5px]">
           {sources.filter((s) => !s.ok).map((s) => `${s.label} unavailable (${s.error})`).join(' · ')}
         </p>
       )}
@@ -391,7 +387,7 @@ function JobFeed({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <div className="border-line bg-panel flex rounded-md border p-0.5" role="group" aria-label="Region">
+            <div className="bg-surface flex rounded-[11px] p-0.5" role="group" aria-label="Region">
               {([
                 ['all', `all (${counts.all})`],
                 ['canada', `canada (${counts.canada})`],
@@ -401,8 +397,8 @@ function JobFeed({
                   key={id}
                   onClick={() => { setRegion(id); setLimit(40) }}
                   aria-pressed={region === id}
-                  className={`rounded px-2.5 py-1 font-mono text-[10.5px] transition-colors ${
-                    region === id ? 'bg-amber text-bench font-semibold' : 'text-muted hover:text-ink'
+                  className={`rounded px-2.5 py-1 nums text-[12px] transition-colors ${
+                    region === id ? 'bg-clay text-bg font-semibold' : 'text-muted hover:text-ink'
                   }`}
                 >
                   {label}
@@ -417,10 +413,10 @@ function JobFeed({
                   ? `Only ${focus === 'swe' ? 'software' : 'hardware'} roles — click to show every posting`
                   : 'Showing every posting regardless of track'
               }
-              className={`rounded-full border px-2.5 py-1 font-mono text-[10.5px] transition-colors ${
+              className={`rounded-full border px-2.5 py-1 nums text-[12px] transition-colors ${
                 trackOnly
                   ? 'border-line text-muted hover:text-ink'
-                  : 'border-amber/60 text-amber bg-amber/10'
+                  : 'border-clay/60 text-clay bg-clay/10'
               }`}
             >
               {trackOnly ? `${focus === 'swe' ? 'swe' : 'hardware'} only` : 'all roles'}
@@ -442,22 +438,22 @@ function JobFeed({
                   return (
                     <li
                       key={p.id}
-                      className="group border-line/60 bg-panel/60 hover:bg-panel flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors"
+                      className="group bg-surface hover:bg-surface flex items-center gap-3 rounded-[16px] px-3 py-2 transition-colors"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[13px]">
                           <span className="font-medium">{p.company}</span>
                           <span className="text-muted"> — {p.title}</span>
                         </p>
-                        <p className="text-muted mt-0.5 truncate font-mono text-[10px]">
+                        <p className="text-muted mt-0.5 truncate nums text-[11.5px]">
                           {p.locations.join(' · ') || 'location n/a'}
-                          {p.salary && <span className="text-ok"> · {p.salary}</span>}
+                          {p.salary && <span className="text-sage"> · {p.salary}</span>}
                           {p.postedAt && ` · ${relAge(p.postedAt)}`}
                         </p>
                       </div>
                       <button
                         onClick={() => void window.planner?.openExternal(p.url)}
-                        className="text-cyan shrink-0 font-mono text-[10.5px] hover:underline"
+                        className="text-lilac shrink-0 nums text-[12px] hover:underline"
                       >
                         open ↗
                       </button>
@@ -476,14 +472,14 @@ function JobFeed({
                           }
                           await onAdded()
                         }}
-                        title={existingId ? 'Click to remove from pipeline' : 'Add to pipeline'}
-                        className={`shrink-0 rounded-md border px-2 py-1 font-mono text-[10.5px] transition-colors ${
+                        title={existingId ? 'Remove from pipeline' : 'Add to pipeline'}
+                        className={`shrink-0 rounded-[11px] border px-2 py-1 nums text-[12px] transition-colors ${
                           existingId
-                            ? 'border-ok/40 text-ok hover:border-danger/60 hover:text-danger'
-                            : 'border-line text-muted hover:border-amber/60 hover:text-ink'
+                            ? 'border-sage/40 text-sage hover:border-rose/60 hover:text-rose'
+                            : 'border-line text-muted hover:border-clay/60 hover:text-ink'
                         }`}
                       >
-                        {existingId ? 'in pipeline ✓' : '+ pipeline'}
+                        {existingId ? 'Added' : 'Add'}
                       </button>
                     </li>
                   )
@@ -492,7 +488,7 @@ function JobFeed({
               {matching.length > visible.length && (
                 <button
                   onClick={() => setLimit((l) => l + 40)}
-                  className="text-muted hover:text-amber mt-2 font-mono text-[11px] transition-colors"
+                  className="text-muted hover:text-clay mt-2 nums text-[12px] transition-colors"
                 >
                   show more ({matching.length - visible.length} more)
                 </button>
@@ -528,24 +524,22 @@ function ScoreTile({
   label,
   value,
   target,
-  hint,
   onAdd,
   onUndo
 }: {
   label: string
   value: number
   target: number
-  hint?: string
   onAdd?: () => void
   onUndo?: () => void
 }) {
   const met = value >= target
   return (
-    <div className="border-line bg-panel rounded-lg border p-3.5">
-      <p className="text-muted font-mono text-[10px] tracking-[0.14em] uppercase">{label}</p>
+    <div className="bg-surface rounded-[16px] p-3.5">
+      <p className="text-muted text-[12px] font-semibold">{label}</p>
       <div className="mt-1 flex items-center justify-between">
         <p className="font-mono text-lg leading-none font-semibold">
-          <span className={met ? 'text-ok' : ''}>{value}</span>
+          <span className={met ? 'text-sage' : ''}>{value}</span>
           <span className="text-muted text-[12px]"> / {target}</span>
         </p>
         {onAdd && (
@@ -554,7 +548,7 @@ function ScoreTile({
               <button
                 onClick={onUndo}
                 aria-label={`Undo ${label}`}
-                className="border-line text-muted hover:text-danger h-6 w-6 rounded border font-mono text-[12px] transition-colors"
+                className="border-line text-muted hover:text-rose h-6 w-6 rounded border nums text-[12.5px] transition-colors"
               >
                 −
               </button>
@@ -562,14 +556,13 @@ function ScoreTile({
             <button
               onClick={onAdd}
               aria-label={`Log ${label}`}
-              className="bg-amber text-bench h-6 w-6 rounded font-mono text-[13px] font-bold"
+              className="bg-clay text-bg h-6 w-6 rounded font-mono text-[13px] font-bold"
             >
               +
             </button>
           </div>
         )}
       </div>
-      {hint && <p className="text-muted/60 mt-1.5 font-mono text-[9.5px] leading-tight">{hint}</p>}
     </div>
   )
 }
@@ -598,16 +591,16 @@ function AddApplication({
   }
 
   return (
-    <div className="border-line bg-panel mt-5 flex max-w-2xl flex-wrap items-end gap-2 rounded-lg border p-4">
+    <div className="bg-surface mt-5 flex max-w-2xl flex-wrap items-end gap-2 rounded-[16px] p-4">
       <div className="min-w-32 flex-1">
-        <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ap-company">
+        <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ap-company">
           Company
         </label>
         <input id="ap-company" className={`${inputCls} w-full`} placeholder="Matrox"
           value={company} onChange={(e) => setCompany(e.target.value)} />
       </div>
       <div className="min-w-40 flex-1">
-        <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ap-role">
+        <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ap-role">
           Role
         </label>
         <input id="ap-role" className={`${inputCls} w-full`} placeholder="SWE Intern — Summer 2027"
@@ -615,7 +608,7 @@ function AddApplication({
           onKeyDown={(e) => e.key === 'Enter' && void add()} />
       </div>
       <div>
-        <label className="text-muted mb-1 block font-mono text-[10.5px] uppercase" htmlFor="ap-track">
+        <label className="text-muted mb-1 block text-[12px] font-semibold" htmlFor="ap-track">
           Track
         </label>
         <select id="ap-track" className={inputCls} value={track}
@@ -628,7 +621,7 @@ function AddApplication({
       <button
         onClick={() => void add()}
         disabled={!company.trim() || !role.trim()}
-        className="bg-amber text-bench rounded-md px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
+        className="bg-clay text-bg rounded-[11px] px-3.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-40"
       >
         Add
       </button>
@@ -659,15 +652,15 @@ function AppCard({
   }
 
   return (
-    <div className="border-line/60 bg-panel/80 rounded-md border">
+    <div className="border-line/60 bg-surface/80 rounded-[11px]">
       <div className="group flex items-start gap-1.5 px-2.5 py-2">
         <button onClick={onToggle} className="min-w-0 flex-1 text-left">
           <p className="truncate text-[12.5px] font-medium">{app.company}</p>
           <p className="text-muted truncate text-[11px]">{app.role}</p>
-          <p className={`mt-0.5 font-mono text-[9.5px] ${meta.cls}`}>
+          <p className={`mt-0.5 nums text-[11px] ${meta.cls}`}>
             {meta.label}
             {app.deadline && <span className="text-muted"> · due {app.deadline}</span>}
-            {app.nextActionDate && <span className="text-amber"> · next {app.nextActionDate}</span>}
+            {app.nextActionDate && <span className="text-clay"> · next {app.nextActionDate}</span>}
           </p>
         </button>
         <div className="flex shrink-0 flex-col items-center gap-1">
@@ -676,7 +669,7 @@ function AppCard({
               onClick={() => void patch({ status: PIPELINE[idx + 1].id })}
               title={`Move to ${PIPELINE[idx + 1].label}`}
               aria-label={`Advance ${app.company} to ${PIPELINE[idx + 1].label}`}
-              className="text-muted hover:text-amber font-mono text-[13px] leading-none transition-colors"
+              className="text-muted hover:text-clay font-mono text-[13px] leading-none transition-colors"
             >
               →
             </button>
@@ -688,7 +681,7 @@ function AppCard({
             }}
             title="Remove from pipeline"
             aria-label={`Remove ${app.company} from pipeline`}
-            className="text-muted/60 hover:text-danger font-mono text-[15px] leading-none transition-colors"
+            className="text-muted/60 hover:text-rose font-mono text-[15px] leading-none transition-colors"
           >
             ×
           </button>
@@ -698,7 +691,7 @@ function AppCard({
         <div className="border-line/60 space-y-2 border-t px-2.5 py-2">
           <select
             aria-label="Status"
-            className={`${inputCls} w-full py-1 font-mono text-[11px]`}
+            className={`${inputCls} w-full py-1 nums text-[12px]`}
             value={app.status}
             onChange={(e) => void patch({ status: e.target.value as ApplicationStatus })}
           >
@@ -719,7 +712,7 @@ function AppCard({
             <input
               type="date"
               aria-label="Next action date"
-              className={`${inputCls} py-1 font-mono text-[11px]`}
+              className={`${inputCls} py-1 nums text-[12px]`}
               defaultValue={app.nextActionDate ?? ''}
               onBlur={(e) => {
                 const v = e.target.value || null
@@ -729,7 +722,7 @@ function AppCard({
             {app.url && (
               <button
                 onClick={() => void window.planner?.openExternal(app.url!)}
-                className="text-cyan font-mono text-[10.5px] hover:underline"
+                className="text-lilac nums text-[12px] hover:underline"
               >
                 posting ↗
               </button>
@@ -739,7 +732,7 @@ function AppCard({
                 if (window.confirm(`Remove ${app.company} — ${app.role} from the pipeline?`))
                   void window.planner?.appsDelete(app.id).then(onChanged)
               }}
-              className="text-muted/60 hover:text-danger ml-auto font-mono text-[10.5px] transition-colors"
+              className="text-muted/60 hover:text-rose ml-auto nums text-[12px] transition-colors"
             >
               remove
             </button>
@@ -768,11 +761,11 @@ function WatchlistItem({ item }: { item: { name: string; url: string; note: stri
   }
 
   return (
-    <div className="border-line bg-panel rounded-lg border p-3.5">
+    <div className="bg-surface rounded-[16px] p-3.5">
       <div className="flex items-baseline gap-2">
         <button
           onClick={() => void window.planner?.openExternal(item.url)}
-          className="text-ok text-[13px] font-medium hover:underline"
+          className="text-sage text-[13px] font-medium hover:underline"
         >
           {item.name}
         </button>
@@ -780,25 +773,25 @@ function WatchlistItem({ item }: { item: { name: string; url: string; note: stri
       <p className="text-muted mt-1 text-[12px] leading-relaxed">{item.note}</p>
       <div className="mt-2 flex items-center gap-2">
         {tracked ? (
-          <span className="text-ok font-mono text-[10.5px]">✓ deadline added to Events</span>
+          <span className="text-sage nums text-[12px]">Added to Events</span>
         ) : (
           <>
             <input
               type="date"
               aria-label={`${item.name} deadline date`}
-              className={`${inputCls} py-1 font-mono text-[11px]`}
+              className={`${inputCls} py-1 nums text-[12px]`}
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
             <button
               onClick={() => void track()}
               disabled={!date}
-              className="border-line bg-panel2 hover:border-amber/60 rounded-md border px-2.5 py-1 font-mono text-[10.5px] transition-colors disabled:opacity-40"
+              className="bg-surface2 hover:border-clay/60 rounded-[11px] px-2.5 py-1 nums text-[12px] transition-colors disabled:opacity-40"
             >
-              track deadline in Events
+              Track deadline
             </button>
-            <span className="text-muted/60 font-mono text-[9.5px]">
-              (set it when the real date is announced)
+            <span className="text-muted/60 nums text-[11px]">
+
             </span>
           </>
         )}

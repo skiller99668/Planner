@@ -25,8 +25,8 @@ export default function App() {
   return (
     <div className="flex h-full">
       <Sidebar active={active} onNavigate={setActive} />
-      <main className="bg-bench-grid min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-8 py-8">
+      <main className="app-canvas min-w-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-3xl px-10 py-10">
           {active === 'dashboard' ? (
             <DashboardPage onNavigate={setActive} />
           ) : active === 'assistant' ? (

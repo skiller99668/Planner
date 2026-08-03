@@ -12,7 +12,7 @@ export type ModuleId =
   | 'settings'
 
 const NAV: { id: ModuleId; label: string; icon: ReactElement }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <IconGrid /> },
+  { id: 'dashboard', label: 'Today', icon: <IconHome /> },
   { id: 'assistant', label: 'Assistant', icon: <IconSpark /> },
   { id: 'tasks', label: 'Tasks', icon: <IconCheck /> },
   { id: 'academics', label: 'Academics', icon: <IconBook /> },
@@ -35,15 +35,23 @@ export default function Sidebar({
   }, [])
 
   return (
-    <aside className="border-line bg-bench flex w-56 shrink-0 flex-col border-r">
-      <div className="flex items-center gap-2.5 px-5 pt-5 pb-6">
-        <span className="led text-amber" aria-hidden />
-        <span className="font-mono text-[13px] font-semibold tracking-[0.18em] uppercase">
-          Planner
+    <aside className="bg-surface/60 flex w-[212px] shrink-0 flex-col px-3 py-4">
+      <div className="flex items-center gap-2.5 px-3 pt-1 pb-6">
+        <span className="bg-clay/20 text-clay flex h-7 w-7 items-center justify-center rounded-[9px]">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M5 12.5l4.5 4.5L19 7"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </span>
+        <span className="text-[15px] font-bold tracking-tight">Planner</span>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5 px-3" aria-label="Modules">
+      <nav className="flex flex-1 flex-col gap-0.5" aria-label="Sections">
         {NAV.map((item) => (
           <NavButton
             key={item.id}
@@ -60,28 +68,12 @@ export default function Sidebar({
         />
       </nav>
 
-      {/* Instrument status readout: proves main-process IPC + DB are alive. */}
-      <div className="border-line text-muted mt-3 border-t px-5 py-3 font-mono text-[10.5px] leading-relaxed">
-        {info ? (
-          <>
-            <div className="flex items-center gap-1.5">
-              <span className="led text-ok" aria-hidden />
-              <span>
-                db ok · schema v{info.schemaVersion}
-              </span>
-            </div>
-            <div>
-              v{info.version} · electron {info.electron.split('.')[0]}
-              {info.packaged ? '' : ' · dev'}
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center gap-1.5">
-            <span className="led text-danger" aria-hidden />
-            <span>bridge offline</span>
-          </div>
-        )}
-      </div>
+      {info && (
+        <p className="text-faint px-3 pt-3 text-[10.5px]">
+          v{info.version}
+          {info.packaged ? '' : ' · dev'}
+        </p>
+      )}
     </aside>
   )
 }
@@ -99,36 +91,29 @@ function NavButton({
     <button
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
-      className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-left text-[13.5px] transition-colors ${
+      className={`tactile flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[14px] ${
         active
-          ? 'bg-panel2 text-ink font-medium'
-          : 'text-muted hover:bg-panel hover:text-ink'
+          ? 'bg-raised text-ink font-semibold shadow-[var(--shadow-soft)]'
+          : 'text-muted hover:bg-raised/50 hover:text-ink font-medium'
       }`}
     >
-      {/* channel indicator */}
-      <span
-        aria-hidden
-        className={`absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2 rounded-full transition-colors ${
-          active ? 'bg-amber' : 'bg-transparent'
-        }`}
-      />
-      <span className="opacity-80">{item.icon}</span>
+      <span className={active ? 'text-clay' : ''}>{item.icon}</span>
       {item.label}
     </button>
   )
 }
 
-/* ---- 18px stroke icons ---- */
+/* ---- icons: 2px round strokes, softer than the old hairlines ---- */
 
 function svg(paths: ReactElement) {
   return (
     <svg
-      width="18"
-      height="18"
+      width="19"
+      height="19"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.9"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -138,70 +123,69 @@ function svg(paths: ReactElement) {
   )
 }
 
-function IconGrid() {
+function IconHome() {
   return svg(
     <>
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      <path d="M4 10.5 12 4l8 6.5" />
+      <path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" />
     </>
   )
 }
 function IconSpark() {
   return svg(
     <>
-      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
-      <path d="M12 8.5 13.2 10.8 15.5 12 13.2 13.2 12 15.5 10.8 13.2 8.5 12 10.8 10.8Z" />
+      <path d="M12 3.5c.6 3.6 1.9 5 5.5 5.5-3.6.6-4.9 1.9-5.5 5.5-.6-3.6-1.9-4.9-5.5-5.5 3.6-.5 4.9-1.9 5.5-5.5Z" />
+      <path d="M17.5 15c.3 1.8 1 2.5 2.8 2.8-1.8.3-2.5 1-2.8 2.7-.3-1.7-1-2.4-2.7-2.7 1.7-.3 2.4-1 2.7-2.8Z" />
     </>
   )
 }
 function IconCheck() {
   return svg(
     <>
-      <rect x="3" y="3" width="18" height="18" rx="4" />
-      <path d="m8.5 12.5 2.5 2.5 4.5-5.5" />
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m8.5 12.2 2.4 2.4 4.6-5.2" />
     </>
   )
 }
 function IconBook() {
   return svg(
     <>
-      <path d="M4 19V5a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v14" />
-      <path d="M4 19a2 2 0 0 0 2 2h14v-4H6a2 2 0 0 0-2 2Z" />
+      <path d="M5 4.5h9a3 3 0 0 1 3 3V20a2.5 2.5 0 0 0-2.5-2.5H5Z" />
+      <path d="M5 4.5V20" />
+      <path d="M19 8v11.5" />
     </>
   )
 }
 function IconBarbell() {
   return svg(
     <>
-      <path d="M2 12h2M20 12h2M6 12h12" />
-      <rect x="4" y="8" width="2.5" height="8" rx="0.8" />
-      <rect x="17.5" y="8" width="2.5" height="8" rx="0.8" />
+      <path d="M8 12h8" />
+      <rect x="4" y="8.5" width="4" height="7" rx="1.6" />
+      <rect x="16" y="8.5" width="4" height="7" rx="1.6" />
     </>
   )
 }
 function IconCalendar() {
   return svg(
     <>
-      <rect x="3" y="5" width="18" height="16" rx="2.5" />
-      <path d="M3 10h18M8 3v4M16 3v4" />
+      <rect x="3.5" y="5.5" width="17" height="15" rx="3.5" />
+      <path d="M3.5 10h17M8.5 3.5v4M15.5 3.5v4" />
     </>
   )
 }
 function IconBriefcase() {
   return svg(
     <>
-      <rect x="3" y="7" width="18" height="13" rx="2.5" />
-      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 13h18" />
+      <rect x="3.5" y="7.5" width="17" height="12.5" rx="3.5" />
+      <path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" />
     </>
   )
 }
 function IconGear() {
   return svg(
     <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" />
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M19.4 14a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.3a2 2 0 1 1-4 0V20a1.6 1.6 0 0 0-2.7-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4 13.4H3.8a2 2 0 1 1 0-4H4a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V2.6a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7h.2a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.5 1Z" />
     </>
   )
 }

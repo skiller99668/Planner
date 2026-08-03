@@ -22,16 +22,14 @@ export default function AssistantPage() {
     <div>
       <div className="flex items-baseline justify-between gap-4">
         <div>
-          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-            Groq-powered · can create tasks, plan projects, log workouts
-          </p>
-          <h1 className="font-display mt-1 text-xl font-semibold">Assistant</h1>
+          <h1 className="text-[26px] font-bold">Assistant</h1>
+          <p className="text-muted mt-0.5 text-[13.5px]">Ask, or tell it what to do</p>
         </div>
         <div className="flex items-center gap-2">
           {chat.threads.length > 0 && (
             <select
               aria-label="Conversation"
-              className="bg-panel border-line text-muted max-w-44 rounded-md border px-2 py-1.5 font-mono text-[11px]"
+              className="bg-surface border-line text-muted max-w-44 rounded-[11px] px-2 py-1.5 nums text-[12px]"
               value={chat.threadId ?? ''}
               onChange={(e) => chat.selectThread(e.target.value || null)}
             >
@@ -45,7 +43,7 @@ export default function AssistantPage() {
           <button
             onClick={() => chat.selectThread(null)}
             disabled={chat.threadId === null}
-            className="border-line bg-panel text-muted hover:text-ink rounded-md border px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-40"
+            className="bg-surface text-muted hover:text-ink rounded-[11px] px-3 py-1.5 text-[12.5px] transition-colors disabled:opacity-40"
           >
             New chat
           </button>
@@ -53,13 +51,12 @@ export default function AssistantPage() {
       </div>
 
       {disabled && (
-        <div className="border-amber/40 bg-amber/10 mt-4 rounded-lg border px-4 py-3 text-[13px]">
-          Add your Groq API key in <span className="font-semibold">Settings</span> to turn the
-          assistant on — free at console.groq.com.
+        <div className="border-clay/40 bg-clay/10 mt-4 rounded-[16px] px-4 py-3 text-[13px]">
+          Add a Groq API key in Settings to turn the assistant on.
         </div>
       )}
       {chat.error && (
-        <div className="border-danger/40 bg-danger/10 mt-4 rounded-lg border px-4 py-3 text-[13px]">
+        <div className="border-rose/40 bg-rose/10 mt-4 rounded-[16px] px-4 py-3 text-[13px]">
           {chat.error}
         </div>
       )}
@@ -72,7 +69,7 @@ export default function AssistantPage() {
           disabledHint="Add a Groq key in Settings first."
           quickActions={QUICK_ACTIONS}
           onSend={(t) => void chat.send(t)}
-          placeholder='Try: "break my ECSE project into small tasks due before Aug 20"'
+          placeholder="Ask anything, or say what to add"
         />
       </div>
     </div>

@@ -37,11 +37,11 @@ export default function ChatView({
   }
 
   return (
-    <div className="border-line bg-panel flex min-h-0 flex-1 flex-col rounded-lg border">
+    <div className="bg-surface flex min-h-0 flex-1 flex-col rounded-[18px] shadow-[var(--shadow-soft)]">
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {messages.length === 0 && !pending && (
           <p className="text-muted mt-6 text-center text-[13px]">
-            {disabled ? (disabledHint ?? 'Unavailable.') : 'No messages yet — ask away.'}
+            {disabled ? (disabledHint ?? 'Unavailable') : 'Ask anything'}
           </p>
         )}
         {messages.map((m) => (
@@ -49,20 +49,20 @@ export default function ChatView({
         ))}
         {pending && (
           <div className="flex items-center gap-2">
-            <span className="led text-amber animate-pulse" aria-hidden />
-            <span className="text-muted font-mono text-[11px]">thinking…</span>
+            <span className="bg-clay h-2 w-2 animate-pulse rounded-full" aria-hidden />
+            <span className="text-muted text-[12.5px]">Thinking…</span>
           </div>
         )}
       </div>
 
       {quickActions && quickActions.length > 0 && (
-        <div className="border-line flex flex-wrap gap-1.5 border-t px-3 pt-2.5 pb-0.5">
+        <div className="flex flex-wrap gap-1.5 px-3 pt-2.5 pb-0.5">
           {quickActions.map((qa) => (
             <button
               key={qa.label}
               onClick={() => send(qa.prompt)}
               disabled={pending || disabled}
-              className="border-line bg-panel2 text-muted hover:text-ink hover:border-amber/50 rounded-full border px-2.5 py-1 font-mono text-[10.5px] transition-colors disabled:opacity-40"
+              className="tactile bg-raised text-muted hover:text-ink rounded-full px-3 py-1.5 text-[12px] font-medium disabled:opacity-40"
             >
               {qa.label}
             </button>
@@ -74,7 +74,7 @@ export default function ChatView({
         <div className="flex items-end gap-2">
           <textarea
             rows={draft.includes('\n') ? 3 : 1}
-            className="bg-bench border-line placeholder:text-muted/60 focus:border-amber/60 max-h-40 flex-1 resize-none rounded-lg border px-3 py-2 text-[13px]"
+            className="bg-bg placeholder:text-faint focus:ring-clay/50 max-h-40 flex-1 resize-none rounded-[14px] px-4 py-2.5 text-[13.5px] outline-none focus:ring-1"
             placeholder={disabled ? (disabledHint ?? placeholder) : placeholder}
             value={draft}
             disabled={disabled}
@@ -89,14 +89,11 @@ export default function ChatView({
           <button
             onClick={() => send(draft)}
             disabled={!draft.trim() || pending || disabled}
-            className="bg-amber text-bench rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-opacity disabled:opacity-40"
+            className="tactile bg-clay text-bg rounded-[14px] px-4 py-2.5 text-[13.5px] font-bold disabled:opacity-35"
           >
             Send
           </button>
         </div>
-        <p className="text-muted/60 mt-1.5 font-mono text-[10px]">
-          Enter to send · Shift+Enter for a new line
-        </p>
       </div>
     </div>
   )
@@ -110,7 +107,7 @@ function MessageRow({ message }: { message: ChatMessage }) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="bg-panel2 max-w-[85%] rounded-lg rounded-br-sm px-3.5 py-2 text-[13px] whitespace-pre-wrap">
+        <div className="bg-raised max-w-[85%] rounded-[16px] rounded-br-sm px-3.5 py-2 text-[13px] whitespace-pre-wrap">
           {message.content}
         </div>
       </div>
@@ -123,9 +120,9 @@ function MessageRow({ message }: { message: ChatMessage }) {
           {receipts.map((r, i) => (
             <span
               key={i}
-              className="border-amber/40 text-amber bg-amber/10 rounded-full border px-2.5 py-0.5 font-mono text-[10.5px]"
+              className="bg-sage/15 text-sage rounded-full px-2.5 py-1 text-[11.5px] font-semibold"
             >
-              ✓ {r}
+              {r}
             </span>
           ))}
         </div>

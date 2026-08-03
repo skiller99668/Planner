@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
-import type { AppInfo } from '../../shared/ipc'
 import type { GymType, PlannerEvent } from '../../shared/types'
+import { Burst, CheckCircle, useCelebrate } from '../components/Celebrate'
 import type { ModuleId } from '../components/Sidebar'
 import { dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
 import { deriveGym, useGym, useGymTarget } from '../lib/useGym'
 import { useTasks } from '../lib/useTasks'
 
 const GYM_LABEL: Record<GymType, string> = {
-  push: 'Push', pull: 'Pull', legs: 'Legs', other: 'Other'
+  push: 'Push',
+  pull: 'Pull',
+  legs: 'Legs',
+  other: 'Other'
 }
 
 export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId) => void }) {
@@ -15,229 +18,197 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
   const gym = useGym()
   const gymTarget = useGymTarget()
   const g = deriveGym(gym.sessions, gymTarget)
-  const [info, setInfo] = useState<AppInfo | null>(null)
-  const [notifyResult, setNotifyResult] = useState<'idle' | 'sent' | 'unsupported'>('idle')
   const [events, setEvents] = useState<PlannerEvent[]>([])
+  const [gymKey, fireGym] = useCelebrate()
+  // Hold a ticked-off task in the list briefly so its animation can finish.
+  const [lingering, setLingering] = useState<ReadonlySet<string>>(new Set())
 
   useEffect(() => {
-    window.planner?.ping().then(setInfo).catch(() => setInfo(null))
     window.planner?.eventsList().then(setEvents).catch(() => {})
   }, [])
 
-  const testNotification = async () => {
-    const ok = await window.planner?.testNotification()
-    setNotifyResult(ok ? 'sent' : 'unsupported')
-    setTimeout(() => setNotifyResult('idle'), 4000)
-  }
-
   const today = todayYMD()
   const dueToday = store.tasks
-    .filter((t) => t.status === 'open' && t.dueAt && ymdOfIso(t.dueAt) <= today)
+    .filter(
+      (t) =>
+        (t.status === 'open' || lingering.has(t.id)) && t.dueAt && ymdOfIso(t.dueAt) <= today
+    )
     .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? ''))
-  const overdueCount = dueToday.filter((t) => t.dueAt && ymdOfIso(t.dueAt) < today).length
+  const overdue = dueToday.filter((t) => t.dueAt && ymdOfIso(t.dueAt) < today).length
+  const doneToday = store.tasks.filter(
+    (t) => t.status === 'done' && t.doneAt && ymdOfIso(t.doneAt) === today
+  ).length
 
-  const todayLabel = new Date().toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
-  })
+  const upcoming = events
+    .filter((e) => new Date(e.startAt).getTime() >= Date.now() - 12 * 3600_000)
+    .slice(0, 3)
+
+  const hour = new Date().getHours()
+  const greeting = hour < 5 ? 'Still up' : hour < 12 ? 'Good morning' : hour < 18 ? 'Afternoon' : 'Evening'
 
   return (
-    <div>
-      <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">{todayLabel}</p>
-      <h1 className="font-display mt-1 text-xl font-semibold">Dashboard</h1>
+    <div className="animate-rise">
+      <p className="text-muted text-[13.5px]">
+        {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+      </p>
+      <h1 className="mt-1 text-[30px] leading-tight font-bold">{greeting}, Skyler</h1>
 
-      {/* Today */}
-      <section className="border-line bg-panel mt-6 max-w-2xl rounded-lg border p-5">
+      {/* Today's tasks */}
+      <section className="bg-surface mt-7 rounded-[20px] p-6 shadow-[var(--shadow-soft)]">
         <div className="flex items-baseline justify-between">
-          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-            Today{overdueCount > 0 && <span className="text-danger"> · {overdueCount} overdue</span>}
-          </p>
+          <h2 className="text-[15px] font-bold">
+            Today
+            {overdue > 0 && <span className="text-rose ml-2 text-[13px]">{overdue} overdue</span>}
+          </h2>
           <button
             onClick={() => onNavigate('tasks')}
-            className="text-muted hover:text-amber font-mono text-[11px] transition-colors"
+            className="text-muted hover:text-clay text-[12.5px] font-medium transition-colors"
           >
-            all tasks →
+            All tasks
           </button>
         </div>
+
         {dueToday.length === 0 ? (
-          <p className="text-muted mt-3 text-[13px]">
-            {store.loaded ? 'Clear for today. Add tasks with a due date and they show up here.' : '…'}
+          <p className="text-muted mt-3 text-[13.5px]">
+            {!store.loaded
+              ? ' '
+              : doneToday > 0
+                ? `All done — ${doneToday} finished today.`
+                : 'Nothing due today.'}
           </p>
         ) : (
-          <ul className="mt-3 space-y-1">
-            {dueToday.slice(0, 8).map((t) => {
+          <ul className="mt-3 space-y-2.5">
+            {dueToday.slice(0, 6).map((t) => {
               const isOverdue = t.dueAt !== null && ymdOfIso(t.dueAt) < today
               return (
                 <li key={t.id} className="flex items-center gap-3">
-                  <button
-                    role="checkbox"
-                    aria-checked={false}
-                    aria-label={`Complete: ${t.title}`}
-                    onClick={() => void store.toggleTask(t)}
-                    className="border-line hover:border-amber/70 bg-bench h-[16px] w-[16px] shrink-0 rounded-[5px] border transition-colors"
+                  <CheckCircle
+                    size={18}
+                    checked={t.status === 'done'}
+                    label={`Complete: ${t.title}`}
+                    onChange={() => {
+                      if (t.status === 'open') {
+                        setLingering((prev) => new Set(prev).add(t.id))
+                        setTimeout(
+                          () =>
+                            setLingering((prev) => {
+                              const next = new Set(prev)
+                              next.delete(t.id)
+                              return next
+                            }),
+                          1000
+                        )
+                      }
+                      void store.toggleTask(t)
+                    }}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[13px]">{t.title}</span>
+                  <span
+                    className={`min-w-0 flex-1 truncate text-[13.5px] ${
+                      t.status === 'done' ? 'text-muted line-through' : ''
+                    }`}
+                  >
+                    {t.title}
+                  </span>
                   {t.dueAt && (
-                    <span
-                      className={`font-mono text-[10.5px] ${isOverdue ? 'text-danger' : 'text-muted'}`}
-                    >
+                    <span className={`nums text-[12px] ${isOverdue ? 'text-rose' : 'text-muted'}`}>
                       {dueLabel(t.dueAt, t.allDay)}
                     </span>
                   )}
                 </li>
               )
             })}
-            {dueToday.length > 8 && (
-              <li className="text-muted font-mono text-[10.5px]">+ {dueToday.length - 8} more</li>
+            {dueToday.length > 6 && (
+              <li className="text-faint text-[12.5px]">+{dueToday.length - 6} more</li>
             )}
           </ul>
         )}
       </section>
 
-      {/* Gym */}
-      <section className="border-line bg-panel mt-4 max-w-2xl rounded-lg border p-5">
-        <div className="flex items-baseline justify-between">
-          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">Gym</p>
-          <button
-            onClick={() => onNavigate('gym')}
-            className="text-muted hover:text-amber font-mono text-[11px] transition-colors"
-          >
-            details →
-          </button>
-        </div>
-        <div className="mt-3 flex items-center justify-between gap-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {/* Gym */}
+        <section className="bg-surface relative rounded-[20px] p-6 shadow-[var(--shadow-soft)]">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-[15px] font-bold">Gym</h2>
+            <span className="nums text-muted text-[12.5px]">
+              <span className={g.weekMet ? 'text-sage font-bold' : 'text-ink font-bold'}>
+                {g.weekCount}
+              </span>
+              /{gymTarget}
+            </span>
+          </div>
+
           {g.today.length > 0 ? (
-            <p className="text-[13.5px]">
-              <span className="text-ok font-semibold">
-                {[...new Set(g.today.map((s) => GYM_LABEL[s.type]))].join(' + ')} ✓
-              </span>
-              <span className="text-muted ml-2 font-mono text-[11px]">
-                tomorrow: {GYM_LABEL[g.nextType].toLowerCase()}
-              </span>
+            <p className="text-sage mt-3 text-[17px] font-bold">
+              {[...new Set(g.today.map((s) => GYM_LABEL[s.type]))].join(' + ')} done
             </p>
           ) : (
-            <button
-              onClick={() => void gym.log({ date: todayYMD(), type: g.nextType })}
-              className="bg-amber text-bench rounded-md px-3 py-1.5 text-[12.5px] font-semibold"
-              title="One tap: log today's workout"
-            >
-              Log {GYM_LABEL[g.nextType]} day
-            </button>
+            <span className="relative mt-3 inline-block">
+              <button
+                onClick={() => {
+                  fireGym()
+                  void gym.log({ date: todayYMD(), type: g.nextType })
+                }}
+                className="tactile bg-clay text-bg rounded-[13px] px-4 py-2.5 text-[13.5px] font-bold"
+              >
+                Log {GYM_LABEL[g.nextType]}
+              </button>
+              <Burst fireKey={gymKey} count={9} spread={40} />
+            </span>
           )}
-          <div className="flex items-center gap-1" aria-label={`${g.weekCount} of ${gymTarget} sessions this week`}>
+
+          <div className="mt-4 flex gap-1.5" aria-hidden>
             {g.weekDates.map((d) => (
               <span
                 key={d}
-                className={`h-2 w-2 rounded-full ${
-                  g.byDate.has(d) ? 'bg-amber' : d === todayYMD() ? 'border-amber border' : 'bg-line'
+                className={`h-1.5 flex-1 rounded-full ${
+                  g.byDate.has(d) ? 'bg-sage' : d === today ? 'bg-clay/40' : 'bg-raised'
                 }`}
               />
             ))}
-            <span className={`ml-2 font-mono text-[11px] ${g.weekMet ? 'text-ok' : 'text-muted'}`}>
-              {g.weekCount}/{gymTarget}
-            </span>
           </div>
-        </div>
-      </section>
-
-      <div className="mt-4 grid max-w-2xl gap-4 sm:grid-cols-2">
-        {/* System check */}
-        <section className="border-line bg-panel rounded-lg border p-5">
-          <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-            System check
-          </p>
-          {info ? (
-            <dl className="mt-3 space-y-1.5 font-mono text-[12px]">
-              <Row k="app" v={`v${info.version}${info.packaged ? '' : ' (dev)'}`} />
-              <Row k="electron" v={info.electron} />
-              <Row k="database" v={`schema v${info.schemaVersion}`} ok />
-              <Row k="storage" v={shortenPath(info.dbPath)} title={info.dbPath} />
-            </dl>
-          ) : (
-            <p className="text-danger mt-3 font-mono text-[12px]">
-              bridge offline — running outside Electron?
-            </p>
-          )}
-          <button
-            onClick={testNotification}
-            className="border-line bg-panel2 hover:border-amber/60 mt-4 rounded-md border px-3 py-1.5 text-[12.5px] font-medium transition-colors"
-          >
-            {notifyResult === 'idle' && 'Send test notification'}
-            {notifyResult === 'sent' && 'Sent — check your toasts'}
-            {notifyResult === 'unsupported' && 'Notifications unavailable'}
-          </button>
         </section>
 
-        {/* Upcoming events */}
-        <section className="border-line bg-panel rounded-lg border p-5">
+        {/* Coming up */}
+        <section className="bg-surface rounded-[20px] p-6 shadow-[var(--shadow-soft)]">
           <div className="flex items-baseline justify-between">
-            <p className="text-muted font-mono text-[11px] tracking-[0.16em] uppercase">
-              Up next
-            </p>
+            <h2 className="text-[15px] font-bold">Coming up</h2>
             <button
               onClick={() => onNavigate('events')}
-              className="text-muted hover:text-amber font-mono text-[11px] transition-colors"
+              className="text-muted hover:text-clay text-[12.5px] font-medium transition-colors"
             >
-              events →
+              Events
             </button>
           </div>
-          {(() => {
-            const upcoming = events
-              .filter((e) => new Date(e.startAt).getTime() >= Date.now() - 12 * 3600_000)
-              .slice(0, 4)
-            if (upcoming.length === 0) {
-              return (
-                <p className="text-muted mt-3 text-[13px]">
-                  No upcoming events. Tournaments and career fairs land here.
-                </p>
-              )
-            }
-            return (
-              <ul className="mt-3 space-y-2">
-                {upcoming.map((e) => {
-                  const d = new Date(e.startAt)
-                  const regOpen =
-                    e.regOpensAt &&
-                    e.regClosesAt &&
-                    !e.registered &&
-                    Date.now() >= new Date(e.regOpensAt).getTime() &&
-                    Date.now() < new Date(e.regClosesAt).getTime()
-                  return (
-                    <li key={e.id} className="flex items-baseline gap-2.5 text-[12.5px]">
-                      <span className="text-amber w-12 shrink-0 font-mono text-[10.5px]">
-                        {d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+          {upcoming.length === 0 ? (
+            <p className="text-muted mt-3 text-[13.5px]">Nothing scheduled.</p>
+          ) : (
+            <ul className="mt-3 space-y-2.5">
+              {upcoming.map((e) => {
+                const d = new Date(e.startAt)
+                const regOpen =
+                  e.regOpensAt &&
+                  e.regClosesAt &&
+                  !e.registered &&
+                  Date.now() >= new Date(e.regOpensAt).getTime() &&
+                  Date.now() < new Date(e.regClosesAt).getTime()
+                return (
+                  <li key={e.id} className="flex items-baseline gap-3 text-[13px]">
+                    <span className="nums text-clay w-11 shrink-0 font-semibold">
+                      {d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{e.title}</span>
+                    {regOpen && (
+                      <span className="bg-butter/20 text-butter shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold">
+                        register
                       </span>
-                      <span className="min-w-0 flex-1 truncate">{e.title}</span>
-                      {regOpen && (
-                        <span className="text-amber shrink-0 font-mono text-[9px] font-semibold">
-                          REG OPEN
-                        </span>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            )
-          })()}
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </section>
       </div>
     </div>
   )
-}
-
-function Row({ k, v, ok, title }: { k: string; v: string; ok?: boolean; title?: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted">{k}</dt>
-      <dd className={`truncate text-right ${ok ? 'text-ok' : ''}`} title={title ?? v}>
-        {v}
-      </dd>
-    </div>
-  )
-}
-
-function shortenPath(p: string): string {
-  const parts = p.split(/[\\/]/)
-  return parts.length > 3 ? `…\\${parts.slice(-2).join('\\')}` : p
 }

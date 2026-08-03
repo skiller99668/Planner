@@ -23,6 +23,30 @@ The installer is unsigned, so SmartScreen will warn once — "More info → Run 
 > IDE-embedded shells) makes it behave like plain Node and the app won't start —
 > unset it first. Normal terminals are unaffected.
 
+## Design
+
+"Soft Tactile": warm charcoal surfaces (no pure greys — every neutral carries
+red/yellow), pillowy 14–20px radii, depth from layered shadows rather than
+borders, and a botanical accent set (clay / sage / butter / lilac / rose).
+Type is Plus Jakarta Sans, bundled at `src/assets/fonts/` — no CDN, works
+offline. Monospace is reserved for literal strings (model ids, URLs); numbers
+use tabular figures via the `nums` class.
+
+Motion lives in [src/index.css](src/index.css) and shares one spring curve
+(`--ease-spring`) so everything feels made by the same hand. Completion is the
+one loud moment: the checkbox springs and draws its tick, the card swells and
+tints sage, and particles arc out ([Celebrate.tsx](src/components/Celebrate.tsx)).
+Hitting a weekly target adds a sheen sweep. All of it collapses under
+`prefers-reduced-motion`.
+
+Two non-obvious details worth keeping:
+
+- A completed task **lingers in place for ~1s** before moving to Completed.
+  Without it the row re-buckets instantly and the animation unmounts before
+  you can see it.
+- Replay the swell by toggling a class, never by changing `key` — remounting
+  the row destroys the checkbox's burst, which lives in child state.
+
 ## Architecture
 
 | Layer | Choice | Why |

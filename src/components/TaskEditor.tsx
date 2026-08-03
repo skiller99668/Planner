@@ -84,8 +84,8 @@ export function normalizeTag(raw: string): string {
 const MAX_TAGS = 6
 
 const inputCls =
-  'bg-bench border-line rounded-md border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-amber/60'
-const labelCls = 'text-muted mb-1 block font-mono text-[10.5px] tracking-[0.14em] uppercase'
+  'bg-bg rounded-[10px] px-3 py-2 text-[13.5px] placeholder:text-faint outline-none focus:ring-1 focus:ring-clay/60'
+const labelCls = 'text-muted mb-1.5 block text-[12px] font-semibold'
 // Display order Sun..Sat (Skyler's week convention); values stay 0=Mon..6=Sun.
 const WEEKDAY_ORDER = [6, 0, 1, 2, 3, 4, 5]
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -128,7 +128,7 @@ export default function TaskEditor({
 
   return (
     <div
-      className="border-line bg-panel rounded-lg border p-4"
+      className="bg-surface rounded-[16px] p-4 shadow-[var(--shadow-lift)]"
       onKeyDown={(e) => {
         if (e.key === 'Escape') onCancel()
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit()
@@ -145,7 +145,7 @@ export default function TaskEditor({
             value={v.title}
             autoFocus
             onChange={(e) => set('title', e.target.value)}
-            placeholder="What needs doing?"
+            placeholder="Task name"
           />
         </div>
 
@@ -159,7 +159,7 @@ export default function TaskEditor({
             className={`${inputCls} w-full resize-y`}
             value={v.notes}
             onChange={(e) => set('notes', e.target.value)}
-            placeholder="Optional details"
+            placeholder="Notes"
           />
         </div>
 
@@ -191,14 +191,14 @@ export default function TaskEditor({
           </div>
           <div>
             <label className={labelCls} htmlFor="te-reminder">
-              Reminder
+              Remind
             </label>
             <select
               id="te-reminder"
               className={`${inputCls} w-full`}
               value={v.reminderOffset}
               disabled={!v.dueTime}
-              title={v.dueTime ? undefined : 'Reminders need a due time'}
+              title={v.dueTime ? undefined : 'Needs a due time'}
               onChange={(e) => set('reminderOffset', e.target.value)}
             >
               <option value="">None</option>
@@ -293,10 +293,8 @@ export default function TaskEditor({
                             on ? v.weekdays.filter((d) => d !== i) : [...v.weekdays, i].sort()
                           )
                         }
-                        className={`h-7 w-7 rounded-md font-mono text-[11px] transition-colors ${
-                          on
-                            ? 'bg-amber text-bench font-semibold'
-                            : 'bg-bench border-line text-muted hover:text-ink border'
+                        className={`tactile h-8 w-8 rounded-full text-[12px] font-semibold ${
+                          on ? 'bg-clay text-bg' : 'bg-bg text-muted hover:text-ink'
                         }`}
                       >
                         {label}
@@ -328,7 +326,7 @@ export default function TaskEditor({
         {onDelete && (
           <button
             onClick={onDelete}
-            className="text-danger/80 hover:text-danger rounded-md px-2 py-1.5 text-[12.5px] transition-colors"
+            className="text-muted hover:text-rose rounded-lg px-2 py-2 text-[13px] transition-colors"
           >
             Delete
           </button>
@@ -336,14 +334,14 @@ export default function TaskEditor({
         <div className="flex-1" />
         <button
           onClick={onCancel}
-          className="text-muted hover:text-ink rounded-md px-3 py-1.5 text-[12.5px] transition-colors"
+          className="text-muted hover:text-ink rounded-lg px-3 py-2 text-[13px] transition-colors"
         >
           Cancel
         </button>
         <button
           onClick={submit}
           disabled={!canSave}
-          className="bg-amber text-bench rounded-md px-3.5 py-1.5 text-[12.5px] font-semibold transition-opacity disabled:opacity-40"
+          className="tactile bg-clay text-bg rounded-[11px] px-4 py-2 text-[13px] font-bold disabled:opacity-35"
         >
           {submitLabel}
         </button>
@@ -377,19 +375,14 @@ function TagPicker({
 
   return (
     <div>
-      <span className={labelCls}>
-        Tags{' '}
-        <span className="tracking-normal normal-case opacity-60">
-          {full ? `— max ${MAX_TAGS}` : '— click to add, × to remove'}
-        </span>
-      </span>
+      <span className={labelCls}>Tags</span>
 
       {tags.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {tags.map((tag) => (
             <span
               key={tag}
-              className="bg-amber/15 border-amber/50 text-amber flex items-center gap-1 rounded-full border py-0.5 pr-1 pl-2.5 font-mono text-[11px]"
+              className="bg-clay/15 text-clay flex items-center gap-1 rounded-full py-1 pr-1.5 pl-3 text-[12px] font-medium"
             >
               {tag}
               <button
@@ -397,7 +390,7 @@ function TagPicker({
                 onClick={() => remove(tag)}
                 aria-label={`Remove tag ${tag}`}
                 title={`Remove ${tag}`}
-                className="hover:bg-amber/30 flex h-4 w-4 items-center justify-center rounded-full leading-none transition-colors"
+                className="hover:bg-clay/30 flex h-4 w-4 items-center justify-center rounded-full leading-none transition-colors"
               >
                 ×
               </button>
@@ -410,7 +403,7 @@ function TagPicker({
         className={`${inputCls} w-full`}
         value={draft}
         disabled={full}
-        placeholder={full ? `Max ${MAX_TAGS} tags` : 'Type a new tag, press Enter'}
+        placeholder={full ? `Max ${MAX_TAGS} tags` : 'Add a tag'}
         aria-label="New tag"
         onChange={(e) => {
           // A typed comma commits the tag, matching the old paste-friendly habit.
@@ -438,18 +431,14 @@ function TagPicker({
                 type="button"
                 onClick={() => add(tag)}
                 title={`Add ${tag}`}
-                className="border-line bg-panel2 text-muted hover:border-amber/50 hover:text-ink rounded-full border px-2.5 py-0.5 font-mono text-[11px] transition-colors"
+                className="tactile bg-raised text-muted hover:text-ink rounded-full px-3 py-1 text-[12px] font-medium"
               >
                 + {tag}
               </button>
             ))}
           </div>
         ) : (
-          knownTags.length === 0 && (
-            <p className="text-muted/60 mt-1.5 font-mono text-[10px]">
-              Tags you create show up here as one-click chips next time.
-            </p>
-          )
+          null
         ))}
     </div>
   )
