@@ -129,6 +129,45 @@ export default function EventsPage() {
     return map
   }, [events])
 
+  /** Days covered by an open registration window, and how urgent each is.
+   *  This is the point of the calendar: the window is the deadline, not the
+   *  tournament date. */
+  const regDays = useMemo(() => {
+    const map = new Map<string, RegDay>()
+    for (const e of events) {
+      if (!e.regOpensAt || !e.regClosesAt || e.registered) continue
+      const open = localYMD(new Date(e.regOpensAt))
+      const close = localYMD(new Date(e.regClosesAt))
+      const closesIn = Math.ceil((new Date(e.regClosesAt).getTime() - now) / 86_400_000)
+      let d = open
+      for (let guard = 0; guard < 60 && d <= close; guard++) {
+        map.set(d, {
+          isStart: d === open,
+          isEnd: d === close,
+          urgent: closesIn <= 3,
+          title: e.title
+        })
+        d = addDaysYMD(d, 1)
+      }
+    }
+    return map
+  }, [events, now])
+
+  /** The window to act on: one that's open now, else the next to open. */
+  const lead = useMemo(() => {
+    const withWindows = events
+      .filter((e) => e.regOpensAt && e.regClosesAt && !e.registered)
+      .map((e) => ({
+        event: e,
+        opens: new Date(e.regOpensAt!).getTime(),
+        closes: new Date(e.regClosesAt!).getTime()
+      }))
+      .filter((w) => w.closes > now)
+      .sort((a, b) => a.closes - b.closes)
+    const openNow = withWindows.find((w) => w.opens <= now)
+    return openNow ?? withWindows[0] ?? null
+  }, [events, now])
+
   const doImport = async () => {
     if (!window.planner) return
     const res = await window.planner.eventsImportIcs(importKind)
@@ -256,11 +295,14 @@ export default function EventsPage() {
         />
       )}
 
+      {lead && view === 'month' && <RegLead lead={lead} now={now} />}
+
       {view === 'month' ? (
         <MonthGrid
           cursor={cursor}
           setCursor={setCursor}
           byDay={byDay}
+          regDays={regDays}
           selected={selected}
           onPickDay={pickDay}
           expandedId={expandedId}
@@ -337,12 +379,69 @@ export default function EventsPage() {
   )
 }
 
+/** A day inside an open registration window. */
+interface RegDay {
+  isStart: boolean
+  isEnd: boolean
+  urgent: boolean
+  title: string
+}
+
+interface Lead {
+  event: PlannerEvent
+  opens: number
+  closes: number
+}
+
+/** The one thing this calendar exists to surface: the window you have to act
+ *  inside. Open windows lead with the time left; future ones just wait. */
+function RegLead({ lead, now }: { lead: Lead; now: number }) {
+  const isOpen = lead.opens <= now
+  const days = Math.ceil((isOpen ? lead.closes - now : lead.opens - now) / 86_400_000)
+  const soon = isOpen && days <= 3
+
+  return (
+    <div
+      className={`mt-4 flex max-w-2xl flex-wrap items-center gap-x-3 gap-y-1 rounded-[14px] px-4 py-3 ${
+        isOpen ? (soon ? 'bg-coral/12' : 'bg-gold/12') : 'bg-surface'
+      }`}
+    >
+      <span
+        className={`h-2 w-2 shrink-0 rounded-full ${
+          isOpen ? (soon ? 'bg-coral animate-pulse' : 'bg-gold') : 'bg-faint'
+        }`}
+        aria-hidden
+      />
+      <span className={`text-[13.5px] font-bold ${soon ? 'text-coral' : isOpen ? 'text-gold' : 'text-muted'}`}>
+        {isOpen ? 'Registration open' : 'Registration opens'}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-[13.5px]">{lead.event.title}</span>
+      <span className={`nums text-[13px] font-semibold ${soon ? 'text-coral' : 'text-muted'}`}>
+        {isOpen
+          ? days <= 0
+            ? 'closes today'
+            : `${days} day${days === 1 ? '' : 's'} left`
+          : `in ${days} day${days === 1 ? '' : 's'}`}
+      </span>
+      {isOpen && lead.event.url && (
+        <button
+          onClick={() => void window.planner?.openExternal(lead.event.url!)}
+          className="tactile btn-primary rounded-[10px] px-3 py-1.5 text-[12.5px] font-bold"
+        >
+          Register
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ---------- month grid ----------
 
 function MonthGrid({
   cursor,
   setCursor,
   byDay,
+  regDays,
   selected,
   onPickDay,
   expandedId,
@@ -352,6 +451,7 @@ function MonthGrid({
   cursor: Date
   setCursor: (d: Date) => void
   byDay: Map<string, PlannerEvent[]>
+  regDays: Map<string, RegDay>
   selected: string | null
   onPickDay: (ymd: string) => void
   expandedId: string | null
@@ -412,14 +512,26 @@ function MonthGrid({
           const isToday = ymd === today
           const isSel = ymd === selected
           const list = byDay.get(ymd) ?? []
+          const reg = regDays.get(ymd)
           return (
             <button
               key={ymd}
               onClick={() => onPickDay(ymd)}
-              className={`bg-surface/70 hover:bg-raised min-h-[86px] rounded-[12px] p-1.5 text-left align-top transition-colors ${
+              title={reg ? `Registration open — ${reg.title}` : undefined}
+              className={`bg-surface/70 hover:bg-raised relative min-h-[86px] overflow-hidden rounded-[12px] p-1.5 pb-2.5 text-left align-top transition-colors ${
                 outside ? 'opacity-40' : ''
-              } ${isSel ? 'ring-azure/70 ring-2' : ''}`}
+              } ${isSel ? 'ring-azure/70 ring-2 ring-inset' : ''}`}
             >
+              {reg && (
+                <span
+                  aria-hidden
+                  className={`absolute right-0 bottom-1.5 left-0 h-[3px] ${
+                    reg.urgent ? 'bg-coral' : 'bg-gold'
+                  } ${reg.isStart ? 'ml-1.5 rounded-l-full' : ''} ${
+                    reg.isEnd ? 'mr-1.5 rounded-r-full' : ''
+                  }`}
+                />
+              )}
               <span
                 className={`nums inline-flex h-5 w-5 items-center justify-center rounded-full text-[11.5px] font-semibold ${
                   isToday ? 'btn-primary' : 'text-muted'
