@@ -353,7 +353,7 @@ function TagBar({
           onClick={() => setAdding(true)}
           className="tactile text-muted hover:text-ink rounded-full px-2.5 py-1.5 text-[12px] font-medium"
         >
-          + Tag
+          +
         </button>
       )}
     </div>
