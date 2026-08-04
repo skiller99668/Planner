@@ -20,7 +20,7 @@
   --color-line: #24345a;
   --color-ink: #e9f0ff;
   --color-muted: #93a4c8;
-  --color-faint: #5d6d91;
+  --color-faint: #7e8eb6; /* faintest text tier — lifted to clear WCAG AA 4.5:1 */
 
   --color-azure: #5b9cff; /* primary action, focus, active nav */
   --color-coral: #ff6b72; /* warm counterweight — urgent, destructive */
@@ -111,6 +111,18 @@ h3 {
 /* Tabular figures wherever numbers change in place. */
 .nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Status LED — a small lamp that reads its state from `currentColor`, so
+   `text-mint` lights it and `text-line` leaves it dark. The hue-matched ring
+   is the glow of the lamp, not elevation. */
+.led {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in oklab, currentColor 20%, transparent);
 }
 
 ::selection {

@@ -14,7 +14,7 @@ const LECTURE_ACTIONS = [
 ]
 
 const inputCls =
-  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-azure/60'
+  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-faint focus:border-azure/60'
 
 export default function AcademicsPage() {
   const confirm = useConfirm()
@@ -368,7 +368,7 @@ function LectureDetail({
         <textarea
           id="lec-summary"
           rows={3}
-          className="bg-surface border-line placeholder:text-muted/60 focus:border-azure/60 mt-1.5 w-full resize-y rounded-[16px] px-3 py-2 text-[13px] leading-relaxed"
+          className="bg-surface border-line placeholder:text-faint focus:border-azure/60 mt-1.5 w-full resize-y rounded-[16px] px-3 py-2 text-[13px] leading-relaxed"
           placeholder="A few sentences on what this lecture covered…"
           value={summary}
           onChange={(e) => setSummary(e.target.value)}

@@ -425,6 +425,18 @@ function TaskRow({
     setSwelling(true)
     setTimeout(() => setSwelling(false), 640)
   }
+  const confirm = useConfirm()
+  const askDelete = async (after?: () => void) => {
+    const ok = await confirm({
+      title: `Delete “${task.title}”?`,
+      body: task.seriesId ? 'Just this occurrence is removed.' : 'It’s gone for good.',
+      confirmLabel: 'Delete',
+      danger: true
+    })
+    if (!ok) return
+    await store.deleteTask(task.id)
+    after?.()
+  }
 
   return (
     <li>
@@ -472,7 +484,7 @@ function TaskRow({
         </button>
 
         <button
-          onClick={() => void store.deleteTask(task.id)}
+          onClick={() => void askDelete()}
           aria-label={`Delete: ${task.title}`}
           className="text-faint hover:text-coral tactile shrink-0 rounded-lg p-1.5"
         >
@@ -509,7 +521,7 @@ function TaskRow({
                 .then(onClose)
             }}
             onCancel={onClose}
-            onDelete={() => void store.deleteTask(task.id).then(onClose)}
+            onDelete={() => void askDelete(onClose)}
           />
         </div>
       )}

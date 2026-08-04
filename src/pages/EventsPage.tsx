@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useConfirm } from '../components/ConfirmProvider'
 import TimeField from '../components/TimeField'
 import DateField from '../components/DateField'
 import Select from '../components/Select'
@@ -10,7 +11,7 @@ const KIND_META: Record<EventKind, { label: string; cls: string }> = {
   hackathon: { label: 'hackathon', cls: 'text-[#c792ea] border-[#c792ea]/40 bg-[#c792ea]/10' },
   career: { label: 'career', cls: 'text-azure border-azure/40 bg-azure/10' },
   academic: { label: 'academic', cls: 'text-mint border-mint/40 bg-mint/10' },
-  other: { label: 'other', cls: 'text-muted bg-surface2' }
+  other: { label: 'other', cls: 'text-muted border-muted/40 bg-muted/10' }
 }
 
 /** Hackathons worth knowing about — opened in the browser, not scraped. */
@@ -38,7 +39,7 @@ const MONTHS = [
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const inputCls =
-  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-azure/60'
+  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-faint focus:border-azure/60'
 
 export default function EventsPage() {
   const [events, setEvents] = useState<PlannerEvent[]>([])
@@ -797,7 +798,7 @@ function AddEventForm({
           aria-label="URL" value={url} onChange={(e) => setUrl(e.target.value)} />
         {kind === 'badminton' && (
           <label className="text-muted flex items-center gap-1.5 nums text-[12px]">
-            <input type="checkbox" className="accent-(--color-amber)" checked={autoReg}
+            <input type="checkbox" className="accent-(--color-gold)" checked={autoReg}
               onChange={(e) => setAutoReg(e.target.checked)} />
             BQ registration alarms
           </label>
@@ -820,6 +821,7 @@ function EventRow({
   onToggle: () => void
   onChanged: () => Promise<void>
 }) {
+  const confirm = useConfirm()
   const d = new Date(event.startAt)
   const allDay = d.getHours() === 0 && d.getMinutes() === 0
   const meta = KIND_META[event.kind]
@@ -862,7 +864,17 @@ function EventRow({
           </button>
         )}
         <button
-          onClick={() => void window.planner?.eventsDelete(event.id).then(onChanged)}
+          onClick={async () => {
+            const ok = await confirm({
+              title: `Delete “${event.title}”?`,
+              body: 'It comes off your calendar for good.',
+              confirmLabel: 'Delete',
+              danger: true
+            })
+            if (!ok) return
+            await window.planner?.eventsDelete(event.id)
+            await onChanged()
+          }}
           aria-label={`Delete ${event.title}`}
           className="text-muted hover:text-coral px-1 opacity-45 transition-all group-hover:opacity-100"
         >

@@ -79,7 +79,7 @@ const WATCHLIST = [
 ]
 
 const inputCls =
-  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-muted/60 focus:border-azure/60'
+  'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-faint focus:border-azure/60'
 
 export default function CareerPage() {
   const [apps, setApps] = useState<Application[]>([])
@@ -351,11 +351,9 @@ function JobFeed({
         <h2 className="text-muted text-[13px] font-bold">
           Live postings · Summer 2027
         </h2>
-        <span className="text-muted/60 nums text-[11px]">
-        </span>
         <div className="flex-1" />
         {fetchedAt && (
-          <span className="text-muted/60 nums text-[11px]">
+          <span className="text-faint nums text-[11px]">
             {postings.length} jobs · {new Date(fetchedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
@@ -375,7 +373,7 @@ function JobFeed({
       )}
 
       {sources.some((s) => !s.ok) && (
-        <p className="text-muted/70 mt-2 nums text-[11.5px]">
+        <p className="text-muted mt-2 nums text-[11.5px]">
           {sources.filter((s) => !s.ok).map((s) => `${s.label} unavailable (${s.error})`).join(' · ')}
         </p>
       )}
@@ -804,13 +802,10 @@ function WatchlistItem({ item }: { item: { name: string; url: string; note: stri
             <button
               onClick={() => void track()}
               disabled={!date}
-              className="bg-surface2 hover:border-azure/60 rounded-[11px] px-2.5 py-1 nums text-[12px] transition-colors disabled:opacity-40"
+              className="bg-raised border-line hover:border-azure/60 tactile rounded-[11px] border px-2.5 py-1 nums text-[12px] disabled:opacity-40"
             >
               Track deadline
             </button>
-            <span className="text-muted/60 nums text-[11px]">
-
-            </span>
           </>
         )}
       </div>
