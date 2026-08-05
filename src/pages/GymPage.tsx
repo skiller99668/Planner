@@ -23,12 +23,29 @@ export default function GymPage() {
   const [backfillOpen, setBackfillOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [weekOffset, setWeekOffset] = useState(0) // 0 = current, negative = past
+  const [selectedDate, setSelectedDate] = useState(todayYMD())
   const [logKey, fireLog] = useCelebrate()
   const [targetKey, fireTarget] = useCelebrate()
+  // Grid-cell burst, tagged with the logged date so only that cell celebrates
+  // (and merely selecting a day never triggers it).
+  const [cellBurst, setCellBurst] = useState({ date: '', key: 0 })
   // Crossing the weekly target is the milestone moment, so it gets its own flourish.
   useThresholdCross(g.weekCount, target, fireTarget)
 
-  const loggedToday = g.today.length > 0
+  const today = todayYMD()
+  const isToday = selectedDate === today
+  const selSessions = g.byDate.get(selectedDate) ?? []
+  const loggedSel = selSessions.length > 0
+
+  // Log a workout for whichever day is in focus, with the full celebration —
+  // the same dopamine hit whether it's today or a day you're backfilling.
+  const logFor = (date: string, type: GymType, alreadyDone: boolean) => {
+    if (!alreadyDone) {
+      fireLog()
+      setCellBurst((p) => ({ date, key: p.key + 1 }))
+    }
+    void store.log({ date, type })
+  }
 
   const viewStart = addDaysYMD(g.weekStart, weekOffset * 7)
   const viewDates = Array.from({ length: 7 }, (_, i) => addDaysYMD(viewStart, i))
@@ -46,38 +63,58 @@ export default function GymPage() {
           logKey ? 'animate-ring' : ''
         }`}
       >
-        {!loggedToday ? (
-          <>
-            <p className="text-muted text-[13px] font-medium">Up next</p>
-            <p className="text-azure mt-1 text-[30px] leading-tight font-bold">
-              {TYPE_LABEL[g.nextType]}
-            </p>
-          </>
+        {isToday ? (
+          !loggedSel ? (
+            <>
+              <p className="text-muted text-[13px] font-medium">Up next</p>
+              <p className="text-azure mt-1 text-[30px] leading-tight font-bold">
+                {TYPE_LABEL[g.nextType]}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-muted text-[13px] font-medium">Done today</p>
+              <p className="text-mint mt-1 flex items-baseline gap-2.5 text-[30px] leading-tight font-bold">
+                {[...new Set(selSessions.map((s) => TYPE_LABEL[s.type]))].join(' + ')}
+                <span className="text-muted text-[13px] font-medium">
+                  {TYPE_LABEL[g.nextType]} tomorrow
+                </span>
+              </p>
+            </>
+          )
         ) : (
           <>
-            <p className="text-muted text-[13px] font-medium">Done today</p>
-            <p className="text-mint mt-1 flex items-baseline gap-2.5 text-[30px] leading-tight font-bold">
-              {[...new Set(g.today.map((s) => TYPE_LABEL[s.type]))].join(' + ')}
-              <span className="text-muted text-[13px] font-medium">
-                {TYPE_LABEL[g.nextType]} tomorrow
-              </span>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-muted text-[13px] font-medium">{formatDay(selectedDate)}</p>
+              <button
+                onClick={() => setSelectedDate(today)}
+                className="text-muted hover:text-azure text-[12.5px] font-medium transition-colors"
+              >
+                Back to today
+              </button>
+            </div>
+            <p
+              className={`mt-1 text-[30px] leading-tight font-bold ${
+                loggedSel ? 'text-mint' : 'text-faint'
+              }`}
+            >
+              {loggedSel
+                ? [...new Set(selSessions.map((s) => TYPE_LABEL[s.type]))].join(' + ')
+                : 'Not logged'}
             </p>
           </>
         )}
 
         <div className="mt-5 flex gap-2.5">
           {PPL_ORDER.map((t) => {
-            const suggested = t === g.nextType && !loggedToday
-            const doneToday = g.today.some((s) => s.type === t)
+            const suggested = isToday && t === g.nextType && !loggedSel
+            const doneSel = selSessions.some((s) => s.type === t)
             return (
               <span key={t} className="relative flex-1">
                 <button
-                  onClick={() => {
-                    if (!doneToday) fireLog()
-                    void store.log({ date: todayYMD(), type: t })
-                  }}
+                  onClick={() => logFor(selectedDate, t, doneSel)}
                   className={`tactile w-full rounded-[14px] px-3 py-3.5 text-[14.5px] font-bold ${
-                    doneToday
+                    doneSel
                       ? 'bg-mint/15 text-mint'
                       : suggested
                         ? 'bg-azure text-bg shadow-[var(--shadow-soft)]'
@@ -86,14 +123,14 @@ export default function GymPage() {
                 >
                   {TYPE_LABEL[t]}
                 </button>
-                {doneToday && <Burst fireKey={logKey} count={9} spread={44} />}
+                {doneSel && <Burst fireKey={logKey} count={9} spread={44} />}
               </span>
             )
           })}
         </div>
-        {loggedToday && (
+        {loggedSel && (
           <button
-            onClick={() => void store.remove(g.today[0].id)}
+            onClick={() => void store.remove(selSessions[0].id)}
             className="text-faint hover:text-coral mt-3 text-[12.5px] transition-colors"
           >
             Undo
@@ -146,14 +183,21 @@ export default function GymPage() {
         <div className="mt-3 grid grid-cols-7 gap-1.5">
           {viewDates.map((date, i) => {
             const sessions = g.byDate.get(date) ?? []
-            const isToday = date === todayYMD()
-            const isFuture = date > todayYMD()
+            const isTodayCell = date === today
+            const isFuture = date > today
+            const isSel = date === selectedDate
             return (
-              <div
+              <button
                 key={date}
-                className={`flex h-16 flex-col items-center justify-center gap-1 rounded-[13px] text-center transition-colors ${
-                  isToday ? 'ring-azure/60 ring-2' : ''
-                } ${sessions.length ? 'bg-mint/15' : 'bg-bg'} ${isFuture ? 'opacity-40' : ''}`}
+                type="button"
+                disabled={isFuture}
+                aria-pressed={isSel}
+                onClick={() => setSelectedDate(date)}
+                className={`tactile relative flex h-16 flex-col items-center justify-center gap-1 rounded-[13px] text-center transition-colors ${
+                  isSel ? 'ring-azure ring-2' : isTodayCell ? 'ring-azure/50 ring-2' : ''
+                } ${sessions.length ? 'bg-mint/15' : 'bg-bg'} ${
+                  isFuture ? 'cursor-default opacity-40' : 'hover:bg-raised'
+                }`}
                 title={`${date}${sessions.length ? ` · ${sessions.map((s) => TYPE_LABEL[s.type]).join(', ')}` : ''}`}
               >
                 <span className="text-faint text-[10.5px] font-semibold">
@@ -168,10 +212,14 @@ export default function GymPage() {
                     ? [...new Set(sessions.map((s) => TYPE_SHORT[s.type]))].join('+')
                     : '·'}
                 </span>
-              </div>
+                <Burst fireKey={date === cellBurst.date ? cellBurst.key : 0} count={9} spread={40} />
+              </button>
             )
           })}
         </div>
+        <p className="text-faint mt-2 text-[11.5px]">
+          {isToday ? 'Tap any day to log a workout for it.' : 'Logging for the selected day.'}
+        </p>
 
         <div className="bg-bg mt-4 h-1.5 overflow-hidden rounded-full">
           <div

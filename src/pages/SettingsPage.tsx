@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
 import Select from '../components/Select'
+import {
+  KEYBIND_ACTIONS,
+  KEYBIND_GROUPS,
+  bindingFor,
+  eventToBinding,
+  formatBinding,
+  type KeybindAction
+} from '../lib/keybinds'
 import type { Settings } from '../../shared/types'
 
 export default function SettingsPage() {
@@ -9,6 +17,7 @@ export default function SettingsPage() {
   const [keyDraft, setKeyDraft] = useState('')
   const [keySaved, setKeySaved] = useState(false)
   const [models, setModels] = useState<string[]>([])
+  const [recording, setRecording] = useState<KeybindAction | null>(null)
 
   useEffect(() => {
     window.planner?.getSettings().then(setSettings).catch(() => setSettings(null))
@@ -33,10 +42,35 @@ export default function SettingsPage() {
     setSaving(true)
     try {
       setSettings(await window.planner.patchSettings(p))
+      // Let App re-read live keybinds without a reload.
+      window.dispatchEvent(new Event('planner:settings-changed'))
     } finally {
       setSaving(false)
     }
   }
+
+  const rebind = (id: KeybindAction, binding: string) =>
+    patch({ keybinds: { ...(settings?.keybinds ?? {}), [id]: binding } })
+
+  // While recording, the next real key combo becomes the binding. Capture-phase
+  // so App's global shortcut handler never fires during capture. Escape cancels.
+  useEffect(() => {
+    if (!recording) return
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.key === 'Escape') {
+        setRecording(null)
+        return
+      }
+      const binding = eventToBinding(e)
+      if (!binding) return // modifier-only; keep listening
+      void rebind(recording, binding)
+      setRecording(null)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [recording])
 
   return (
     <div>
@@ -182,8 +216,80 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
+          <KeybindsSection
+            binds={settings.keybinds}
+            recording={recording}
+            onRecord={setRecording}
+            onReset={rebind}
+          />
         </div>
       )}
+    </div>
+  )
+}
+
+function KeybindsSection({
+  binds,
+  recording,
+  onRecord,
+  onReset
+}: {
+  binds: Record<string, string>
+  recording: KeybindAction | null
+  onRecord: (id: KeybindAction | null) => void
+  onReset: (id: KeybindAction, binding: string) => void
+}) {
+  return (
+    <div className="px-5 py-4">
+      <p className="text-[13.5px] font-medium">Keyboard shortcuts</p>
+      <p className="text-muted mt-1 text-[12.5px] leading-relaxed">
+        Click a shortcut, then press the keys you want. Esc cancels.
+      </p>
+      <div className="mt-3 space-y-4">
+        {KEYBIND_GROUPS.map((group) => (
+          <div key={group}>
+            <p className="text-faint text-[11px] font-semibold tracking-wide uppercase">{group}</p>
+            <div className="mt-1.5 space-y-2.5">
+              {KEYBIND_ACTIONS.filter((a) => a.group === group).map((action) => {
+                const current = bindingFor(action.id, binds)
+                const overridden =
+                  binds[action.id] != null && binds[action.id] !== action.default
+                const isRec = recording === action.id
+                return (
+                  <div key={action.id} className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-[13px]">{action.label}</p>
+                      {action.hint && (
+                        <p className="text-muted text-[12px] leading-relaxed">{action.hint}</p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {overridden && !isRec && (
+                        <button
+                          onClick={() => onReset(action.id, action.default)}
+                          className="text-muted hover:text-azure text-[12px] transition-colors"
+                        >
+                          reset
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onRecord(isRec ? null : action.id)}
+                        className={`tactile nums rounded-[10px] border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                          isRec
+                            ? 'border-azure/70 text-azure bg-azure/10'
+                            : 'border-line text-ink hover:border-azure/50'
+                        }`}
+                      >
+                        {isRec ? 'Press a key…' : formatBinding(current)}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

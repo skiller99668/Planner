@@ -1,5 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ConfirmProvider } from './components/ConfirmProvider'
+import ShortcutHelp from './components/ShortcutHelp'
+import {
+  KEYBIND_ACTIONS,
+  bindingFor,
+  isEditableTarget,
+  isGlobalBinding,
+  matchesBinding,
+  type KeybindAction
+} from './lib/keybinds'
 import Sidebar, { type ModuleId } from './components/Sidebar'
 import AcademicsPage from './pages/AcademicsPage'
 import AssistantPage from './pages/AssistantPage'
@@ -22,6 +31,67 @@ function initialView(): ModuleId {
 
 export default function App() {
   const [active, setActive] = useState<ModuleId>(initialView)
+  // Bumped to ask the Tasks page to focus its quick-add box / tag filter
+  // (these survive the navigation the shortcut triggers).
+  const [focusTaskNonce, setFocusTaskNonce] = useState(0)
+  const [focusFilterNonce, setFocusFilterNonce] = useState(0)
+  const [helpOpen, setHelpOpen] = useState(false)
+  // Live keybind overrides, read inside the keydown handler without re-subscribing.
+  const keybindsRef = useRef<Record<string, string>>({})
+
+  useEffect(() => {
+    const loadKeybinds = () => {
+      window.planner
+        ?.getSettings()
+        .then((s) => {
+          keybindsRef.current = s.keybinds ?? {}
+        })
+        .catch(() => {})
+    }
+    loadKeybinds()
+
+    // Each action's effect. TypeScript forces an entry for every KeybindAction,
+    // so adding a shortcut to the registry can't silently do nothing.
+    const handlers: Record<KeybindAction, () => void> = {
+      newTask: () => {
+        setActive('tasks')
+        setFocusTaskNonce((n) => n + 1)
+      },
+      focusTagFilter: () => {
+        setActive('tasks')
+        setFocusFilterNonce((n) => n + 1)
+      },
+      toggleShortcutHelp: () => setHelpOpen((o) => !o),
+      goDashboard: () => setActive('dashboard'),
+      goAssistant: () => setActive('assistant'),
+      goTasks: () => setActive('tasks'),
+      goAcademics: () => setActive('academics'),
+      goGym: () => setActive('gym'),
+      goEvents: () => setActive('events'),
+      goCareer: () => setActive('career'),
+      goSettings: () => setActive('settings')
+    }
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing) return
+      for (const action of KEYBIND_ACTIONS) {
+        const binding = bindingFor(action.id, keybindsRef.current)
+        if (!binding || !matchesBinding(e, binding)) continue
+        // Bare (non-modifier) shortcuts must not hijack typing inside a field.
+        if (!isGlobalBinding(binding) && isEditableTarget(e.target)) continue
+        e.preventDefault()
+        handlers[action.id]()
+        return
+      }
+    }
+
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('planner:settings-changed', loadKeybinds)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('planner:settings-changed', loadKeybinds)
+    }
+  }, [])
 
   return (
     <ConfirmProvider>
@@ -34,7 +104,7 @@ export default function App() {
           ) : active === 'assistant' ? (
             <AssistantPage />
           ) : active === 'tasks' ? (
-            <TasksPage />
+            <TasksPage focusNonce={focusTaskNonce} filterNonce={focusFilterNonce} />
           ) : active === 'academics' ? (
             <AcademicsPage />
           ) : active === 'gym' ? (
@@ -48,6 +118,7 @@ export default function App() {
           )}
         </div>
       </main>
+      <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
     </ConfirmProvider>
   )

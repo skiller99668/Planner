@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useConfirm } from '../components/ConfirmProvider'
 import type { Task, TaskSeries } from '../../shared/types'
 import TaskEditor, {
@@ -25,10 +25,15 @@ const BUCKETS: { id: BucketId; label: string; tone: string }[] = [
   { id: 'someday', label: 'No date', tone: 'text-muted' }
 ]
 
-export default function TasksPage() {
+export default function TasksPage({
+  focusNonce = 0,
+  filterNonce = 0
+}: {
+  focusNonce?: number
+  filterNonce?: number
+}) {
   const store = useTasks()
   const confirm = useConfirm()
-  const [quickTitle, setQuickTitle] = useState('')
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [tagFilter, setTagFilter] = useState<string | null>(null)
@@ -51,6 +56,13 @@ export default function TasksPage() {
       1000
     )
   }
+
+  // The "new task" shortcut bumps focusNonce; open the full editor (its title
+  // field autofocuses on mount).
+  useEffect(() => {
+    if (focusNonce === 0) return
+    setDetailsOpen(true)
+  }, [focusNonce])
 
   const open = useMemo(
     () =>
@@ -107,13 +119,6 @@ export default function TasksPage() {
     return by
   }, [open])
 
-  const quickAdd = async () => {
-    const title = quickTitle.trim()
-    if (!title) return
-    await store.createTask({ title })
-    setQuickTitle('')
-  }
-
   const saveNew = async (v: FormValues) => {
     if (v.freq === 'none') {
       await store.createTask(formToTaskInput(v))
@@ -121,7 +126,6 @@ export default function TasksPage() {
       await store.createSeries(formToSeriesInput(v))
     }
     setDetailsOpen(false)
-    setQuickTitle('')
   }
 
   return (
@@ -145,35 +149,20 @@ export default function TasksPage() {
         </button>
       </div>
 
-      {/* Quick add */}
+      {/* Quick add — clicking the box (or the new-task shortcut) opens the editor */}
       <div className="mt-5">
         {!detailsOpen ? (
-          <div className="flex gap-2">
-            <input
-              className="bg-surface placeholder:text-faint focus:bg-raised flex-1 rounded-[14px] px-4 py-3 text-[14px] shadow-[var(--shadow-soft)] transition-colors outline-none"
-              placeholder="What needs doing?"
-              value={quickTitle}
-              onChange={(e) => setQuickTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && quickAdd()}
-            />
-            <button
-              onClick={() => setDetailsOpen(true)}
-              className="tactile bg-surface text-muted hover:text-ink rounded-[14px] px-4 py-3 text-[13px] font-medium shadow-[var(--shadow-soft)]"
-            >
-              Details
-            </button>
-            <button
-              onClick={quickAdd}
-              disabled={!quickTitle.trim()}
-              className="tactile btn-primary rounded-[14px] px-5 py-3 text-[13.5px] font-bold shadow-[var(--shadow-soft)] disabled:opacity-35"
-            >
-              Add
-            </button>
-          </div>
+          <button
+            onClick={() => setDetailsOpen(true)}
+            aria-label="New task"
+            className="bg-surface text-faint hover:bg-raised w-full rounded-[14px] px-4 py-3 text-left text-[14px] shadow-[var(--shadow-soft)] transition-colors"
+          >
+            What needs doing?
+          </button>
         ) : (
           <TaskEditor
             mode="create"
-            initial={emptyForm(quickTitle)}
+            initial={emptyForm()}
             submitLabel="Add"
             knownTags={tagNames}
             onSave={(v) => void saveNew(v)}
@@ -196,6 +185,7 @@ export default function TasksPage() {
       <TagBar
         tags={allTags}
         active={tagFilter}
+        focusNonce={filterNonce}
         onFilter={(tag) => setTagFilter(tag)}
         onCreate={(name, color) => void store.createTag(name, color)}
         onSetColor={(tag, color) => void store.setTagColor(tag, color)}
@@ -285,6 +275,7 @@ export default function TasksPage() {
 function TagBar({
   tags,
   active,
+  focusNonce = 0,
   onFilter,
   onCreate,
   onSetColor,
@@ -292,6 +283,7 @@ function TagBar({
 }: {
   tags: Tag[]
   active: string | null
+  focusNonce?: number
   onFilter: (tag: string | null) => void
   onCreate: (name: string, color: string) => void
   onSetColor: (tag: string, color: string) => void
@@ -300,6 +292,14 @@ function TagBar({
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
   const [newColor, setNewColor] = useState<string>(() => nextTagColor(tags))
+  const barRef = useRef<HTMLDivElement>(null)
+
+  // The "filter by tag" shortcut bumps focusNonce; move focus onto the first
+  // filter chip so it can be driven from the keyboard.
+  useEffect(() => {
+    if (focusNonce === 0) return
+    barRef.current?.querySelector('button')?.focus()
+  }, [focusNonce])
 
   const clean = normalizeTag(draft)
   const duplicate = clean.length > 0 && tags.some((t) => t.name === clean)
@@ -314,7 +314,7 @@ function TagBar({
   }
 
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-1.5">
+    <div ref={barRef} className="mt-4 flex flex-wrap items-center gap-1.5">
       {tags.length > 0 && (
         <button
           onClick={() => onFilter(null)}

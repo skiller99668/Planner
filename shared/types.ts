@@ -372,6 +372,8 @@ export interface Settings {
     networkingPerWeek: number
   }
   internshipTrackFocus: 'swe' | 'hardware'
+  /** User overrides for keyboard shortcuts, keyed by action id. Defaults live in src/lib/keybinds.ts. */
+  keybinds: Record<string, string>
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -384,5 +386,6 @@ export const DEFAULT_SETTINGS: Settings = {
     dsaPerWeek: 5,
     networkingPerWeek: 1
   },
-  internshipTrackFocus: 'swe'
+  internshipTrackFocus: 'swe',
+  keybinds: {}
 }

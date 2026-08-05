@@ -14,6 +14,8 @@ Planner is a personal, offline-first **Windows desktop app** (Electron): tasks w
 
 **Gotcha:** if the shell has `ELECTRON_RUN_AS_NODE=1` set (some IDE terminals do), Electron runs as plain Node and the app won't start — unset it first.
 
+**Keep the app running — relaunch it after every change.** The user wants a live window open so each edit is visible. `npm run dev` hot-reloads the renderer, but **main/preload and `shared/` changes need the Electron process restarted** to take effect. A `PostToolUse` hook in `.claude/settings.local.json` keeps a single `npm run dev` alive across edits (PID-guarded at `.claude/.devserver.pid`, unsets `ELECTRON_RUN_AS_NODE`). If it isn't running — or after a main/`shared/` edit — relaunch: `unset ELECTRON_RUN_AS_NODE; npm run dev`. Never spawn a second instance while one is up (single-instance lock just refocuses the first).
+
 ### "Tests" are headless smoke flags, not a test framework
 
 Verification runs the built app headlessly with env flags; each skips the single-instance lock and exits with a status code. Build first (`npm run build`), then run against the built `dist-electron/main.js`:
