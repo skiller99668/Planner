@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { GymType, PlannerEvent } from '../../shared/types'
+import AssistantChat from '../components/AssistantChat'
+import { useAssistant } from '../components/AssistantProvider'
 import { Burst, CheckCircle, useCelebrate } from '../components/Celebrate'
 import type { ModuleId } from '../components/Sidebar'
 import { dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
@@ -18,6 +20,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
   const gym = useGym()
   const gymTarget = useGymTarget()
   const g = deriveGym(gym.sessions, gymTarget)
+  const { setOpen: setAssistantOpen } = useAssistant()
   const [events, setEvents] = useState<PlannerEvent[]>([])
   const [gymKey, fireGym] = useCelebrate()
   // Hold a ticked-off task in the list briefly so its animation can finish.
@@ -209,6 +212,22 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
           )}
         </section>
       </div>
+
+      {/* Always-on assistant box */}
+      <section className="bg-surface mt-4 flex h-80 flex-col rounded-[20px] p-5 shadow-[var(--shadow-soft)]">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[15px] font-bold">Assistant</h2>
+          <button
+            onClick={() => setAssistantOpen(true)}
+            className="text-muted hover:text-azure text-[12.5px] font-medium transition-colors"
+          >
+            Expand
+          </button>
+        </div>
+        <div className="mt-3 flex min-h-0 flex-1 flex-col">
+          <AssistantChat compact />
+        </div>
+      </section>
     </div>
   )
 }
