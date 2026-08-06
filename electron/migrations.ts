@@ -201,5 +201,29 @@ export const MIGRATIONS: Migration[] = [
       -- without anyone having to pick.
       ALTER TABLE tags ADD COLUMN color TEXT;
     `
+  },
+  {
+    version: 5,
+    sql: `
+      -- LeetCode tracker: one row per solved problem. Drives the Career page's
+      -- weekly "dsa" count. Rows come from manual entry or best-effort sync of
+      -- a LeetCode username; the partial unique index keeps repeated syncs from
+      -- inserting the same problem/day twice (manual rows are unconstrained).
+      CREATE TABLE leetcode_problems (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,            -- YYYY-MM-DD (solve date)
+        title TEXT NOT NULL,
+        slug TEXT,                     -- leetcode titleSlug
+        difficulty TEXT NOT NULL,      -- easy | medium | hard
+        topic TEXT,
+        url TEXT,
+        notes TEXT,
+        source TEXT NOT NULL,          -- manual | leetcode
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_leetcode_date ON leetcode_problems (date);
+      CREATE UNIQUE INDEX idx_leetcode_sync
+        ON leetcode_problems (slug, date) WHERE source = 'leetcode';
+    `
   }
 ]

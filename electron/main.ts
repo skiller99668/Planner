@@ -88,6 +88,37 @@ if (isSmokeTest) {
       return
     }
 
+    // PLANNER_LEETCODE_TEST=<username> hits the LeetCode GraphQL for recent
+    // solves + per-problem difficulty and prints counts — verifies the parser
+    // against the live (unofficial) API without touching the DB.
+    const lcUser = process.env.PLANNER_LEETCODE_TEST
+    if (lcUser) {
+      try {
+        const { fetchRecentSolves, fetchProblemMeta } = await import('./leetcodeFeed')
+        const res = await fetchRecentSolves(lcUser, true)
+        if (!res.ok) {
+          console.log('LEETCODE FAIL', res.error)
+          app.exit(1)
+          return
+        }
+        const counts = { easy: 0, medium: 0, hard: 0 }
+        for (const s of res.solves.slice(0, 8)) counts[(await fetchProblemMeta(s.slug)).difficulty]++
+        console.log(
+          'LEETCODE OK',
+          JSON.stringify({
+            solves: res.solves.length,
+            sample: res.solves.slice(0, 5).map((s) => `${s.title} [${s.date}]`),
+            difficultySampled: counts
+          })
+        )
+        app.exit(0)
+      } catch (err) {
+        console.error('LEETCODE FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
     // PLANNER_EVENT_TEST=YYYY-MM-DD creates a badminton event through the real
     // path, prints the computed BQ window + queued reminders, cleans up, exits.
     const eventTestDate = process.env.PLANNER_EVENT_TEST

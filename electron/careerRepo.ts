@@ -159,7 +159,15 @@ export function careerWeekStats(): CareerWeekStats {
         .get(kind, weekStart, weekEnd) as { n: number }
     ).n
 
-  return { weekStart, applications: apps, dsa: count('dsa'), networking: count('networking') }
+  // DSA is driven by real logged LeetCode problems (see leetcodeRepo), not the
+  // old dumb career_logs tally — so the scoreboard and the LeetCode page agree.
+  const dsa = (
+    getDb()
+      .prepare('SELECT COUNT(*) AS n FROM leetcode_problems WHERE date BETWEEN ? AND ?')
+      .get(weekStart, weekEnd) as { n: number }
+  ).n
+
+  return { weekStart, applications: apps, dsa, networking: count('networking') }
 }
 
 function todayYMD(): string {

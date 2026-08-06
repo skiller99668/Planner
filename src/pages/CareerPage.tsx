@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirm } from '../components/ConfirmProvider'
 import DateField from '../components/DateField'
 import Select from '../components/Select'
+import type { ModuleId } from '../components/Sidebar'
 import type { JobSourceStatus } from '../../shared/ipc'
 import type {
   Application,
@@ -81,7 +82,7 @@ const WATCHLIST = [
 const inputCls =
   'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-faint focus:border-azure/60'
 
-export default function CareerPage() {
+export default function CareerPage({ onNavigate }: { onNavigate: (m: ModuleId) => void }) {
   const [apps, setApps] = useState<Application[]>([])
   const [stats, setStats] = useState<CareerWeekStats | null>(null)
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -157,8 +158,8 @@ export default function CareerPage() {
             label="dsa problems"
             value={stats.dsa}
             target={targets.dsaPerWeek}
-            onAdd={() => void log('dsa')}
-            onUndo={stats.dsa > 0 ? () => void unlog('dsa') : undefined}
+            onClick={() => onNavigate('leetcode')}
+            hint="on LeetCode →"
           />
           <ScoreTile
             label="networking"
@@ -526,24 +527,29 @@ function ScoreTile({
   value,
   target,
   onAdd,
-  onUndo
+  onUndo,
+  onClick,
+  hint
 }: {
   label: string
   value: number
   target: number
   onAdd?: () => void
   onUndo?: () => void
+  /** When set, the whole tile is a button (e.g. the dsa tile links to LeetCode). */
+  onClick?: () => void
+  hint?: string
 }) {
   const met = value >= target
-  return (
-    <div className="bg-surface rounded-[16px] p-3.5">
+  const inner = (
+    <>
       <p className="text-muted text-[12px] font-semibold">{label}</p>
       <div className="mt-1 flex items-center justify-between">
         <p className="font-mono text-lg leading-none font-semibold">
           <span className={met ? 'text-mint' : ''}>{value}</span>
           <span className="text-muted text-[12px]"> / {target}</span>
         </p>
-        {onAdd && (
+        {onAdd ? (
           <div className="flex gap-1">
             {onUndo && (
               <button
@@ -562,10 +568,24 @@ function ScoreTile({
               +
             </button>
           </div>
+        ) : (
+          hint && <span className="text-azure/80 text-[11px] font-medium">{hint}</span>
         )}
       </div>
-    </div>
+    </>
   )
+
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className="bg-surface hover:bg-raised tactile rounded-[16px] p-3.5 text-left transition-colors"
+      >
+        {inner}
+      </button>
+    )
+  }
+  return <div className="bg-surface rounded-[16px] p-3.5">{inner}</div>
 }
 
 function AddApplication({

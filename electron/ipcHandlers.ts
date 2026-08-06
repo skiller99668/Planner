@@ -16,6 +16,8 @@ import type {
   GymPatch,
   LectureInput,
   LecturePatch,
+  LeetcodeLogInput,
+  LeetcodePatch,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -61,6 +63,13 @@ import {
   logGymSession,
   updateGymSession
 } from './gymRepo'
+import {
+  deleteLeetcode,
+  listLeetcode,
+  logLeetcode,
+  syncLeetcode,
+  updateLeetcode
+} from './leetcodeRepo'
 import { createSeries, deleteSeries, listSeries, updateSeries } from './recurrence'
 import { getSettings, patchSettings } from './settings'
 import { createTask, deleteTask, listTasks, updateTask } from './tasksRepo'
@@ -123,6 +132,15 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.gymLog, (_e, input: GymLogInput) => logGymSession(input))
   ipcMain.handle(IPC.gymUpdate, (_e, id: string, patch: GymPatch) => updateGymSession(id, patch))
   ipcMain.handle(IPC.gymDelete, (_e, id: string) => deleteGymSession(id))
+
+  // ---------- leetcode ----------
+  ipcMain.handle(IPC.leetcodeList, () => listLeetcode())
+  ipcMain.handle(IPC.leetcodeLog, (_e, input: LeetcodeLogInput) => logLeetcode(input))
+  ipcMain.handle(IPC.leetcodeUpdate, (_e, id: string, patch: LeetcodePatch) =>
+    updateLeetcode(id, patch)
+  )
+  ipcMain.handle(IPC.leetcodeDelete, (_e, id: string) => deleteLeetcode(id))
+  ipcMain.handle(IPC.leetcodeSync, (_e, username: string) => syncLeetcode(username))
 
   // ---------- groq ----------
   ipcMain.handle(IPC.groqStatus, () => getGroqStatus())

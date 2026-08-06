@@ -25,6 +25,10 @@ import type {
   Lecture,
   LectureInput,
   LecturePatch,
+  LeetcodeLogInput,
+  LeetcodePatch,
+  LeetcodeProblem,
+  LeetcodeSyncResult,
   PlannerEvent,
   SeriesInput,
   SeriesPatch,
@@ -56,6 +60,11 @@ export const IPC = {
   gymLog: 'gym:log',
   gymUpdate: 'gym:update',
   gymDelete: 'gym:delete',
+  leetcodeList: 'leetcode:list',
+  leetcodeLog: 'leetcode:log',
+  leetcodeUpdate: 'leetcode:update',
+  leetcodeDelete: 'leetcode:delete',
+  leetcodeSync: 'leetcode:sync',
   coursesList: 'courses:list',
   coursesCreate: 'courses:create',
   coursesDelete: 'courses:delete',
@@ -158,6 +167,14 @@ export interface PlannerApi {
   gymLog(input: GymLogInput): Promise<GymSession>
   gymUpdate(id: string, patch: GymPatch): Promise<GymSession>
   gymDelete(id: string): Promise<void>
+
+  /** All logged LeetCode problems, newest first. Drives the Career "dsa" count. */
+  leetcodeList(): Promise<LeetcodeProblem[]>
+  leetcodeLog(input: LeetcodeLogInput): Promise<LeetcodeProblem>
+  leetcodeUpdate(id: string, patch: LeetcodePatch): Promise<LeetcodeProblem>
+  leetcodeDelete(id: string): Promise<void>
+  /** Best-effort import of recent accepted solves for a LeetCode username. */
+  leetcodeSync(username: string): Promise<LeetcodeSyncResult>
 
   /** Whether a Groq API key is stored (the key itself never crosses IPC). */
   groqStatus(): Promise<{ configured: boolean }>

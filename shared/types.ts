@@ -147,6 +147,48 @@ export interface GymPatch {
   notes?: string | null
 }
 
+// ---------- LeetCode ----------
+
+export type LeetcodeDifficulty = 'easy' | 'medium' | 'hard'
+
+export interface LeetcodeProblem {
+  id: string
+  date: string // YYYY-MM-DD (solve date)
+  title: string
+  slug: string | null // leetcode titleSlug — builds the URL + dedups sync
+  difficulty: LeetcodeDifficulty
+  topic: string | null // pattern/topic, e.g. "Dynamic Programming"
+  url: string | null
+  notes: string | null
+  source: 'manual' | 'leetcode'
+  createdAt: string
+}
+
+export interface LeetcodeLogInput {
+  date: string // YYYY-MM-DD
+  title: string
+  difficulty: LeetcodeDifficulty
+  topic?: string | null
+  url?: string | null
+  slug?: string | null
+  notes?: string | null
+}
+
+export interface LeetcodePatch {
+  date?: string
+  title?: string
+  difficulty?: LeetcodeDifficulty
+  topic?: string | null
+  url?: string | null
+  notes?: string | null
+}
+
+/** Result of an on-demand sync from a LeetCode username (best-effort). */
+export interface LeetcodeSyncResult {
+  added: number
+  warning?: string
+}
+
 // ---------- Academics ----------
 
 export interface Course {
@@ -372,6 +414,8 @@ export interface Settings {
     networkingPerWeek: number
   }
   internshipTrackFocus: 'swe' | 'hardware'
+  /** LeetCode username for best-effort solve sync; null until set. */
+  leetcodeUsername: string | null
   /** User overrides for keyboard shortcuts, keyed by action id. Defaults live in src/lib/keybinds.ts. */
   keybinds: Record<string, string>
 }
@@ -387,5 +431,6 @@ export const DEFAULT_SETTINGS: Settings = {
     networkingPerWeek: 1
   },
   internshipTrackFocus: 'swe',
+  leetcodeUsername: null,
   keybinds: {}
 }

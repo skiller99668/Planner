@@ -22,6 +22,8 @@ import type {
   GymPatch,
   LectureInput,
   LecturePatch,
+  LeetcodeLogInput,
+  LeetcodePatch,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -51,6 +53,13 @@ const api: PlannerApi = {
   gymLog: (input: GymLogInput) => ipcRenderer.invoke(IPC.gymLog, input),
   gymUpdate: (id: string, patch: GymPatch) => ipcRenderer.invoke(IPC.gymUpdate, id, patch),
   gymDelete: (id: string) => ipcRenderer.invoke(IPC.gymDelete, id),
+
+  leetcodeList: () => ipcRenderer.invoke(IPC.leetcodeList),
+  leetcodeLog: (input: LeetcodeLogInput) => ipcRenderer.invoke(IPC.leetcodeLog, input),
+  leetcodeUpdate: (id: string, patch: LeetcodePatch) =>
+    ipcRenderer.invoke(IPC.leetcodeUpdate, id, patch),
+  leetcodeDelete: (id: string) => ipcRenderer.invoke(IPC.leetcodeDelete, id),
+  leetcodeSync: (username: string) => ipcRenderer.invoke(IPC.leetcodeSync, username),
 
   groqStatus: () => ipcRenderer.invoke(IPC.groqStatus),
   groqSetKey: (key: string) => ipcRenderer.invoke(IPC.groqSetKey, key),
