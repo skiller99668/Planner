@@ -31,6 +31,8 @@ export default function SettingsPage() {
     if (!window.planner) return
     const res = await window.planner.groqSetKey(keyDraft)
     setGroqConfigured(res.configured)
+    // Let the always-on assistant re-check its status without a reload.
+    window.dispatchEvent(new Event('planner:settings-changed'))
     setKeyDraft('')
     setKeySaved(true)
     setTimeout(() => setKeySaved(false), 3000)

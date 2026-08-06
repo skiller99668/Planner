@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ConfirmProvider } from './components/ConfirmProvider'
+import { AssistantProvider } from './components/AssistantProvider'
+import AssistantPanel from './components/AssistantPanel'
 import ShortcutHelp from './components/ShortcutHelp'
 import {
   KEYBIND_ACTIONS,
@@ -11,16 +13,16 @@ import {
 } from './lib/keybinds'
 import Sidebar, { type ModuleId } from './components/Sidebar'
 import AcademicsPage from './pages/AcademicsPage'
-import AssistantPage from './pages/AssistantPage'
 import CareerPage from './pages/CareerPage'
 import DashboardPage from './pages/DashboardPage'
 import EventsPage from './pages/EventsPage'
 import GymPage from './pages/GymPage'
+import LeetcodePage from './pages/LeetcodePage'
 import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
 
 const MODULE_IDS: ModuleId[] = [
-  'dashboard', 'assistant', 'tasks', 'academics', 'gym', 'events', 'career', 'settings'
+  'dashboard', 'tasks', 'academics', 'gym', 'events', 'career', 'leetcode', 'settings'
 ]
 
 /** Initial view can be deep-linked via URL hash (set by PLANNER_OPEN / notifications). */
@@ -61,14 +63,15 @@ export default function App() {
         setActive('tasks')
         setFocusFilterNonce((n) => n + 1)
       },
+      toggleAssistant: () => window.dispatchEvent(new Event('planner:toggle-assistant')),
       toggleShortcutHelp: () => setHelpOpen((o) => !o),
       goDashboard: () => setActive('dashboard'),
-      goAssistant: () => setActive('assistant'),
       goTasks: () => setActive('tasks'),
       goAcademics: () => setActive('academics'),
       goGym: () => setActive('gym'),
       goEvents: () => setActive('events'),
       goCareer: () => setActive('career'),
+      goLeetcode: () => setActive('leetcode'),
       goSettings: () => setActive('settings')
     }
 
@@ -95,14 +98,13 @@ export default function App() {
 
   return (
     <ConfirmProvider>
+    <AssistantProvider>
     <div className="flex h-full">
       <Sidebar active={active} onNavigate={setActive} />
       <main className="app-canvas min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-10 py-10">
           {active === 'dashboard' ? (
             <DashboardPage onNavigate={setActive} />
-          ) : active === 'assistant' ? (
-            <AssistantPage />
           ) : active === 'tasks' ? (
             <TasksPage focusNonce={focusTaskNonce} filterNonce={focusFilterNonce} />
           ) : active === 'academics' ? (
@@ -112,14 +114,18 @@ export default function App() {
           ) : active === 'events' ? (
             <EventsPage />
           ) : active === 'career' ? (
-            <CareerPage />
+            <CareerPage onNavigate={setActive} />
+          ) : active === 'leetcode' ? (
+            <LeetcodePage />
           ) : (
             <SettingsPage />
           )}
         </div>
       </main>
       <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <AssistantPanel />
     </div>
+    </AssistantProvider>
     </ConfirmProvider>
   )
 }

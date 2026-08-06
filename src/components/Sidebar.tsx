@@ -1,24 +1,25 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import type { AppInfo } from '../../shared/ipc'
+import { useAssistant } from './AssistantProvider'
 
 export type ModuleId =
   | 'dashboard'
-  | 'assistant'
   | 'tasks'
   | 'academics'
   | 'gym'
   | 'events'
   | 'career'
+  | 'leetcode'
   | 'settings'
 
 const NAV: { id: ModuleId; label: string; icon: ReactElement }[] = [
   { id: 'dashboard', label: 'Today', icon: <IconHome /> },
-  { id: 'assistant', label: 'Assistant', icon: <IconSpark /> },
   { id: 'tasks', label: 'Tasks', icon: <IconCheck /> },
   { id: 'academics', label: 'Academics', icon: <IconBook /> },
   { id: 'gym', label: 'Gym', icon: <IconBarbell /> },
   { id: 'events', label: 'Events', icon: <IconCalendar /> },
-  { id: 'career', label: 'Career', icon: <IconBriefcase /> }
+  { id: 'career', label: 'Career', icon: <IconBriefcase /> },
+  { id: 'leetcode', label: 'LeetCode', icon: <IconCode /> }
 ]
 
 export default function Sidebar({
@@ -61,6 +62,7 @@ export default function Sidebar({
           />
         ))}
         <div className="flex-1" />
+        <AssistantButton />
         <NavButton
           item={{ id: 'settings', label: 'Settings', icon: <IconGear /> }}
           active={active === 'settings'}
@@ -105,6 +107,34 @@ function NavButton({
       )}
       <span className={active ? 'text-azure' : ''}>{item.icon}</span>
       {item.label}
+    </button>
+  )
+}
+
+/** Toggles the app-wide assistant drawer; highlights while it's open. */
+function AssistantButton() {
+  const { open, toggle } = useAssistant()
+  return (
+    <button
+      onClick={toggle}
+      aria-pressed={open}
+      aria-label="Toggle assistant"
+      className={`tactile relative flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[14px] ${
+        open
+          ? 'bg-raised text-ink font-semibold shadow-[var(--shadow-soft)]'
+          : 'text-muted hover:bg-raised/50 hover:text-ink font-medium'
+      }`}
+    >
+      {open && (
+        <span
+          aria-hidden
+          className="bg-azure absolute top-1/2 -left-0.5 h-5 w-[3px] -translate-y-1/2 rounded-full shadow-[0_0_10px_var(--color-azure)]"
+        />
+      )}
+      <span className={open ? 'text-azure' : ''}>
+        <IconSpark />
+      </span>
+      Assistant
     </button>
   )
 }
@@ -184,6 +214,14 @@ function IconBriefcase() {
     <>
       <rect x="3.5" y="7.5" width="17" height="12.5" rx="3.5" />
       <path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" />
+    </>
+  )
+}
+function IconCode() {
+  return svg(
+    <>
+      <path d="m8.5 8-4 4 4 4" />
+      <path d="m15.5 8 4 4-4 4" />
     </>
   )
 }

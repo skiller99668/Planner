@@ -8,14 +8,15 @@
 export type KeybindAction =
   | 'newTask'
   | 'focusTagFilter'
+  | 'toggleAssistant'
   | 'toggleShortcutHelp'
   | 'goDashboard'
-  | 'goAssistant'
   | 'goTasks'
   | 'goAcademics'
   | 'goGym'
   | 'goEvents'
   | 'goCareer'
+  | 'goLeetcode'
   | 'goSettings'
 
 export interface KeybindDef {
@@ -32,9 +33,9 @@ export const KEYBIND_ACTIONS: readonly KeybindDef[] = [
   {
     id: 'newTask',
     label: 'New task',
-    hint: 'Jump to Tasks and open the new-task editor. Rebind with Ctrl to also fire while typing.',
+    hint: 'Jump to Tasks and open the new-task editor.',
     group: 'General',
-    default: 't'
+    default: 'ctrl+t'
   },
   {
     id: 'focusTagFilter',
@@ -44,6 +45,13 @@ export const KEYBIND_ACTIONS: readonly KeybindDef[] = [
     default: '/'
   },
   {
+    id: 'toggleAssistant',
+    label: 'Assistant',
+    hint: 'Open or close the assistant panel from anywhere.',
+    group: 'General',
+    default: 'ctrl+a'
+  },
+  {
     id: 'toggleShortcutHelp',
     label: 'Show shortcuts',
     hint: 'Open this keyboard-shortcut cheat sheet from anywhere.',
@@ -51,12 +59,12 @@ export const KEYBIND_ACTIONS: readonly KeybindDef[] = [
     default: 'shift+?'
   },
   { id: 'goDashboard', label: 'Go to Today', hint: '', group: 'Go to page', default: 'ctrl+1' },
-  { id: 'goAssistant', label: 'Go to Assistant', hint: '', group: 'Go to page', default: 'ctrl+2' },
-  { id: 'goTasks', label: 'Go to Tasks', hint: '', group: 'Go to page', default: 'ctrl+3' },
-  { id: 'goAcademics', label: 'Go to Academics', hint: '', group: 'Go to page', default: 'ctrl+4' },
-  { id: 'goGym', label: 'Go to Gym', hint: '', group: 'Go to page', default: 'ctrl+5' },
-  { id: 'goEvents', label: 'Go to Events', hint: '', group: 'Go to page', default: 'ctrl+6' },
-  { id: 'goCareer', label: 'Go to Career', hint: '', group: 'Go to page', default: 'ctrl+7' },
+  { id: 'goTasks', label: 'Go to Tasks', hint: '', group: 'Go to page', default: 'ctrl+2' },
+  { id: 'goAcademics', label: 'Go to Academics', hint: '', group: 'Go to page', default: 'ctrl+3' },
+  { id: 'goGym', label: 'Go to Gym', hint: '', group: 'Go to page', default: 'ctrl+4' },
+  { id: 'goEvents', label: 'Go to Events', hint: '', group: 'Go to page', default: 'ctrl+5' },
+  { id: 'goCareer', label: 'Go to Career', hint: '', group: 'Go to page', default: 'ctrl+6' },
+  { id: 'goLeetcode', label: 'Go to LeetCode', hint: '', group: 'Go to page', default: 'ctrl+7' },
   { id: 'goSettings', label: 'Go to Settings', hint: '', group: 'Go to page', default: 'ctrl+8' }
 ]
 
