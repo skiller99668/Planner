@@ -41,6 +41,14 @@ const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const inputCls =
   'bg-bg border-line rounded-[11px] border px-2.5 py-1.5 text-[13px] placeholder:text-faint focus:border-azure/60'
 
+const KIND_OPTIONS: { value: EventKind; label: string }[] = [
+  { value: 'badminton', label: 'Badminton' },
+  { value: 'hackathon', label: 'Hackathon' },
+  { value: 'career', label: 'Career' },
+  { value: 'academic', label: 'Academic' },
+  { value: 'other', label: 'Other' }
+]
+
 export default function EventsPage() {
   const [events, setEvents] = useState<PlannerEvent[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -717,7 +725,7 @@ function AddEventForm({
   onCreated: () => Promise<void>
 }) {
   const [title, setTitle] = useState('')
-  const [kind, setKind] = useState<EventKind>('badminton')
+  const [kind, setKind] = useState<EventKind>('other')
   const [time, setTime] = useState('')
   const [location, setLocation] = useState('')
   const [url, setUrl] = useState('')
@@ -762,13 +770,7 @@ function AddEventForm({
             value={kind}
             ariaLabel="Kind"
             onChange={(val) => setKind(val as EventKind)}
-            options={[
-              { value: 'badminton', label: 'Badminton' },
-              { value: 'hackathon', label: 'Hackathon' },
-              { value: 'career', label: 'Career' },
-              { value: 'academic', label: 'Academic' },
-              { value: 'other', label: 'Other' }
-            ]}
+            options={KIND_OPTIONS}
           />
         </div>
         <div>
@@ -886,43 +888,167 @@ function EventRow({
       </div>
 
       {expanded && (
-        <div className="bg-surface mt-1 mb-2 rounded-[16px] p-3 nums text-[12px]">
-          {event.regOpensAt && (
-            <p>
-              <span className="text-muted">reg opens&nbsp;&nbsp;</span>
-              {fmtDT(event.regOpensAt)}
-            </p>
-          )}
-          {event.regClosesAt && (
-            <p>
-              <span className="text-muted">reg closes&nbsp;</span>
-              {fmtDT(event.regClosesAt)}
-            </p>
-          )}
-          {event.regOpensAt && (
-            <p>
-              <span className="text-muted">draws&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-              {fmtDT(drawsAt(event.startAt))}
-            </p>
-          )}
-          {event.url && (
-            <p className="mt-1">
-              <button
-                onClick={() => void window.planner?.openExternal(event.url!)}
-                className="text-violet hover:underline"
-              >
-                {event.url}
-              </button>
-            </p>
-          )}
-          {event.notes && <p className="text-muted mt-1 whitespace-pre-wrap">{event.notes}</p>}
-          {!event.regOpensAt && !event.url && !event.notes && (
-            <p className="text-muted">Reminder fires the day before.</p>
-          )}
-        </div>
+        <EventEditor event={event} onSaved={onChanged} onCancel={onToggle} />
       )}
     </li>
   )
+}
+
+// ---------- inline editor ----------
+
+function EventEditor({
+  event,
+  onSaved,
+  onCancel
+}: {
+  event: PlannerEvent
+  onSaved: () => Promise<void>
+  onCancel: () => void
+}) {
+  const start = new Date(event.startAt)
+  const allDay = start.getHours() === 0 && start.getMinutes() === 0
+  const [title, setTitle] = useState(event.title)
+  const [kind, setKind] = useState<EventKind>(event.kind)
+  const [date, setDate] = useState(localYMD(start))
+  const [time, setTime] = useState(allDay ? '' : hm(event.startAt))
+  const [location, setLocation] = useState(event.location ?? '')
+  const [url, setUrl] = useState(event.url ?? '')
+  const [notes, setNotes] = useState(event.notes ?? '')
+  const [autoReg, setAutoReg] = useState(event.regOpensAt !== null)
+  const [saved, setSaved] = useState(false)
+
+  const save = async () => {
+    if (!title.trim() || !date || !window.planner) return
+    await window.planner.eventsUpdate(event.id, {
+      title,
+      kind,
+      date,
+      time: time || null,
+      location: location || null,
+      url: url || null,
+      notes: notes || null,
+      autoRegWindow: kind === 'badminton' ? autoReg : false
+    })
+    await onSaved()
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1800)
+  }
+
+  // Enter saves from any text field; Escape closes the editor.
+  const onKey = (e: { key: string; preventDefault: () => void }) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      void save()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      onCancel()
+    }
+  }
+
+  return (
+    <div className="bg-surface mt-1 mb-2 rounded-[16px] p-4 shadow-[var(--shadow-lift)]">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-44 flex-1">
+          <label
+            className="text-muted mb-1 block text-[12px] font-semibold"
+            htmlFor={`ev-e-title-${event.id}`}
+          >
+            Title
+          </label>
+          <input
+            id={`ev-e-title-${event.id}`}
+            className={`${inputCls} w-full`}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={onKey}
+          />
+        </div>
+        <div>
+          <span className="text-muted mb-1 block text-[12px] font-semibold">Kind</span>
+          <Select
+            value={kind}
+            ariaLabel="Kind"
+            onChange={(val) => setKind(val as EventKind)}
+            options={KIND_OPTIONS}
+          />
+        </div>
+        <div>
+          <span className="text-muted mb-1 block text-[12px] font-semibold">Date</span>
+          <DateField value={date} ariaLabel="Event date" clearable={false} onChange={setDate} />
+        </div>
+        <div>
+          <span className="text-muted mb-1 block text-[12px] font-semibold">Time</span>
+          <TimeField value={time} ariaLabel="Event time" placeholder="All day" onChange={setTime} />
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input
+          className={`${inputCls} min-w-40 flex-1`}
+          placeholder="Location (optional)"
+          aria-label="Location"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          onKeyDown={onKey}
+        />
+        <input
+          className={`${inputCls} min-w-40 flex-1`}
+          placeholder="URL (optional)"
+          aria-label="URL"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={onKey}
+        />
+      </div>
+      <textarea
+        rows={2}
+        className={`${inputCls} mt-2 w-full resize-y`}
+        placeholder="Notes (optional)"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+      />
+
+      {kind === 'badminton' && (
+        <label className="text-muted mt-2 flex items-center gap-1.5 nums text-[12px]">
+          <input
+            type="checkbox"
+            className="accent-(--color-gold)"
+            checked={autoReg}
+            onChange={(e) => setAutoReg(e.target.checked)}
+          />
+          BQ registration alarms
+        </label>
+      )}
+
+      {event.regOpensAt && (
+        <p className="text-faint mt-2 nums text-[11.5px] leading-relaxed">
+          reg opens {fmtDT(event.regOpensAt)}
+          {event.regClosesAt ? ` · closes ${fmtDT(event.regClosesAt)}` : ''} · draws{' '}
+          {fmtDT(drawsAt(event.startAt))}
+        </p>
+      )}
+
+      <div className="mt-3 flex items-center justify-end gap-2">
+        <button onClick={onCancel} className="text-muted hover:text-ink px-3 py-2 text-[13px]">
+          Cancel
+        </button>
+        <button
+          onClick={() => void save()}
+          disabled={!title.trim() || !date}
+          className={`tactile rounded-[11px] px-4 py-2 text-[13px] font-bold disabled:opacity-40 ${
+            saved ? 'bg-mint/15 text-mint' : 'btn-primary'
+          }`}
+        >
+          {saved ? 'Saved ✓' : 'Save'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function hm(iso: string): string {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 function RegBadge({ event }: { event: PlannerEvent }) {
