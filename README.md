@@ -1,148 +1,182 @@
 # Planner
 
-Personal desktop planner (Windows, Electron): tasks with recurrence + reminders,
-academics with Groq-powered lecture chat, PPL gym tracking, badminton tournament +
-McGill event alarms, and the Summer 2027 internship pipeline.
+An offline-first personal planner for Windows — one desktop app for tasks,
+coursework, training, tournaments, and internship prep, with an optional AI
+assistant. Built with Electron and React; all of your data stays on your machine.
 
-## Run it
+## Overview
+
+Planner is a tray-resident Windows desktop application that brings a student's
+whole routine into one place: recurring tasks with reminders, course notes with
+an AI study chat, Push/Pull/Legs gym tracking, a calendar of tournaments and
+campus events with registration alarms, a Summer 2027 internship pipeline, and a
+LeetCode practice tracker.
+
+It runs entirely offline. Everything is stored in a local SQLite database, and
+the only network calls are ones you trigger yourself — fetching internship
+boards, the Badminton Québec calendar, or a LeetCode sync — plus the Groq AI API
+if you choose to add a key. Reminders fire from the background even when the
+window is closed, so nothing slips.
+
+## Features
+
+### Tasks & reminders
+- Quick capture with due dates and times, priorities, and lowercase-kebab tags
+  with a colour picker.
+- **Recurring tasks** — daily, weekly, or monthly with weekday selection. A
+  repeating task shows only its **next occurrence**; the following one appears
+  once you complete the current.
+- **Reminders** run in the background from the system tray and toast even with
+  the window closed. Missed reminders catch up on launch.
+
+### Assistant (optional AI)
+- A slide-in assistant available on **every** page, plus an always-on box on the
+  dashboard — one shared conversation, opened with a click or `Ctrl+A`.
+- Powered by Groq with tool use: it can create tasks, break a project into
+  steps, set up recurring tasks, log a workout, and mark tasks done — additive
+  actions only, each shown as a receipt.
+- Your API key is stored encrypted with Windows credentials and never leaves the
+  machine except in calls to Groq.
+
+### Academics
+- Courses → lectures → your written summaries.
+- A per-lecture AI chat that knows the course, your summary, and recent lectures
+  — quiz yourself, go deeper, or generate study tasks.
+
+### Gym (Push / Pull / Legs)
+- One-tap logging that suggests the next workout in the PPL cycle.
+- A Sunday–Saturday week grid; click **any past day** to log it retroactively,
+  with a weekly target and a streak.
+
+### Events & registration alarms
+- Month-calendar and list views, manual entry, and `.ics` import.
+- Fetches the **Badminton Québec** tournament calendar and computes each event's
+  registration window, with "opens" and "closes-soon" alarms and a "registered"
+  toggle.
+- Click any event to **edit it inline** — type, date, time, location, URL, notes.
+
+### Career — Summer 2027 internships
+- An application pipeline (Wishlist → Applied → OA → Interview → Offer) and a
+  weekly scoreboard (applications / DSA / networking vs. targets).
+- **Live internship postings** aggregated on demand from community-maintained
+  boards, with one-click add to your pipeline, plus a research-program watchlist
+  and a resource shelf.
+
+### LeetCode tracker
+- Log solved problems with difficulty, topic, URL and notes; see weekly progress
+  against your goal, a streak, and an all-time difficulty breakdown.
+- **Best-effort sync** of your recent accepted solves from a LeetCode username,
+  and one-click launch links to LeetCode and NeetCode.
+- Drives the Career page's weekly DSA count, so there's a single source of truth.
+
+### Throughout
+- **Keyboard shortcuts** for everything — new task (`Ctrl+T`), assistant
+  (`Ctrl+A`), jump to any page (`Ctrl+1`–`8`), filter by tag (`/`), and a
+  shortcut cheat sheet (`?`). All rebindable in Settings.
+- A cohesive dark "Nocturne" theme, purposeful motion that respects
+  `prefers-reduced-motion`, and a confirmation step on every destructive action.
+- **Offline-first**: local SQLite storage, launches on startup hidden in the
+  tray, and single-instance (relaunching focuses the running window).
+
+## Installation
+
+Planner is a Windows desktop app. You can run a prebuilt installer if you have
+one, or build it from source.
+
+### If you have the installer
+Double-click `Planner-Setup-<version>.exe`. Because it isn't code-signed (it's a
+personal build), Windows SmartScreen will warn once — choose **More info → Run
+anyway**. Planner installs like any app, adds a Start-menu entry, and is set to
+launch on startup hidden in the tray so reminders keep firing.
+
+### Build it from source
+
+**Requirements:** Windows 10 or 11, [Node.js](https://nodejs.org) 20 or newer,
+and Git.
+
+```bash
+git clone <your-repo-url> Planner
+cd Planner
+npm install
+npm run dist
+```
+
+This produces the installer at:
+
+```
+release\Planner-Setup-<version>.exe
+```
+
+Run it as described above.
+
+Your data lives in `%APPDATA%\planner\planner.db` and persists across reinstalls
+and upgrades.
+
+### Enabling the AI features (optional)
+Open **Settings → Groq API key** and paste a key from
+[console.groq.com](https://console.groq.com); it's stored encrypted on your
+machine. Without a key, the Assistant and lecture chats are simply disabled and
+everything else works normally.
+
+## Development
 
 ```bash
 npm install
-npm run dev        # dev server + Electron with hot reload
+npm run dev          # Vite dev server + Electron, with hot reload
+npm run typecheck    # the correctness gate (there is no ESLint or test runner)
+npm run build        # typecheck + production build
+npm run dist         # build + electron-builder installer → release/
+npm run gen:icons    # regenerate the app and tray icons
 ```
 
-Build the installable app:
+> If your shell has `ELECTRON_RUN_AS_NODE=1` set (some IDE-embedded terminals
+> do), Electron runs as plain Node and the app won't start — unset it first.
 
-```bash
-npm run dist       # → release/Planner-Setup-<version>.exe
-```
-
-The installer is unsigned, so SmartScreen will warn once — "More info → Run anyway".
-
-> Running Electron from a terminal that has `ELECTRON_RUN_AS_NODE=1` set (e.g. some
-> IDE-embedded shells) makes it behave like plain Node and the app won't start —
-> unset it first. Normal terminals are unaffected.
-
-## Design
-
-"Nocturne": a dark field of midnight blue that always carries real violet
-chroma (never neutral slate), layered into depths — `bg` → `surface` → `raised`,
-divided by `line` — so elevation reads through blue-cast shadows rather than
-borders. Five accents each hold a fixed meaning: azure = action / focus / active
-nav, coral = urgent + destructive, mint = done / on target, gold = streaks +
-milestones, violet = secondary category. Radii are 11px on controls, 18px on
-cards. Type is Plus Jakarta Sans, bundled at `src/assets/fonts/` — no CDN, works
-offline. Monospace is reserved for literal strings (model ids, URLs); numbers
-use tabular figures via the `nums` class. The palette is defined as Tailwind v4
-`@theme` tokens in [src/index.css](src/index.css) — the single source of truth.
-
-Motion shares one spring curve (`--ease-spring`) so everything feels made by the
-same hand. Completion is the one loud moment: the checkbox springs and draws its
-tick, the card swells and tints mint, and particles arc out
-([Celebrate.tsx](src/components/Celebrate.tsx)). Hitting a weekly target adds a
-gold sheen sweep. All of it collapses under `prefers-reduced-motion`.
-
-Two non-obvious details worth keeping:
-
-- A completed task **lingers in place for ~1s** before moving to Completed.
-  Without it the row re-buckets instantly and the animation unmounts before
-  you can see it.
-- Replay the swell by toggling a class, never by changing `key` — remounting
-  the row destroys the checkbox's burst, which lives in child state.
+There is no unit-test runner; verification runs the built app headlessly behind
+environment flags — for example `PLANNER_SMOKE=1 npx electron .` opens and
+migrates the database, then exits. The full set is documented in `CLAUDE.md`.
 
 ## Architecture
 
 | Layer | Choice | Why |
 |---|---|---|
-| Shell | Electron 43 + electron-builder (NSIS) | Tray residency, toast notifications, autostart |
-| UI | React 19 + TypeScript + Vite + Tailwind 4 | |
-| Storage | SQLite via Electron's built-in `node:sqlite` | Zero native deps — no VS Build Tools, no ABI rebuilds |
-| AI | Groq (Phase 4) | Key encrypted via `safeStorage`, calls proxied through main |
+| Shell | Electron + electron-builder (NSIS) | Tray residency, toast notifications, autostart |
+| UI | React 19 + TypeScript + Vite + Tailwind CSS 4 | |
+| Storage | SQLite via Electron's built-in `node:sqlite` | Zero native dependencies — no build tools, no ABI rebuilds |
+| AI | Groq (optional) | Key encrypted via `safeStorage`; all calls proxied through the main process |
 
 ```
-electron/   main process: window/tray lifecycle, db + migrations, reminder
-            scheduler, IPC handlers, preload bridge
+electron/   main process — window/tray lifecycle, DB + migrations, reminder
+            scheduler, IPC handlers, preload bridge, external feeds, Groq
 shared/     domain types + the typed IPC contract (single source of truth)
-src/        renderer (React) — pages, components, styles
-scripts/    gen-icons.mjs — regenerates build/ icons + tray icon module
+src/        renderer (React) — pages, components, hooks, styles
+scripts/    icon generation
 ```
 
-- **Data** lives in `%APPDATA%/planner/planner.db` (WAL). Schema is migrated on
-  launch via `PRAGMA user_version`; all tables for every planned phase ship in v1
-  ([electron/migrations.ts](electron/migrations.ts)).
-- **The renderer never touches Node/Electron APIs.** It calls `window.planner`
-  (typed `PlannerApi`, [shared/ipc.ts](shared/ipc.ts)), exposed by the preload over
-  `ipcRenderer.invoke`. Adding a method to `PlannerApi` forces main + preload to
-  implement it.
+- **The renderer never touches Node or Electron APIs.** It calls `window.planner`,
+  a typed `PlannerApi` ([shared/ipc.ts](shared/ipc.ts)) exposed by the preload
+  over `ipcRenderer.invoke`; adding a method there forces both main and preload
+  to implement it.
+- **Data** is stored in `%APPDATA%\planner\planner.db` (WAL) and migrated on
+  launch via `PRAGMA user_version` ([electron/migrations.ts](electron/migrations.ts)).
 - **Reminders** fire from the main process ([electron/scheduler.ts](electron/scheduler.ts)),
-  polling the `reminders` table every 30s — feature code just inserts rows.
-  Works with the window closed (tray) and catches up on missed reminders at launch.
-- The app is **single-instance**; launching again focuses the running window.
-  `--hidden` starts minimized to tray (used by autostart).
+  which polls the `reminders` table every ~30s; feature code just inserts rows.
+  It works with the window closed and catches up on missed reminders at launch.
+- **External feeds** (internship boards, Badminton Québec, LeetCode) are fetched
+  only on demand with a short cache and degrade to a warning line, never an empty
+  page.
 
-## Build phases
+For deeper implementation notes — the recurring-task model, the job-feed parsers,
+the Badminton Québec window math, and the assistant tool loop — see `CLAUDE.md`.
 
-1. ✅ **Foundation** — shell, SQLite, IPC, tray, autostart, notifications, UI skeleton
-2. ✅ **Tasks** — capture, tags, due dates, reminders, recurring series (weekly labs),
-   tag picker (× to remove, one click to reuse a tag you already have)
-3. ✅ **Gym** — PPL next-in-cycle, one-tap logging (idempotent per day+type),
-   Sun–Sat week grid with history arrows, week streak vs target, session notes
-4. ✅ **Academics + Assistant** — courses → lectures → summaries, per-lecture Groq
-   chat with course context; app-wide Assistant with tool use (creates tasks,
-   plans projects into steps, sets up recurring tasks, logs workouts, completes
-   tasks — additive tools only, every action shows a receipt chip)
-5. ✅ **Events + Career** — manual events + ICS import with dedupe; Badminton
-   Québec registration windows computed from the event date (opens −18d Tue
-   12:30, closes −11d Tue 11:30) with open/close-warning alarms and a
-   "registered ✓" toggle; application pipeline with weekly scoreboard
-   (applications / DSA / networking vs targets), live Summer 2027 postings
-   aggregated from six community feeds with one-click add/remove-to-pipeline,
-   SURE/USRA watchlist, per-track resource shelf, hackathon events
+## Privacy
 
-### Task model notes
+Planner is offline-first. All of your data stays in a local SQLite database on
+your machine: no telemetry, no accounts. Network access happens only when you
+explicitly trigger it (fetching internship postings, the Badminton Québec
+calendar, or a LeetCode sync), or when the assistant calls Groq with a key you
+supply.
 
-- Recurring tasks: the rule lives on a **series**; occurrences are real task rows
-  generated ~60 days ahead, keyed `UNIQUE(series_id, occurrence_date)`. Deleting an
-  occurrence marks it `skipped` (hidden forever, never regenerated); editing a series
-  rewrites only future open occurrences; deleting a series keeps past/done history.
-- Reminders need a due **time** (all-day tasks don't fire toasts) and are synced to
-  the `reminders` table on every task write; the tray-resident scheduler does the rest.
-- Tags are manual and normalized to lowercase-kebab (`ECSE 200` → `ecse-200`) so the
-  same tag can't exist twice. The picker offers every tag already in use — across
-  tasks *and* recurring series — as one-click chips.
+---
 
-### Job feed notes
-
-[electron/jobsFeed.ts](electron/jobsFeed.ts) aggregates six public GitHub lists on
-demand (10-min cache, never background-polled), merging and de-duplicating by
-normalized application URL:
-
-| Source | Shape |
-|---|---|
-| SimplifyJobs/Summer2027-Internships | `listings.json` — filtered to 2027 terms |
-| vanshb03/Summer2027-Internships | `listings.json` — `repoScoped` (tags season `"Summer"`, no year, so the whole file counts) |
-| speedyapply/2027-SWE-College-Jobs | `README.md` + `INTERN_INTL.md` markdown tables |
-| speedyapply/2027-AI-College-Jobs | `README.md` + `INTERN_INTL.md` markdown tables |
-
-The markdown parser reads the header row for column positions (US files carry a
-Salary column, international ones don't) and skips rows without an apply link
-(those are closed listings). A dead source degrades to a warning line under the
-header, never an empty page. Verify against the live repos with
-`PLANNER_SMOKE=1 PLANNER_JOBS_TEST=1 npx electron .`.
-
-LinkedIn/Indeed/Handshake are deliberately absent: they forbid scraping and
-break constantly. Add structured sources (GitHub lists, Greenhouse/Lever boards,
-RSS/JSON) to `SOURCES` instead.
-
-### Assistant notes
-
-- The agent loop runs in the main process ([electron/assistant.ts](electron/assistant.ts)):
-  Groq tool-calling over `create_tasks`, `create_recurring_task`, `log_gym_session`,
-  `list_tasks`, `complete_task`, `get_gym_status`. Max 5 tool rounds per message.
-  No delete tools by design.
-- Lecture chats inject the course, the lecture's summary, and recent lectures from
-  the same course as system context at send time.
-- Headless check once a key is stored:
-  `PLANNER_SMOKE=1 PLANNER_ASSIST_TEST="add a task to test the assistant" npx electron .`
-- Default models: `llama-3.3-70b-versatile` (assistant), `llama-3.1-8b-instant`
-  (tagging); override the assistant model in Settings if Groq retires it.
+*A personal project, built around one student's actual routine.*
