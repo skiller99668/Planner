@@ -70,7 +70,13 @@ import {
   syncLeetcode,
   updateLeetcode
 } from './leetcodeRepo'
-import { createSeries, deleteSeries, listSeries, updateSeries } from './recurrence'
+import {
+  createSeries,
+  deleteSeries,
+  listSeries,
+  setTaskRecurrence,
+  updateSeries
+} from './recurrence'
 import { getSettings, patchSettings } from './settings'
 import { createTask, deleteTask, listTasks, updateTask } from './tasksRepo'
 
@@ -118,6 +124,9 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.tasksCreate, (_e, input: TaskInput) => createTask(input))
   ipcMain.handle(IPC.tasksUpdate, (_e, id: string, patch: TaskPatch) => updateTask(id, patch))
   ipcMain.handle(IPC.tasksDelete, (_e, id: string) => deleteTask(id))
+  ipcMain.handle(IPC.tasksSetRecurrence, (_e, id: string, input: SeriesInput | null) =>
+    setTaskRecurrence(id, input)
+  )
 
   // ---------- recurring series ----------
   ipcMain.handle(IPC.seriesList, () => listSeries())

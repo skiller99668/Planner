@@ -42,6 +42,8 @@ const api: PlannerApi = {
   tasksCreate: (input: TaskInput) => ipcRenderer.invoke(IPC.tasksCreate, input),
   tasksUpdate: (id: string, patch: TaskPatch) => ipcRenderer.invoke(IPC.tasksUpdate, id, patch),
   tasksDelete: (id: string) => ipcRenderer.invoke(IPC.tasksDelete, id),
+  tasksSetRecurrence: (id: string, input: SeriesInput | null) =>
+    ipcRenderer.invoke(IPC.tasksSetRecurrence, id, input),
 
   seriesList: () => ipcRenderer.invoke(IPC.seriesList),
   seriesCreate: (input: SeriesInput) => ipcRenderer.invoke(IPC.seriesCreate, input),

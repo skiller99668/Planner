@@ -40,7 +40,9 @@ export function emptyForm(title = ''): FormValues {
   }
 }
 
-export function taskToForm(t: Task): FormValues {
+/** `series` is the task's parent when it's a generated occurrence — its rule
+ *  seeds the repeat controls so they can be edited from the task itself. */
+export function taskToForm(t: Task, series?: TaskSeries): FormValues {
   const offset =
     t.reminderAt && t.dueAt
       ? String(
@@ -54,8 +56,23 @@ export function taskToForm(t: Task): FormValues {
     dueTime: t.dueAt && !t.allDay ? hmOfIso(t.dueAt) : '',
     priority: t.priority,
     tags: t.tags,
-    reminderOffset: offset
+    reminderOffset: offset,
+    freq: series?.rule.freq ?? 'none',
+    interval: series?.rule.interval ?? 1,
+    weekdays: series?.rule.byWeekdays ?? [],
+    endDate: series?.endDate ?? ''
   }
+}
+
+/** True when two forms describe the same repeat shape. Only a difference here
+ *  escalates a task edit to its series — plain field edits stay local. */
+export function sameRepeat(a: FormValues, b: FormValues): boolean {
+  if (a.freq !== b.freq) return false
+  if (a.freq === 'none') return true
+  if (a.interval !== b.interval) return false
+  if ((a.endDate || '') !== (b.endDate || '')) return false
+  if (a.freq === 'weekly' && a.weekdays.join() !== b.weekdays.join()) return false
+  return true
 }
 
 export function seriesToForm(s: TaskSeries): FormValues {
@@ -115,9 +132,23 @@ export default function TaskEditor({
   const set = <K extends keyof FormValues>(k: K, val: FormValues[K]) =>
     setV((prev) => ({ ...prev, [k]: val }))
 
-  const showRepeat = mode !== 'task'
   const repeating = v.freq !== 'none'
   const canSave = v.title.trim().length > 0
+  // A task carrying a rule is an occurrence: its repeat belongs to the series,
+  // so touching it here reaches past this one row.
+  const isOccurrence = mode === 'task' && initial.freq !== 'none'
+  const scopeNote =
+    mode !== 'task'
+      ? null
+      : sameRepeat(v, initial)
+        ? isOccurrence
+          ? 'Edits apply to this occurrence only.'
+          : null
+        : repeating
+          ? isOccurrence
+            ? 'Repeat changed — this and every upcoming occurrence are rewritten.'
+            : 'This task starts repeating.'
+          : 'Stops repeating. This one stays; finished ones are kept.'
 
   const submit = () => {
     if (!canSave) return
@@ -177,11 +208,11 @@ export default function TaskEditor({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
             <span className={labelCls}>
-              {repeating ? 'Starts' : 'Due date'}
+              {repeating && !isOccurrence ? 'Starts' : 'Due date'}
             </span>
             <DateField
               value={v.dueDate}
-              ariaLabel={repeating ? 'Start date' : 'Due date'}
+              ariaLabel={repeating && !isOccurrence ? 'Start date' : 'Due date'}
               placeholder="No date"
               className="w-full"
               onChange={(ymd) => set('dueDate', ymd)}
@@ -246,7 +277,7 @@ export default function TaskEditor({
           onChange={(tags) => set('tags', tags)}
         />
 
-        {showRepeat && (
+        <div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
               <span className={labelCls}>
@@ -336,7 +367,8 @@ export default function TaskEditor({
               </div>
             )}
           </div>
-        )}
+          {scopeNote && <p className="text-faint mt-2 text-[12px]">{scopeNote}</p>}
+        </div>
       </div>
 
       <div className="mt-4 flex items-center gap-2">

@@ -50,6 +50,7 @@ export const IPC = {
   tasksCreate: 'tasks:create',
   tasksUpdate: 'tasks:update',
   tasksDelete: 'tasks:delete',
+  tasksSetRecurrence: 'tasks:setRecurrence',
   seriesList: 'series:list',
   seriesCreate: 'series:create',
   seriesUpdate: 'series:update',
@@ -154,6 +155,11 @@ export interface PlannerApi {
   tasksUpdate(id: string, patch: TaskPatch): Promise<Task>
   /** Standalone tasks are hard-deleted; series occurrences become 'skipped'. */
   tasksDelete(id: string): Promise<void>
+  /** Change how one task repeats, from the task's own editor:
+   *  - occurrence of a series → the series template/rule is rewritten;
+   *  - standalone task → it becomes a series, replaced by its occurrences;
+   *  - `null` → the series stops, but this task survives as a one-off. */
+  tasksSetRecurrence(id: string, input: SeriesInput | null): Promise<void>
 
   seriesList(): Promise<TaskSeries[]>
   seriesCreate(input: SeriesInput): Promise<TaskSeries>

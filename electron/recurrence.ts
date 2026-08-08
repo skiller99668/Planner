@@ -18,6 +18,9 @@ import {
   clearPendingReminder,
   composeDueAt,
   computeReminderAt,
+  deleteTask,
+  detachFromSeries,
+  getTask,
   insertOccurrence
 } from './tasksRepo'
 
@@ -165,6 +168,29 @@ export function deleteSeries(id: string): void {
      WHERE series_id = ? AND (status = 'done' OR occurrence_date < ?)`
   ).run(new Date().toISOString(), id, today)
   db.prepare('DELETE FROM task_series WHERE id = ?').run(id) // cascades the rest
+}
+
+/** Change how a single task repeats, driven from the task's own editor rather
+ *  than the series manager. Three shapes, all keeping the usual history rules:
+ *  - occurrence + a rule → rewrite the series template (future occurrences follow);
+ *  - standalone task + a rule → it becomes a series, and the one-off row gives
+ *    way to the generated occurrences;
+ *  - null → the series stops, but this task is kept as a standalone one-off. */
+export function setTaskRecurrence(taskId: string, input: SeriesInput | null): void {
+  const task = getTask(taskId)
+  if (input) {
+    if (task.seriesId) {
+      updateSeries(task.seriesId, input)
+    } else {
+      createSeries(input)
+      deleteTask(taskId)
+    }
+  } else if (task.seriesId) {
+    // Detach first: deleteSeries cascades away future open occurrences, and
+    // this row is the one the user is keeping.
+    detachFromSeries(taskId)
+    deleteSeries(task.seriesId)
+  }
 }
 
 // ---------- materialization ----------

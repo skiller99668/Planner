@@ -23,6 +23,8 @@ export interface TasksStore {
   updateTask: (id: string, patch: TaskPatch) => Promise<void>
   toggleTask: (task: Task) => Promise<void>
   deleteTask: (id: string) => Promise<void>
+  /** Change how one task repeats; null stops the repeat. See PlannerApi. */
+  setRecurrence: (id: string, input: SeriesInput | null) => Promise<void>
   createSeries: (input: SeriesInput) => Promise<void>
   updateSeries: (id: string, patch: SeriesPatch) => Promise<void>
   deleteSeries: (id: string) => Promise<void>
@@ -80,6 +82,7 @@ export function useTasks(): TasksStore {
         })
       ),
     deleteTask: (id) => wrap(() => window.planner!.tasksDelete(id)),
+    setRecurrence: (id, input) => wrap(() => window.planner!.tasksSetRecurrence(id, input)),
     createSeries: (input) => wrap(() => window.planner!.seriesCreate(input)),
     updateSeries: (id, patch) => wrap(() => window.planner!.seriesUpdate(id, patch)),
     deleteSeries: (id) => wrap(() => window.planner!.seriesDelete(id)),

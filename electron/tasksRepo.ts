@@ -253,6 +253,17 @@ export function deleteTask(id: string): void {
   }
 }
 
+/** Cut a generated occurrence loose from its series so the row survives on its
+ *  own — used when a repeat is switched off from the task itself, where the
+ *  series (and its future occurrences) go but this task should stay. */
+export function detachFromSeries(id: string): void {
+  getDb()
+    .prepare(
+      `UPDATE tasks SET series_id = NULL, occurrence_date = NULL, updated_at = ? WHERE id = ?`
+    )
+    .run(new Date().toISOString(), id)
+}
+
 // ---------- reminder sync ----------
 
 /** One pending reminder row per task, mirroring reminder_at. */

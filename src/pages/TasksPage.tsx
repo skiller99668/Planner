@@ -4,6 +4,7 @@ import type { Task, TaskSeries } from '../../shared/types'
 import TaskEditor, {
   emptyForm,
   normalizeTag,
+  sameRepeat,
   seriesToForm,
   taskToForm,
   type FormValues
@@ -98,6 +99,11 @@ export default function TasksPage({
         .sort((a, b) => (b.doneAt ?? '').localeCompare(a.doneAt ?? ''))
         .slice(0, 50),
     [store.tasks, tagFilter, lingering]
+  )
+  // A row's parent series, so its repeat is editable from the task itself.
+  const seriesById = useMemo(
+    () => new Map(store.series.map((s) => [s.id, s])),
+    [store.series]
   )
   // Vocabulary comes from main: standalone tags plus everything in use.
   const allTags = store.tags
@@ -236,6 +242,7 @@ export default function TasksPage({
                   <TaskRow
                     key={t.id}
                     task={t}
+                    series={t.seriesId ? seriesById.get(t.seriesId) : undefined}
                     store={store}
                     knownTags={tagNames}
                     tagColors={tagColors}
@@ -412,6 +419,7 @@ function TagBar({
 
 function TaskRow({
   task,
+  series,
   store,
   knownTags,
   tagColors,
@@ -421,6 +429,8 @@ function TaskRow({
   onClose
 }: {
   task: Task
+  /** Parent series when this row is a generated occurrence. */
+  series?: TaskSeries
   store: TasksStore
   knownTags: string[]
   tagColors: Map<string, string>
@@ -438,6 +448,27 @@ function TaskRow({
     setSwelling(true)
     setTimeout(() => setSwelling(false), 640)
   }
+  const initial = taskToForm(task, series)
+
+  const save = async (v: FormValues) => {
+    // Field edits always land on this row first: when a repeat is switched off
+    // this row is the one that survives, and for the other paths the series
+    // template carries the same values through.
+    await store.updateTask(task.id, formToTaskInput(v))
+    if (!sameRepeat(v, initial)) {
+      if (v.freq === 'none') {
+        await store.setRecurrence(task.id, null)
+      } else {
+        const input = formToSeriesInput(v)
+        // Re-anchor only when the date itself was edited; otherwise a rule tweak
+        // on a far-off occurrence would drag the whole series forward to it.
+        if (series && v.dueDate === initial.dueDate) input.startDate = series.startDate
+        await store.setRecurrence(task.id, input)
+      }
+    }
+    onClose()
+  }
+
   const confirm = useConfirm()
   const askDelete = async (after?: () => void) => {
     const ok = await confirm({
@@ -510,29 +541,12 @@ function TaskRow({
 
       {editing && (
         <div className="mt-1.5 mb-2">
-          {task.seriesId && (
-            <p className="text-faint mb-1.5 px-1 text-[12px]">
-              Edits apply to this occurrence only.
-            </p>
-          )}
           <TaskEditor
             mode="task"
-            initial={taskToForm(task)}
+            initial={initial}
             submitLabel="Save"
             knownTags={knownTags}
-            onSave={(v) => {
-              void store
-                .updateTask(task.id, {
-                  title: v.title,
-                  notes: v.notes || null,
-                  tags: v.tags,
-                  dueDate: v.dueDate || null,
-                  dueTime: v.dueTime || null,
-                  priority: v.priority,
-                  reminderOffsetMin: v.reminderOffset === '' ? null : Number(v.reminderOffset)
-                })
-                .then(onClose)
-            }}
+            onSave={(v) => void save(v)}
             onCancel={onClose}
             onDelete={() => void askDelete(onClose)}
           />

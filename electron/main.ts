@@ -148,6 +148,88 @@ if (isSmokeTest) {
       return
     }
 
+    // PLANNER_RECUR_TEST=1 drives the task-level repeat editor end to end —
+    // standalone → repeating → a different rule → stopped — asserting what each
+    // step keeps. Creates and removes its own rows in the real DB.
+    if (process.env.PLANNER_RECUR_TEST) {
+      const MARK = 'RECUR self-test'
+      const { getDb } = await import('./db')
+      const wipe = (): void => {
+        const db = getDb()
+        // Dropping the series cascades its occurrences; the rest go by title.
+        db.prepare('DELETE FROM task_series WHERE title = ?').run(MARK)
+        db.prepare('DELETE FROM tasks WHERE title = ?').run(MARK)
+      }
+      try {
+        const { createTask, listTasks } = await import('./tasksRepo')
+        const { listSeries, setTaskRecurrence } = await import('./recurrence')
+        const check = (label: string, ok: boolean): void => {
+          if (!ok) throw new Error(label)
+        }
+        const ymd = (d: Date): string =>
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        const parse = (s: string): number => {
+          const [y, m, d] = s.split('-').map(Number)
+          return new Date(y, m - 1, d).getTime()
+        }
+        const dayGap = (a: string, b: string): number =>
+          Math.round((parse(b) - parse(a)) / 86_400_000)
+        const start = ymd(new Date())
+        const mine = (): ReturnType<typeof listTasks> =>
+          listTasks().filter((t) => t.title === MARK)
+
+        wipe()
+        const one = createTask({ title: MARK, dueDate: start, dueTime: '09:00' })
+
+        // 1. Standalone task → repeating: the one-off gives way to occurrences.
+        setTaskRecurrence(one.id, {
+          title: MARK,
+          rule: { freq: 'weekly', interval: 1, byWeekdays: [(new Date().getDay() + 6) % 7], byMonthDay: null },
+          startDate: start,
+          dueTime: '09:00'
+        })
+        const series = listSeries().filter((s) => s.title === MARK)
+        check('series not created', series.length === 1)
+        check('one-off survived the conversion', !mine().some((t) => t.id === one.id))
+        const weekly = mine()
+        check('weekly occurrences missing', weekly.length >= 8)
+        check('occurrences not 7 days apart', weekly.every((t, i) =>
+          i === 0 || dayGap(weekly[i - 1].occurrenceDate!, t.occurrenceDate!) === 7))
+
+        // 2. Rule changed from an occurrence: the series template is rewritten.
+        setTaskRecurrence(weekly[0].id, {
+          title: MARK,
+          rule: { freq: 'daily', interval: 3, byWeekdays: [], byMonthDay: null },
+          startDate: series[0].startDate,
+          dueTime: '09:00'
+        })
+        const daily = mine()
+        check('daily occurrences missing', daily.length >= 15)
+        check('occurrences not 3 days apart', daily.every((t, i) =>
+          i === 0 || dayGap(daily[i - 1].occurrenceDate!, t.occurrenceDate!) === 3))
+        check('anchor drifted off the series start', daily[0].occurrenceDate === start)
+
+        // 3. Repeat switched off: this row survives, history is kept, rest go.
+        const keep = daily[1]
+        setTaskRecurrence(keep.id, null)
+        check('series still active', !listSeries().some((s) => s.title === MARK))
+        const left = mine()
+        const kept = left.find((t) => t.id === keep.id)
+        check('the edited task was destroyed', kept !== undefined)
+        check('kept task still bound to a series', kept!.seriesId === null)
+        check('future occurrences survived', left.length === 1)
+
+        console.log('RECUR OK', JSON.stringify({ weekly: weekly.length, daily: daily.length, kept: kept!.occurrenceDate }))
+        wipe()
+        app.exit(0)
+      } catch (err) {
+        console.error('RECUR FAIL', err)
+        wipe()
+        app.exit(1)
+      }
+      return
+    }
+
     const assistPrompt = process.env.PLANNER_ASSIST_TEST
     if (assistPrompt) {
       try {
