@@ -148,6 +148,70 @@ if (isSmokeTest) {
       return
     }
 
+    // PLANNER_PARSE_TEST=1 runs the quick-add parser over a table of inputs.
+    // Pure and offline — no DB, no network — so it's the one check here that
+    // is a real unit test.
+    if (process.env.PLANNER_PARSE_TEST) {
+      try {
+        const { parseTask, reconcileTags } = await import('../shared/parseTask')
+        // A fixed "today" (a Monday) keeps weekday math deterministic.
+        const T = '2026-08-10'
+        const cases: [string, Partial<ReturnType<typeof parseTask>>][] = [
+          ['buy milk', { title: 'buy milk', dueDate: null, dueTime: null, priority: 0, tags: [] }],
+          ['lab report fri 5pm !high #ecse200', {
+            title: 'lab report', dueDate: '2026-08-14', dueTime: '17:00', priority: 3, tags: ['ecse200']
+          }],
+          ['standup 9:30', { title: 'standup', dueDate: T, dueTime: '09:30' }],
+          ['call mom tomorrow', { title: 'call mom', dueDate: '2026-08-11', dueTime: null }],
+          ['gym tonight 6pm', { title: 'gym', dueDate: T, dueTime: '18:00' }],
+          // Today IS a Monday: a bare weekday means the next one, not today.
+          ['review mon', { title: 'review', dueDate: '2026-08-17' }],
+          ['ship next fri', { title: 'ship', dueDate: '2026-08-21' }],
+          ['dentist aug 14', { title: 'dentist', dueDate: '2026-08-14' }],
+          ['dentist 14 aug', { title: 'dentist', dueDate: '2026-08-14' }],
+          // A month/day already past rolls to next year.
+          ['taxes apr 30', { title: 'taxes', dueDate: '2027-04-30' }],
+          ['reading !2 #ecse 200', { title: 'reading 200', priority: 2, tags: ['ecse'] }],
+          // Words that only look like modifiers must survive into the title.
+          ['saturate the buffer', { title: 'saturate the buffer', dueDate: null }],
+          ['read chapter 17', { title: 'read chapter 17', dueTime: null }],
+          ['pay $5 fee', { title: 'pay $5 fee', dueTime: null }],
+          ['midnight run 12am', { title: 'midnight run', dueTime: '00:00' }],
+          ['lunch 12pm', { title: 'lunch', dueTime: '12:00' }]
+        ]
+        const failures: string[] = []
+        for (const [input, want] of cases) {
+          const got = parseTask(input, T)
+          for (const [k, v] of Object.entries(want)) {
+            const actual = (got as unknown as Record<string, unknown>)[k]
+            const ok = Array.isArray(v)
+              ? JSON.stringify(actual) === JSON.stringify(v)
+              : actual === v
+            if (!ok) {
+              failures.push(`"${input}" → ${k}: want ${JSON.stringify(v)}, got ${JSON.stringify(actual)}`)
+            }
+          }
+        }
+        // Typing #ecse200 must land on an existing ecse-200 rather than fork it.
+        const snapped = reconcileTags(['ecse200', 'newone'], ['ecse-200', 'gym'])
+        if (JSON.stringify(snapped) !== JSON.stringify(['ecse-200', 'newone'])) {
+          failures.push(`reconcileTags → got ${JSON.stringify(snapped)}`)
+        }
+
+        if (failures.length) {
+          console.error(`PARSE FAIL (${failures.length})\n  ${failures.join('\n  ')}`)
+          app.exit(1)
+          return
+        }
+        console.log(`PARSE OK ${cases.length} cases + tag reconciliation`)
+        app.exit(0)
+      } catch (err) {
+        console.error('PARSE FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
     // PLANNER_RECUR_TEST=1 drives the task-level repeat editor end to end —
     // standalone → repeating → a different rule → stopped — asserting what each
     // step keeps. Creates and removes its own rows in the real DB.
@@ -279,13 +343,15 @@ if (isSmokeTest) {
 }
 
 function createWindow(): void {
-  // Packaged builds embed the icon via electron-builder; in dev, load it from
-  // the repo so the taskbar doesn't show the stock Electron logo.
-  const devIcon = path.join(__dirname, '..', 'build', 'icon-256.png')
+  // The running window needs its icon set explicitly: on Windows the taskbar
+  // button uses the window's icon, not the .exe's, so without this it shows the
+  // stock Electron logo even though the exe icon is correct. Dev reads it from
+  // the repo; packaged builds ship it via electron-builder `extraResources`.
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'icon-256.png')
+    : path.join(__dirname, '..', 'build', 'icon-256.png')
   win = new BrowserWindow({
-    ...(!app.isPackaged && fs.existsSync(devIcon)
-      ? { icon: nativeImage.createFromPath(devIcon) }
-      : {}),
+    ...(fs.existsSync(iconPath) ? { icon: nativeImage.createFromPath(iconPath) } : {}),
     width: 1200,
     height: 800,
     minWidth: 860,
