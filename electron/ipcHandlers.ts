@@ -77,6 +77,7 @@ import {
   setTaskRecurrence,
   updateSeries
 } from './recurrence'
+import { searchAll } from './searchRepo'
 import { getSettings, patchSettings } from './settings'
 import { createTask, deleteTask, listTasks, updateTask } from './tasksRepo'
 
@@ -198,6 +199,8 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.careerLogUndo, (_e, kind: CareerLogKind) => undoCareerLog(kind))
   ipcMain.handle(IPC.careerWeekStats, () => careerWeekStats())
   ipcMain.handle(IPC.jobsFetch, (_e, force?: boolean) => fetchJobs(force === true))
+
+  ipcMain.handle(IPC.searchAll, (_e, query: string) => searchAll(query))
 
   // ---------- tags ----------
   ipcMain.handle(IPC.tagsList, () => listTags())

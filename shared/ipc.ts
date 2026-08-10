@@ -30,6 +30,7 @@ import type {
   LeetcodeProblem,
   LeetcodeSyncResult,
   PlannerEvent,
+  SearchHit,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -95,7 +96,8 @@ export const IPC = {
   tagsCreate: 'tags:create',
   tagsDelete: 'tags:delete',
   tagsSetColor: 'tags:setColor',
-  jobsFetch: 'jobs:fetch'
+  jobsFetch: 'jobs:fetch',
+  searchAll: 'search:all'
 } as const
 
 export type BadmintonFeedResult =
@@ -234,4 +236,8 @@ export interface PlannerApi {
   /** Deletes the tag and strips it from every task and series. */
   tagsDelete(name: string): Promise<Tag[]>
   tagsSetColor(name: string, color: string): Promise<Tag[]>
+
+  /** One query across tasks, events, applications, lectures and LeetCode.
+   *  Returns [] for queries shorter than two characters. */
+  searchAll(query: string): Promise<SearchHit[]>
 }

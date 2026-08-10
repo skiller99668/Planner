@@ -6,6 +6,7 @@
 // Adding a new shortcut is one entry in KEYBIND_ACTIONS.
 
 export type KeybindAction =
+  | 'commandPalette'
   | 'newTask'
   | 'focusTagFilter'
   | 'toggleAssistant'
@@ -30,6 +31,13 @@ export interface KeybindDef {
 }
 
 export const KEYBIND_ACTIONS: readonly KeybindDef[] = [
+  {
+    id: 'commandPalette',
+    label: 'Command palette',
+    hint: 'Go anywhere, run anything, or search — type to create a task.',
+    group: 'General',
+    default: 'ctrl+k'
+  },
   {
     id: 'newTask',
     label: 'New task',

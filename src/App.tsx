@@ -11,6 +11,7 @@ import {
   matchesBinding,
   type KeybindAction
 } from './lib/keybinds'
+import CommandPalette from './components/CommandPalette'
 import Sidebar, { type ModuleId } from './components/Sidebar'
 import AcademicsPage from './pages/AcademicsPage'
 import CareerPage from './pages/CareerPage'
@@ -38,6 +39,10 @@ export default function App() {
   const [focusTaskNonce, setFocusTaskNonce] = useState(0)
   const [focusFilterNonce, setFocusFilterNonce] = useState(0)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  // The palette's own binding, shown in its footer. Read from the same ref the
+  // keydown handler uses, so a rebind is reflected without a reload.
+  const [paletteBinding, setPaletteBinding] = useState('ctrl+k')
   // Live keybind overrides, read inside the keydown handler without re-subscribing.
   const keybindsRef = useRef<Record<string, string>>({})
 
@@ -47,6 +52,7 @@ export default function App() {
         ?.getSettings()
         .then((s) => {
           keybindsRef.current = s.keybinds ?? {}
+          setPaletteBinding(bindingFor('commandPalette', keybindsRef.current))
         })
         .catch(() => {})
     }
@@ -55,6 +61,7 @@ export default function App() {
     // Each action's effect. TypeScript forces an entry for every KeybindAction,
     // so adding a shortcut to the registry can't silently do nothing.
     const handlers: Record<KeybindAction, () => void> = {
+      commandPalette: () => setPaletteOpen((o) => !o),
       newTask: () => {
         setActive('tasks')
         setFocusTaskNonce((n) => n + 1)
@@ -128,6 +135,16 @@ export default function App() {
         </div>
       </main>
       <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <CommandPalette
+        open={paletteOpen}
+        binding={paletteBinding}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={setActive}
+        onNewTask={() => {
+          setActive('tasks')
+          setFocusTaskNonce((n) => n + 1)
+        }}
+      />
       <AssistantPanel />
     </div>
     </AssistantProvider>

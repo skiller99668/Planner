@@ -148,6 +148,32 @@ if (isSmokeTest) {
       return
     }
 
+    // PLANNER_SEARCH_TEST="query" runs one cross-module search against the real
+    // DB and prints per-module hit counts plus a sample.
+    const searchQuery = process.env.PLANNER_SEARCH_TEST
+    if (searchQuery) {
+      try {
+        const { searchAll } = await import('./searchRepo')
+        const hits = searchAll(searchQuery)
+        const byModule: Record<string, number> = {}
+        for (const h of hits) byModule[h.module] = (byModule[h.module] ?? 0) + 1
+        console.log(
+          'SEARCH OK',
+          JSON.stringify({
+            query: searchQuery,
+            total: hits.length,
+            byModule,
+            top: hits.slice(0, 5).map((h) => `[${h.module}] ${h.title}`)
+          })
+        )
+        app.exit(0)
+      } catch (err) {
+        console.error('SEARCH FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
     // PLANNER_PARSE_TEST=1 runs the quick-add parser over a table of inputs.
     // Pure and offline — no DB, no network — so it's the one check here that
     // is a real unit test.

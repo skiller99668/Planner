@@ -385,6 +385,24 @@ export interface CareerLog {
   createdAt: string
 }
 
+// ---------- Search ----------
+
+/** Which page a hit belongs to — the palette routes there when you pick it. */
+export type SearchModule = 'task' | 'event' | 'application' | 'lecture' | 'leetcode'
+
+export interface SearchHit {
+  module: SearchModule
+  id: string
+  /** The matched thing's name. */
+  title: string
+  /** One line of context: due date, company, course code — never the whole row. */
+  subtitle: string | null
+  /** For ordering across modules: recency or due date as YYYY-MM-DD, if any. */
+  date: string | null
+  /** Set when the hit is finished/closed, so the UI can mute it. */
+  done: boolean
+}
+
 // ---------- Reminders / notifications ----------
 
 export type ReminderKind = 'task' | 'event' | 'custom'
