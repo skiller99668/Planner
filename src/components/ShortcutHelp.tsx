@@ -69,8 +69,31 @@ export default function ShortcutHelp({ open, onClose }: { open: boolean; onClose
           )
         })}
 
+        {/* Fixed, not rebindable: these are bare keys that only apply while a
+            list has focus, so they live outside the registry above. */}
+        <div className="mt-4">
+          <p className="text-faint text-[11px] font-semibold tracking-wide uppercase">
+            In a list
+          </p>
+          <div className="mt-1.5 space-y-1">
+            {[
+              ['Move down / up', 'J / K'],
+              ['Complete', 'X'],
+              ['Edit', 'E'],
+              ['Clear selection', 'Esc']
+            ].map(([label, key]) => (
+              <div key={label} className="flex items-center justify-between gap-4">
+                <span className="text-[13px]">{label}</span>
+                <kbd className="bg-bg border-line nums rounded-[7px] border px-2 py-1 text-[11.5px] font-semibold">
+                  {key}
+                </kbd>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <p className="text-muted mt-4 text-[12px] leading-relaxed">
-          Customize any of these in Settings → Keyboard shortcuts.
+          Customize the shortcuts above in Settings → Keyboard shortcuts.
         </p>
       </div>
     </div>

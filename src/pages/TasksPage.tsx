@@ -13,6 +13,7 @@ import { CheckCircle } from '../components/Celebrate'
 import TagChip, { ColorSwatch, TagPill, nextTagColor } from '../components/TagChip'
 import type { Tag } from '../../shared/types'
 import { addDaysYMD, dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
+import { useListNav } from '../lib/useListNav'
 import { collapseSeries, useTasks, type TasksStore } from '../lib/useTasks'
 
 type BucketId = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'someday'
@@ -127,6 +128,30 @@ export default function TasksPage({
     return by
   }, [open])
 
+  // Screen order, so j/k walk the list the way it actually reads.
+  const visibleIds = useMemo(
+    () => BUCKETS.flatMap(({ id }) => buckets[id].map((t) => t.id)),
+    [buckets]
+  )
+  const byId = useMemo(() => new Map(store.tasks.map((t) => [t.id, t])), [store.tasks])
+
+  const nav = useListNav(
+    visibleIds,
+    {
+      onEdit: (id) => setEditingId(id),
+      onOpen: (id) => setEditingId((cur) => (cur === id ? null : id)),
+      onComplete: (id) => {
+        const task = byId.get(id)
+        if (!task) return
+        linger(id)
+        void store.toggleTask(task)
+      }
+    },
+    // While an editor or the quick-add box is open it owns the keyboard —
+    // 'e' and 'x' belong to whatever you're typing.
+    !detailsOpen && editingId === null && !seriesOpen
+  )
+
   const saveNew = async (v: FormValues) => {
     if (v.freq === 'none') {
       await store.createTask(formToTaskInput(v))
@@ -236,6 +261,8 @@ export default function TasksPage({
                     knownTags={tagNames}
                     tagColors={tagColors}
                     onLinger={linger}
+                    focused={nav.activeId === t.id}
+                    rowProps={nav.rowProps(t.id)}
                     editing={editingId === t.id}
                     onEdit={() => setEditingId(editingId === t.id ? null : t.id)}
                     onClose={() => setEditingId(null)}
@@ -413,6 +440,8 @@ function TaskRow({
   knownTags,
   tagColors,
   onLinger,
+  focused = false,
+  rowProps,
   editing,
   onEdit,
   onClose
@@ -424,6 +453,9 @@ function TaskRow({
   knownTags: string[]
   tagColors: Map<string, string>
   onLinger: (id: string) => void
+  /** Under the keyboard cursor. */
+  focused?: boolean
+  rowProps?: { onMouseEnter: () => void; 'data-listnav': string }
   editing: boolean
   onEdit: () => void
   onClose: () => void
@@ -474,9 +506,14 @@ function TaskRow({
   return (
     <li>
       <div
-        className={`group bg-surface hover:bg-raised relative flex items-center gap-3 rounded-[14px] border border-transparent px-3.5 py-2.5 shadow-[var(--shadow-soft)] transition-colors ${
+        {...rowProps}
+        className={`group bg-surface hover:bg-raised relative flex items-center gap-3 rounded-[14px] border px-3.5 py-2.5 shadow-[var(--shadow-soft)] transition-colors ${
           isDone ? 'opacity-60' : ''
-        } ${swelling ? 'animate-complete' : ''}`}
+        } ${swelling ? 'animate-complete' : ''} ${
+          // A left rail rather than a ring: the cursor has to be visible while
+          // a row is mid-completion-swell, and a ring fights that animation.
+          focused ? 'border-azure/45 bg-raised' : 'border-transparent'
+        }`}
       >
         <CheckCircle
           checked={isDone}
