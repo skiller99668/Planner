@@ -102,7 +102,12 @@ export default function App() {
     <div className="flex h-full">
       <Sidebar active={active} onNavigate={setActive} />
       <main className="app-canvas min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-10 py-10">
+        {/* The calendar is a wide surface; every other page reads better narrow. */}
+        <div
+          className={`mx-auto py-10 ${
+            active === 'events' ? 'max-w-6xl px-6' : 'max-w-3xl px-10'
+          }`}
+        >
           {active === 'dashboard' ? (
             <DashboardPage onNavigate={setActive} />
           ) : active === 'tasks' ? (

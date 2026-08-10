@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "bounce-easing",
+        "value": "var(--ease-spring)",
+        "createdAt": "2026-08-08T06:19:41.618Z",
+        "reason": "User confirmed var(--ease-spring) is intentional"
+      }
+    ]
+  }
+}

@@ -81,6 +81,65 @@ export function usePopoverAnchor<T extends HTMLElement = HTMLButtonElement>(
   return { open, openPopup, close, toggle, triggerRef, popupRef, popupStyle }
 }
 
+/** The dismissal rules above, for a popup anchored to a measured rect rather
+ *  than a ref'd trigger — a bubble opened on whichever calendar day was
+ *  clicked, where the trigger is one of many and known only at click time. */
+export function useDismiss(
+  open: boolean,
+  close: () => void,
+  popupRef: React.RefObject<HTMLElement | null>
+): void {
+  useEffect(() => {
+    if (!open) return
+    const outside = (t: Node | null) => !t || !popupRef.current?.contains(t)
+    const onPointer = (e: PointerEvent) => {
+      if (outside(e.target as Node)) close()
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
+    }
+    const onScroll = (e: Event) => {
+      if (outside(e.target as Node)) close()
+    }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', onScroll, true)
+    }
+  }, [open, close, popupRef])
+}
+
+/** Fixed placement beside an arbitrary rect: below it when there's room, above
+ *  when there isn't, always clamped inside the viewport. The popup is measured
+ *  after each render, so it stays right when its own content grows. */
+export function useAnchoredStyle(
+  rect: DOMRect | null,
+  popupRef: React.RefObject<HTMLElement | null>,
+  width: number
+): React.CSSProperties {
+  const [height, setHeight] = useState(0)
+  useLayoutEffect(() => {
+    const h = popupRef.current?.offsetHeight
+    if (h && h !== height) setHeight(h)
+  })
+
+  if (!rect) return {}
+  const gap = 6
+  const flip = rect.bottom + height + gap > window.innerHeight && rect.top > height
+  return {
+    width,
+    left: Math.min(Math.max(8, rect.left - 6), Math.max(8, window.innerWidth - width - 8)),
+    top: flip
+      ? Math.max(8, rect.top - height - gap)
+      : Math.min(rect.bottom + gap, Math.max(8, window.innerHeight - height - 8))
+  }
+}
+
 /** Shared chrome for a popup panel. */
 export const POPUP_CLASS =
   'bg-raised animate-pop fixed z-50 rounded-[16px] p-2 shadow-[var(--shadow-lift)]'
