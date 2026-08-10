@@ -12,21 +12,7 @@ import type {
   JobPosting,
   Settings
 } from '../../shared/types'
-
-// Most community lists don't carry a Hardware category, so hardware roles are
-// found by title as well — otherwise the Hardware track hides almost everything.
-const HARDWARE_RE =
-  /hardware|embedded|firmware|fpga|asic|vlsi|silicon|semiconductor|chip design|electrical|electronic|analog|mixed.signal|\brf\b|pcb|circuit|robotic|mechatronic|signal processing|verification engineer|physical design|power system/i
-
-const CANADA_RE =
-  /canada|montr[eé]al|toronto|vancouver|ottawa|waterloo|qu[eé]bec|calgary|edmonton|halifax|mississauga|burnaby|kitchener|winnipeg|,\s*(on|qc|bc|ab|ns|mb|sk)\b/i
-const REMOTE_RE = /remote|anywhere/i
-
-function matchesTrack(p: JobPosting, focus: 'swe' | 'hardware'): boolean {
-  return focus === 'hardware'
-    ? p.category === 'Hardware' || HARDWARE_RE.test(p.title)
-    : p.category !== 'Hardware' // software track = everything but tagged hardware
-}
+import { isCanadian, isRemote, matchesTrack } from '../lib/jobs'
 
 const PIPELINE: { id: ApplicationStatus; label: string; hint?: string }[] = [
   { id: 'wishlist', label: 'Wishlist' },
@@ -321,8 +307,8 @@ function JobFeed({
   const counts = useMemo(
     () => ({
       all: trackFiltered.length,
-      canada: trackFiltered.filter((p) => p.locations.some((l) => CANADA_RE.test(l))).length,
-      remote: trackFiltered.filter((p) => p.locations.some((l) => REMOTE_RE.test(l))).length
+      canada: trackFiltered.filter(isCanadian).length,
+      remote: trackFiltered.filter(isRemote).length
     }),
     [trackFiltered]
   )
@@ -331,8 +317,8 @@ function JobFeed({
     const q = search.trim().toLowerCase()
     return trackFiltered
       .filter((p) => {
-        if (region === 'canada') return p.locations.some((l) => CANADA_RE.test(l))
-        if (region === 'remote') return p.locations.some((l) => REMOTE_RE.test(l))
+        if (region === 'canada') return isCanadian(p)
+        if (region === 'remote') return isRemote(p)
         return true
       })
       .filter(

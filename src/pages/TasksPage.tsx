@@ -13,7 +13,7 @@ import { CheckCircle } from '../components/Celebrate'
 import TagChip, { ColorSwatch, TagPill, nextTagColor } from '../components/TagChip'
 import type { Tag } from '../../shared/types'
 import { addDaysYMD, dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
-import { useTasks, type TasksStore } from '../lib/useTasks'
+import { collapseSeries, useTasks, type TasksStore } from '../lib/useTasks'
 
 type BucketId = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'someday'
 
@@ -65,28 +65,17 @@ export default function TasksPage({
     setDetailsOpen(true)
   }, [focusNonce])
 
-  const open = useMemo(() => {
-    const visible = store.tasks.filter(
-      (t) =>
-        (t.status === 'open' || lingering.has(t.id)) &&
-        (!tagFilter || t.tags.includes(tagFilter))
-    )
-    // A repeating series shows only its earliest still-open occurrence — the
-    // next one surfaces once you complete the current one. Lingering rows (a
-    // just-ticked occurrence still animating) always pass through, so the next
-    // occurrence can appear as the finished one fades to Completed.
-    const earliest = new Map<string, Task>()
-    for (const t of visible) {
-      if (!t.seriesId || t.status !== 'open') continue
-      const cur = earliest.get(t.seriesId)
-      if (!cur || (t.occurrenceDate ?? '') < (cur.occurrenceDate ?? '')) {
-        earliest.set(t.seriesId, t)
-      }
-    }
-    return visible.filter(
-      (t) => !t.seriesId || t.status !== 'open' || earliest.get(t.seriesId) === t
-    )
-  }, [store.tasks, tagFilter, lingering])
+  const open = useMemo(
+    () =>
+      collapseSeries(
+        store.tasks.filter(
+          (t) =>
+            (t.status === 'open' || lingering.has(t.id)) &&
+            (!tagFilter || t.tags.includes(tagFilter))
+        )
+      ),
+    [store.tasks, tagFilter, lingering]
+  )
   const done = useMemo(
     () =>
       store.tasks

@@ -33,6 +33,27 @@ export interface TasksStore {
   setTagColor: (name: string, color: string) => Promise<void>
 }
 
+/** A repeating series shows only its earliest still-open occurrence — the next
+ *  one surfaces once you finish the current one. Shared by the Tasks page and
+ *  the homepage so the two can never disagree about what's outstanding.
+ *
+ *  Rows that aren't open (done, or mid-completion-animation) always pass
+ *  through, so a just-ticked occurrence can fade out while its successor
+ *  appears. */
+export function collapseSeries(tasks: Task[]): Task[] {
+  const earliest = new Map<string, Task>()
+  for (const t of tasks) {
+    if (!t.seriesId || t.status !== 'open') continue
+    const cur = earliest.get(t.seriesId)
+    if (!cur || (t.occurrenceDate ?? '') < (cur.occurrenceDate ?? '')) {
+      earliest.set(t.seriesId, t)
+    }
+  }
+  return tasks.filter(
+    (t) => !t.seriesId || t.status !== 'open' || earliest.get(t.seriesId) === t
+  )
+}
+
 export function useTasks(): TasksStore {
   const [tasks, setTasks] = useState<Task[]>([])
   const [series, setSeries] = useState<TaskSeries[]>([])

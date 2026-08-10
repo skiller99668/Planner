@@ -31,6 +31,18 @@
   --font-sans: 'Jakarta', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 
+  /* Five steps with jumps you can actually see. The app had grown ~9 sizes
+     between 11.5 and 15px — distinctions nobody perceives, so they only cost
+     consistency. Weight and colour carry the rest of the hierarchy.
+       display → page titles      title → section headings
+       body    → what you read    meta  → timestamps, counts, labels
+       micro   → chips and badges, the only tier allowed below 12px */
+  --text-display: 30px;
+  --text-title: 19px;
+  --text-body: 14.5px;
+  --text-meta: 12.5px;
+  --text-micro: 11px;
+
   --radius-card: 18px;
   --radius-control: 11px;
 
@@ -102,10 +114,56 @@ body {
   box-shadow: 0 3px 12px -2px rgb(91 156 255 / 0.5);
 }
 
+/* ---------------------------------------------------------------
+   Surface roles — three levels, and only three.
+
+   The app had drifted into one treatment for every container
+   (bg-surface + 20px radius + soft shadow), so nothing receded and
+   nothing led. A container now picks a *role* instead of assembling
+   its own look, and elevation is reserved for things that genuinely
+   float. Everything else separates with fill and a hairline.
+
+     canvas    the page itself — .app-canvas / body, no shadow ever
+     recessed  content sits IN it: list rows, wells, quiet panels
+     raised    floats OVER it: popovers, menus, the palette
+   --------------------------------------------------------------- */
+
+.surface-recessed {
+  background: var(--color-surface);
+  border: 1px solid color-mix(in oklab, var(--color-line) 55%, transparent);
+  border-radius: var(--radius-card);
+}
+
+/* Rows in a list: the same fill, but seams instead of outlines, so a stack
+   of them reads as one object rather than a pile of cards. */
+.surface-row {
+  background: var(--color-surface);
+  transition: background-color 0.18s ease;
+}
+.surface-row:hover {
+  background: var(--color-raised);
+}
+
+.surface-raised {
+  background: var(--color-raised);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lift);
+}
+
 h1,
 h2,
 h3 {
   letter-spacing: -0.022em;
+}
+
+/* Section label above a group. Generous space above, tight below — the
+   label belongs to what follows it. */
+.section-label {
+  font-size: var(--text-meta);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
 }
 
 /* Tabular figures wherever numbers change in place. */
