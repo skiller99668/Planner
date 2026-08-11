@@ -8,6 +8,11 @@ files:
   - dist-electron/**
 # Everything is bundled by Vite; no node_modules ship in the asar.
 npmRebuild: false
+# Ship the window icon so the running app can set it (the taskbar button uses
+# the window icon, not the exe icon) — loaded from process.resourcesPath.
+extraResources:
+  - from: build/icon-256.png
+    to: icon-256.png
 win:
   target: nsis
   icon: build/icon.png
