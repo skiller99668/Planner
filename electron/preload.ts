@@ -4,6 +4,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron'
 import {
+  CAPTURE_RESET_EVENT,
   IPC,
   TASKS_CHANGED_EVENT,
   type ChatSendInput,
@@ -107,6 +108,13 @@ const api: PlannerApi = {
     const listener = () => cb()
     ipcRenderer.on(TASKS_CHANGED_EVENT, listener)
     return () => ipcRenderer.removeListener(TASKS_CHANGED_EVENT, listener)
+  },
+
+  captureDismiss: () => ipcRenderer.invoke(IPC.captureDismiss),
+  onCaptureReset: (cb: () => void) => {
+    const listener = () => cb()
+    ipcRenderer.on(CAPTURE_RESET_EVENT, listener)
+    return () => ipcRenderer.removeListener(CAPTURE_RESET_EVENT, listener)
   }
 }
 

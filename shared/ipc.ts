@@ -97,7 +97,8 @@ export const IPC = {
   tagsDelete: 'tags:delete',
   tagsSetColor: 'tags:setColor',
   jobsFetch: 'jobs:fetch',
-  searchAll: 'search:all'
+  searchAll: 'search:all',
+  captureDismiss: 'capture:dismiss'
 } as const
 
 export type BadmintonFeedResult =
@@ -119,6 +120,9 @@ export type JobsFetchResult =
 /** Main → renderer: task/series data changed outside a renderer call
  *  (auto-tagging, daily materialization, assistant tools). Refetch on it. */
 export const TASKS_CHANGED_EVENT = 'event:tasksChanged'
+
+/** Main → capture window: cleared and re-shown, so empty the field. */
+export const CAPTURE_RESET_EVENT = 'event:captureReset'
 
 export interface ChatSendInput {
   scope: 'general' | 'lecture'
@@ -240,4 +244,9 @@ export interface PlannerApi {
   /** One query across tasks, events, applications, lectures and LeetCode.
    *  Returns [] for queries shorter than two characters. */
   searchAll(query: string): Promise<SearchHit[]>
+
+  /** Hide the global capture bar. No-op anywhere else. */
+  captureDismiss(): Promise<void>
+  /** Main tells the capture bar it was re-summoned; clear the field. */
+  onCaptureReset(cb: () => void): () => void
 }

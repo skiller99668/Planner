@@ -436,6 +436,8 @@ export interface Settings {
   leetcodeUsername: string | null
   /** User overrides for keyboard shortcuts, keyed by action id. Defaults live in src/lib/keybinds.ts. */
   keybinds: Record<string, string>
+  /** OS-wide capture hotkey (Electron accelerator). null disables it entirely. */
+  captureShortcut: string | null
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -450,5 +452,6 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   internshipTrackFocus: 'swe',
   leetcodeUsername: null,
-  keybinds: {}
+  keybinds: {},
+  captureShortcut: 'Control+Alt+Space'
 }

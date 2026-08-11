@@ -4,10 +4,10 @@
 // The app is tray-resident: closing the window hides it (configurable via
 // settings.closeToTray); "Quit" lives in the tray menu.
 
-import { app, BrowserWindow, Menu, nativeImage, Tray } from 'electron'
+import { app, BrowserWindow, globalShortcut, Menu, nativeImage, screen, Tray } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
-import { TASKS_CHANGED_EVENT } from '../shared/ipc'
+import { CAPTURE_RESET_EVENT, TASKS_CHANGED_EVENT } from '../shared/ipc'
 import { closeDb, getDbPath, getSchemaVersion, openDb } from './db'
 import { registerIpcHandlers } from './ipcHandlers'
 import { materializeAllSeries } from './recurrence'
@@ -20,8 +20,11 @@ const isSmokeTest = process.env.PLANNER_SMOKE === '1'
 const startHidden = process.argv.includes('--hidden')
 
 let win: BrowserWindow | null = null
+let captureWin: BrowserWindow | null = null
 let tray: Tray | null = null
 let quitting = false
+/** The accelerator currently held, so a settings change can release the old one. */
+let captureAccelerator: string | null = null
 
 // Windows toast notifications need a stable AppUserModelID.
 app.setAppUserModelId(APP_ID)
@@ -354,11 +357,17 @@ if (isSmokeTest) {
 
     registerIpcHandlers({
       applyAutostart,
-      notifyDataChanged: () => win?.webContents.send(TASKS_CHANGED_EVENT)
+      notifyDataChanged: () => {
+        win?.webContents.send(TASKS_CHANGED_EVENT)
+        captureWin?.webContents.send(TASKS_CHANGED_EVENT)
+      },
+      dismissCapture: () => hideCapture(),
+      applyCaptureShortcut: (accel) => registerCaptureShortcut(accel)
     })
     createWindow()
     createTray()
     applyAutostart(getSettings().autostart)
+    registerCaptureShortcut(getSettings().captureShortcut)
     // Daily job generates upcoming occurrences of recurring series (runs on
     // first tick, then at each local-date rollover).
     startScheduler(
@@ -366,6 +375,95 @@ if (isSmokeTest) {
       () => materializeAllSeries()
     )
   })
+}
+
+// ---------- global capture ----------
+//
+// The whole point is that it works when the app isn't focused, so this is a
+// separate always-on-top window rather than the main one: summoning the full
+// app to jot one line would disturb whatever you were actually doing.
+//
+// It's created once and hidden rather than destroyed, because the gap between
+// pressing the key and being able to type is the entire feature.
+
+/** Point the OS hotkey at the capture bar. null (or a rejected accelerator)
+ *  simply leaves the feature off — never fatal. */
+function registerCaptureShortcut(accelerator: string | null): boolean {
+  if (captureAccelerator) {
+    globalShortcut.unregister(captureAccelerator)
+    captureAccelerator = null
+  }
+  if (!accelerator) return true
+  try {
+    // Another app may already own the combination; Electron reports that by
+    // returning false rather than throwing.
+    const ok = globalShortcut.register(accelerator, () => toggleCapture())
+    if (ok) captureAccelerator = accelerator
+    return ok
+  } catch {
+    return false // malformed accelerator from a hand-edited setting
+  }
+}
+
+function ensureCaptureWindow(): BrowserWindow {
+  if (captureWin && !captureWin.isDestroyed()) return captureWin
+
+  captureWin = new BrowserWindow({
+    width: 620,
+    height: 200,
+    show: false,
+    frame: false,
+    transparent: true, // the panel rounds itself; the rest of the frame is air
+    resizable: false,
+    movable: false,
+    skipTaskbar: true, // it's a hotkey surface, not a window you alt-tab to
+    alwaysOnTop: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+
+  if (process.env.VITE_DEV_SERVER_URL) {
+    captureWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#capture`)
+  } else {
+    captureWin.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), { hash: 'capture' })
+  }
+
+  // Clicking away is a dismissal — the bar should never be something you have
+  // to go back and close. (Suppressed under PLANNER_SHOT, where the main
+  // window taking focus would hide the bar before it could be captured.)
+  if (!process.env.PLANNER_SHOT) captureWin.on('blur', () => hideCapture())
+  captureWin.on('closed', () => {
+    captureWin = null
+  })
+  return captureWin
+}
+
+function showCapture(): void {
+  const w = ensureCaptureWindow()
+  // Re-centre on the display the mouse is on, not the primary one — on a
+  // multi-monitor desk the bar has to appear where you're looking.
+  const cursor = screen.getCursorScreenPoint()
+  const area = screen.getDisplayNearestPoint(cursor).workArea
+  const [width] = w.getSize()
+  w.setPosition(
+    Math.round(area.x + (area.width - width) / 2),
+    Math.round(area.y + area.height * 0.22)
+  )
+  w.webContents.send(CAPTURE_RESET_EVENT)
+  w.show()
+  w.focus()
+}
+
+function hideCapture(): void {
+  if (captureWin && !captureWin.isDestroyed() && captureWin.isVisible()) captureWin.hide()
+}
+
+function toggleCapture(): void {
+  if (captureWin && !captureWin.isDestroyed() && captureWin.isVisible()) hideCapture()
+  else showCapture()
 }
 
 function createWindow(): void {
@@ -411,11 +509,17 @@ function createWindow(): void {
         try {
           // PLANNER_SHOT_JS runs in the page first, so screenshots can capture
           // states that need interaction (opening a form, expanding a row).
+          // PLANNER_SHOT_TARGET=capture shoots the global capture bar instead
+          // of the main window — it's a separate BrowserWindow, so it can't be
+          // reached from the page the way every other surface can.
+          const target =
+            process.env.PLANNER_SHOT_TARGET === 'capture' ? (showCapture(), captureWin!) : win!
+          if (target !== win) await new Promise((r) => setTimeout(r, 700))
           if (process.env.PLANNER_SHOT_JS) {
-            await win!.webContents.executeJavaScript(process.env.PLANNER_SHOT_JS)
+            await target.webContents.executeJavaScript(process.env.PLANNER_SHOT_JS)
             await new Promise((r) => setTimeout(r, 600))
           }
-          const img = await win!.webContents.capturePage()
+          const img = await target.webContents.capturePage()
           fs.writeFileSync(shotPath, img.toPNG())
           console.log(`SHOT OK ${shotPath}`)
         } catch (err) {
@@ -495,6 +599,10 @@ app.on('before-quit', () => {
 })
 
 app.on('will-quit', () => {
+  // An OS-wide hotkey outlives the window that registered it — release it or
+  // the combination stays claimed until the process dies.
+  globalShortcut.unregisterAll()
+  captureAccelerator = null
   closeDb()
 })
 

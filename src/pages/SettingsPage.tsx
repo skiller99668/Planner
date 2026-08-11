@@ -8,7 +8,15 @@ import {
   formatBinding,
   type KeybindAction
 } from '../lib/keybinds'
-import type { Settings } from '../../shared/types'
+import { DEFAULT_SETTINGS, type Settings } from '../../shared/types'
+
+/** Electron accelerator, not a renderer binding string — the OS hotkey is
+ *  registered in main and uses Electron's own vocabulary. */
+const DEFAULT_CAPTURE = DEFAULT_SETTINGS.captureShortcut ?? 'Control+Alt+Space'
+
+function formatAccelerator(accel: string): string {
+  return accel.replace(/Control/g, 'Ctrl').split('+').join(' + ')
+}
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -95,6 +103,13 @@ export default function SettingsPage() {
             checked={settings.closeToTray}
             disabled={saving}
             onChange={(v) => patch({ closeToTray: v })}
+          />
+          <Toggle
+            label="Global capture hotkey"
+            hint={`${formatAccelerator(DEFAULT_CAPTURE)} opens a capture bar from any app, even when Planner is hidden.`}
+            checked={settings.captureShortcut !== null}
+            disabled={saving}
+            onChange={(v) => patch({ captureShortcut: v ? DEFAULT_CAPTURE : null })}
           />
           <div className="px-5 py-4">
             <div className="flex items-center gap-2">

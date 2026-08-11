@@ -85,6 +85,10 @@ export interface IpcDeps {
   applyAutostart: (enabled: boolean) => void
   /** Broadcast that task/series data changed outside a renderer request. */
   notifyDataChanged: () => void
+  /** Hide the global capture bar. */
+  dismissCapture: () => void
+  /** Re-point the OS hotkey; false when the combination was refused. */
+  applyCaptureShortcut: (accelerator: string | null) => boolean
 }
 
 export function registerIpcHandlers(deps: IpcDeps): void {
@@ -103,6 +107,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.settingsPatch, (_e, patch: Partial<Settings>): Settings => {
     const next = patchSettings(patch)
     if ('autostart' in patch) deps.applyAutostart(next.autostart)
+    if ('captureShortcut' in patch) deps.applyCaptureShortcut(next.captureShortcut)
     return next
   })
 
@@ -201,6 +206,8 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.jobsFetch, (_e, force?: boolean) => fetchJobs(force === true))
 
   ipcMain.handle(IPC.searchAll, (_e, query: string) => searchAll(query))
+
+  ipcMain.handle(IPC.captureDismiss, () => deps.dismissCapture())
 
   // ---------- tags ----------
   ipcMain.handle(IPC.tagsList, () => listTags())
