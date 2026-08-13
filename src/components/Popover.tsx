@@ -6,6 +6,30 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+// How many popups are open right now, anywhere in the app.
+//
+// Escape belongs to the innermost open thing. A form that closes on Escape has
+// no other way to know a calendar is hanging off one of its fields — the popup
+// is a sibling in the DOM, and the key lands on the trigger, not inside it. So
+// the popups keep this count, and a form asks before acting on its own Escape.
+let openPopovers = 0
+
+/** True while any popup (Select, DateField, TimeField, day bubble) is open. */
+export function popoverIsOpen(): boolean {
+  return openPopovers > 0
+}
+
+/** Count this popup as open for as long as it is. */
+function useOpenRegistration(open: boolean): void {
+  useEffect(() => {
+    if (!open) return
+    openPopovers++
+    return () => {
+      openPopovers--
+    }
+  }, [open])
+}
+
 export interface PopoverAnchor<T extends HTMLElement> {
   open: boolean
   openPopup: () => void
@@ -26,6 +50,7 @@ export function usePopoverAnchor<T extends HTMLElement = HTMLButtonElement>(
   const [flip, setFlip] = useState(false)
   const triggerRef = useRef<T>(null)
   const popupRef = useRef<HTMLDivElement>(null)
+  useOpenRegistration(open)
 
   const openPopup = useCallback(() => {
     setRect(triggerRef.current?.getBoundingClientRect() ?? null)
@@ -89,6 +114,7 @@ export function useDismiss(
   close: () => void,
   popupRef: React.RefObject<HTMLElement | null>
 ): void {
+  useOpenRegistration(open)
   useEffect(() => {
     if (!open) return
     const outside = (t: Node | null) => !t || !popupRef.current?.contains(t)

@@ -79,7 +79,7 @@ import {
 } from './recurrence'
 import { searchAll } from './searchRepo'
 import { getSettings, patchSettings } from './settings'
-import { createTask, deleteTask, listTasks, updateTask } from './tasksRepo'
+import { createTask, deleteTask, listTasks, reorderTasks, updateTask } from './tasksRepo'
 
 export interface IpcDeps {
   applyAutostart: (enabled: boolean) => void
@@ -130,6 +130,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.tasksCreate, (_e, input: TaskInput) => createTask(input))
   ipcMain.handle(IPC.tasksUpdate, (_e, id: string, patch: TaskPatch) => updateTask(id, patch))
   ipcMain.handle(IPC.tasksDelete, (_e, id: string) => deleteTask(id))
+  ipcMain.handle(IPC.tasksReorder, (_e, ids: string[]) => reorderTasks(ids))
   ipcMain.handle(IPC.tasksSetRecurrence, (_e, id: string, input: SeriesInput | null) =>
     setTaskRecurrence(id, input)
   )

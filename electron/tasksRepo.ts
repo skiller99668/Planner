@@ -18,6 +18,7 @@ interface TaskRow {
   series_id: string | null
   occurrence_date: string | null
   reminder_at: string | null
+  sort_order: number | null
   created_at: string
   updated_at: string
 }
@@ -43,6 +44,7 @@ function rowToTask(r: TaskRow): Task {
     seriesId: r.series_id,
     occurrenceDate: r.occurrence_date,
     reminderAt: r.reminder_at,
+    sortOrder: r.sort_order,
     createdAt: r.created_at,
     updatedAt: r.updated_at
   }
@@ -213,10 +215,16 @@ export function updateTask(id: string, patch: TaskPatch): Task {
   const doneAt =
     status === 'done' ? (current.status === 'done' ? current.doneAt : now) : null
 
+  // Rescheduling moves the task to another section of the list, where the
+  // position it was dragged to says nothing — let it sort naturally again.
+  // Every other edit (completing it, retitling it) keeps the placement.
+  const sortOrder = dueAt === current.dueAt ? current.sortOrder : null
+
   getDb()
     .prepare(
       `UPDATE tasks SET title = ?, notes = ?, tags = ?, due_at = ?, all_day = ?,
-                        priority = ?, status = ?, done_at = ?, reminder_at = ?, updated_at = ?
+                        priority = ?, status = ?, done_at = ?, reminder_at = ?,
+                        sort_order = ?, updated_at = ?
        WHERE id = ?`
     )
     .run(
@@ -229,6 +237,7 @@ export function updateTask(id: string, patch: TaskPatch): Task {
       status,
       doneAt,
       reminderAt,
+      sortOrder,
       now,
       id
     )
@@ -250,6 +259,35 @@ export function deleteTask(id: string): void {
   } else {
     clearPendingReminder(id)
     getDb().prepare('DELETE FROM tasks WHERE id = ?').run(id)
+  }
+}
+
+/** Write a hand-placed order for one section of the Tasks list: the given ids
+ *  take positions 1..n, in the order given. Ids outside the list keep theirs.
+ *
+ *  A repeating occurrence hands its position to the rest of its open siblings,
+ *  so the slot you gave today's copy is still there when tomorrow's shows up —
+ *  otherwise a repeating task would fall to the bottom every single day. */
+export function reorderTasks(ids: string[]): void {
+  const db = getDb()
+  const place = db.prepare('UPDATE tasks SET sort_order = ? WHERE id = ?')
+  const placeSeries = db.prepare(
+    `UPDATE tasks SET sort_order = ? WHERE series_id = ? AND status = 'open'`
+  )
+  db.exec('BEGIN')
+  try {
+    ids.forEach((id, i) => {
+      const row = db.prepare('SELECT series_id FROM tasks WHERE id = ?').get(id) as
+        | { series_id: string | null }
+        | undefined
+      if (!row) return
+      if (row.series_id) placeSeries.run(i + 1, row.series_id)
+      else place.run(i + 1, id)
+    })
+    db.exec('COMMIT')
+  } catch (err) {
+    db.exec('ROLLBACK')
+    throw err
   }
 }
 

@@ -225,5 +225,15 @@ export const MIGRATIONS: Migration[] = [
       CREATE UNIQUE INDEX idx_leetcode_sync
         ON leetcode_problems (slug, date) WHERE source = 'leetcode';
     `
+  },
+  {
+    version: 6,
+    sql: `
+      -- Hand-placed order, written by dragging a task within its section on
+      -- the Tasks page. NULL means the task has never been placed by hand and
+      -- sorts by due date/priority as before. REAL rather than INTEGER so a
+      -- row can later be slotted between two others without renumbering.
+      ALTER TABLE tasks ADD COLUMN sort_order REAL;
+    `
   }
 ]

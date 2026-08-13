@@ -23,6 +23,8 @@ export interface TasksStore {
   updateTask: (id: string, patch: TaskPatch) => Promise<void>
   toggleTask: (task: Task) => Promise<void>
   deleteTask: (id: string) => Promise<void>
+  /** Hand-placed order for one section of the list, in the order given. */
+  reorderTasks: (ids: string[]) => Promise<void>
   /** Change how one task repeats; null stops the repeat. See PlannerApi. */
   setRecurrence: (id: string, input: SeriesInput | null) => Promise<void>
   createSeries: (input: SeriesInput) => Promise<void>
@@ -103,6 +105,19 @@ export function useTasks(): TasksStore {
         })
       ),
     deleteTask: (id) => wrap(() => window.planner!.tasksDelete(id)),
+    reorderTasks: async (ids) => {
+      // Placed locally first: the row is under the user's finger, and waiting
+      // a round trip to reorder makes the drop bounce back before it settles.
+      const placed = new Map(ids.map((id, i) => [id, i + 1]))
+      setTasks((prev) =>
+        prev.map((t) => {
+          const at = placed.get(t.id)
+          return at === undefined ? t : { ...t, sortOrder: at }
+        })
+      )
+      await window.planner!.tasksReorder(ids)
+      await refresh()
+    },
     setRecurrence: (id, input) => wrap(() => window.planner!.tasksSetRecurrence(id, input)),
     createSeries: (input) => wrap(() => window.planner!.seriesCreate(input)),
     updateSeries: (id, patch) => wrap(() => window.planner!.seriesUpdate(id, patch)),

@@ -80,6 +80,7 @@ export default function ShortcutHelp({ open, onClose }: { open: boolean; onClose
               ['Move down / up', 'J / K'],
               ['Complete', 'X'],
               ['Edit', 'E'],
+              ['Reorder within section', 'Alt + ↑ / ↓'],
               ['Clear selection', 'Esc']
             ].map(([label, key]) => (
               <div key={label} className="flex items-center justify-between gap-4">

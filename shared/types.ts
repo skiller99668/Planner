@@ -23,6 +23,11 @@ export interface Task {
   /** YYYY-MM-DD identity of the occurrence within its series. */
   occurrenceDate: string | null
   reminderAt: string | null
+  /** Hand-placed position within the list section it shows up in, set by
+   *  dragging. null means "no opinion" — those sort by due date/priority and
+   *  sit below the hand-placed ones. Cleared when a task's due date moves it
+   *  to another section, where a position picked elsewhere means nothing. */
+  sortOrder: number | null
   createdAt: string
   updatedAt: string
 }
@@ -283,6 +288,11 @@ export interface EventInput {
   kind: EventKind
   date: string // YYYY-MM-DD
   time?: string | null // HH:mm; null = all-day
+  /** End of the period. `endDate` alone spans whole days; `endTime` alone ends
+   *  the same day (or the next, when it lands before the start). Both null =
+   *  a single point on the calendar. */
+  endDate?: string | null
+  endTime?: string | null
   location?: string | null
   url?: string | null
   notes?: string | null

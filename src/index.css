@@ -343,6 +343,22 @@ h3 {
   animation: ring-pulse 0.8s ease-out;
 }
 
+/* Drag to reorder: the rows being passed step aside on the shared spring,
+   while the row under the finger tracks it with no easing of its own (that
+   transition is switched off for the duration of the gesture) and lifts off
+   the list on the raised shadow. */
+.drag-row {
+  transition: transform 0.19s var(--ease-spring);
+}
+.drag-row-lifted {
+  cursor: grabbing;
+}
+.drag-row-lifted > div {
+  background: var(--color-raised);
+  border-color: color-mix(in oklab, var(--color-azure) 45%, transparent);
+  box-shadow: var(--shadow-lift);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

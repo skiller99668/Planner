@@ -20,6 +20,8 @@ export interface ListNavActions {
   onEdit?: (id: string) => void
   /** # or Delete. */
   onDelete?: (id: string) => void
+  /** Alt+↑/↓ — the keyboard's version of dragging the row up or down. */
+  onMove?: (id: string, delta: -1 | 1) => void
 }
 
 export interface ListNav {
@@ -62,10 +64,27 @@ export function useListNav(
   useEffect(() => {
     if (!enabled) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return
+      if (e.isComposing) return
       if (isEditableTarget(e.target)) return
 
       const { activeId: current, actions: act, ids: list } = ref.current
+
+      // Alt+arrow reorders — checked before the modifier guard below, since
+      // it's the one binding here that wants a modifier held.
+      if (
+        e.altKey &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+        act.onMove &&
+        current &&
+        list.includes(current)
+      ) {
+        e.preventDefault()
+        act.onMove(current, e.key === 'ArrowDown' ? 1 : -1)
+        return
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return
 
       if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault()

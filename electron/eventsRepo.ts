@@ -86,6 +86,7 @@ export function createEvent(input: EventInput): PlannerEvent {
   const now = new Date().toISOString()
   const id = crypto.randomUUID()
   const startAt = composeStart(input.date, input.time ?? null)
+  const endAt = composeEnd(input.date, input.time ?? null, input.endDate ?? null, input.endTime ?? null)
   const reg =
     input.kind === 'badminton' && (input.autoRegWindow ?? true)
       ? computeRegWindow(input.date)
@@ -96,13 +97,14 @@ export function createEvent(input: EventInput): PlannerEvent {
       `INSERT INTO events (id, title, kind, start_at, end_at, location, url, notes, source,
                            external_uid, reg_opens_at, reg_closes_at, registered,
                            created_at, updated_at)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, 'manual', NULL, ?, ?, 0, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manual', NULL, ?, ?, 0, ?, ?)`
     )
     .run(
       id,
       input.title.trim(),
       input.kind,
       startAt,
+      endAt,
       input.location?.trim() || null,
       input.url?.trim() || null,
       input.notes ?? null,
@@ -121,12 +123,35 @@ export function updateEvent(id: string, patch: EventPatch): PlannerEvent {
   const now = new Date().toISOString()
 
   const kind = (patch.kind ?? current.kind) as EventKind
+  const touchesStart = patch.date !== undefined || patch.time !== undefined
+  const touchesEnd = patch.endDate !== undefined || patch.endTime !== undefined
+
+  const date = patch.date ?? localYMD(new Date(current.startAt))
+  const time =
+    patch.time !== undefined ? patch.time : isAllDay(current.startAt) ? null : localHM(current.startAt)
   let startAt = current.startAt
-  if (patch.date !== undefined || patch.time !== undefined) {
-    const date = patch.date ?? localYMD(new Date(current.startAt))
-    const time =
-      patch.time !== undefined ? patch.time : isAllDay(current.startAt) ? null : localHM(current.startAt)
-    startAt = composeStart(date, time)
+  if (touchesStart) startAt = composeStart(date, time)
+
+  // The end follows the start unless the patch speaks for it: moving an event
+  // keeps its length, which is what dragging a block on the week grid means.
+  let endAt = current.endAt
+  if (touchesEnd) {
+    const endDate =
+      patch.endDate !== undefined
+        ? patch.endDate
+        : current.endAt
+          ? localYMD(new Date(current.endAt))
+          : null
+    const endTime =
+      patch.endTime !== undefined
+        ? patch.endTime
+        : current.endAt && !isAllDay(current.endAt)
+          ? localHM(current.endAt)
+          : null
+    endAt = composeEnd(date, time, endDate, endTime)
+  } else if (touchesStart && current.endAt) {
+    const shift = new Date(startAt).getTime() - new Date(current.startAt).getTime()
+    endAt = new Date(new Date(current.endAt).getTime() + shift).toISOString()
   }
 
   // Recompute the registration window when kind/date changed on a badminton
@@ -145,7 +170,7 @@ export function updateEvent(id: string, patch: EventPatch): PlannerEvent {
 
   getDb()
     .prepare(
-      `UPDATE events SET title = ?, kind = ?, start_at = ?, location = ?, url = ?, notes = ?,
+      `UPDATE events SET title = ?, kind = ?, start_at = ?, end_at = ?, location = ?, url = ?, notes = ?,
                          reg_opens_at = ?, reg_closes_at = ?, registered = ?, updated_at = ?
        WHERE id = ?`
     )
@@ -153,6 +178,7 @@ export function updateEvent(id: string, patch: EventPatch): PlannerEvent {
       (patch.title ?? current.title).trim(),
       kind,
       startAt,
+      endAt,
       patch.location !== undefined ? patch.location : current.location,
       patch.url !== undefined ? patch.url : current.url,
       patch.notes !== undefined ? patch.notes : current.notes,
@@ -324,6 +350,41 @@ function composeStart(date: string, time: string | null): string {
     return new Date(y, m - 1, d, hh, mm).toISOString()
   }
   return new Date(y, m - 1, d).toISOString() // local midnight = all-day
+}
+
+/** The end of a period, or null when the event is a single point.
+ *
+ *  All-day events end at local midnight of their last day, so the stored date
+ *  is the day the event still covers — that's what the calendar grids read.
+ *  A timed event given only an end *time* ends the same day, or the next one
+ *  when that time has already passed (22:00 → 01:00 is one night, not −21h).
+ *  Anything that still lands at or before the start is not a period, so it
+ *  collapses back to null rather than being stored backwards. */
+function composeEnd(
+  date: string,
+  time: string | null,
+  endDate: string | null,
+  endTime: string | null
+): string | null {
+  if (!endDate && !endTime) return null
+
+  const startMs = new Date(composeStart(date, time)).getTime()
+  let end: string
+  if (!time) {
+    // All-day: only whole days can extend it.
+    end = composeStart(endDate ?? date, null)
+  } else if (endDate) {
+    end = composeStart(endDate, endTime ?? time)
+  } else {
+    end = composeStart(date, endTime)
+    if (new Date(end).getTime() <= startMs) end = composeStart(addDays(date, 1), endTime)
+  }
+  return new Date(end).getTime() > startMs ? end : null
+}
+
+function addDays(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map(Number)
+  return localYMD(new Date(y, m - 1, d + days))
 }
 
 export function isAllDay(iso: string): boolean {

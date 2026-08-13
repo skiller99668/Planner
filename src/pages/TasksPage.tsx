@@ -13,7 +13,8 @@ import { CheckCircle } from '../components/Celebrate'
 import TagChip, { ColorSwatch, TagPill, nextTagColor } from '../components/TagChip'
 import type { Tag } from '../../shared/types'
 import { addDaysYMD, dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
-import { useListNav } from '../lib/useListNav'
+import { useDragSort, type DragSort } from '../lib/useDragSort'
+import { useListNav, type ListNav } from '../lib/useListNav'
 import { collapseSeries, useTasks, type TasksStore } from '../lib/useTasks'
 
 type BucketId = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'someday'
@@ -26,6 +27,22 @@ const BUCKETS: { id: BucketId; label: string; tone: string }[] = [
   { id: 'later', label: 'Later', tone: 'text-muted' },
   { id: 'someday', label: 'No date', tone: 'text-muted' }
 ]
+
+/** Reading order inside a section for tasks nobody has placed by hand:
+ *  soonest first, then loudest, then oldest. */
+const naturalRank = (t: Task) => `${t.dueAt ?? '9999'}~${9 - t.priority}~${t.createdAt}`
+
+/** Hand-placed rows keep the order they were dragged into and sit above the
+ *  rest, which carry on sorting themselves. A task that has never been dragged
+ *  therefore lands exactly where it always did. */
+function compareTasks(a: Task, b: Task): number {
+  if (a.sortOrder !== null && b.sortOrder !== null) {
+    return a.sortOrder - b.sortOrder || naturalRank(a).localeCompare(naturalRank(b))
+  }
+  if (a.sortOrder !== null) return -1
+  if (b.sortOrder !== null) return 1
+  return naturalRank(a).localeCompare(naturalRank(b))
+}
 
 export default function TasksPage({
   focusNonce = 0,
@@ -121,10 +138,7 @@ export default function TasksPage({
         else by.later.push(t)
       }
     }
-    const rank = (t: Task) => `${t.dueAt ?? '9999'}~${9 - t.priority}~${t.createdAt}`
-    for (const id of Object.keys(by) as BucketId[]) {
-      by[id].sort((a, b) => rank(a).localeCompare(rank(b)))
-    }
+    for (const id of Object.keys(by) as BucketId[]) by[id].sort(compareTasks)
     return by
   }, [open])
 
@@ -145,6 +159,19 @@ export default function TasksPage({
         if (!task) return
         linger(id)
         void store.toggleTask(task)
+      },
+      // The keyboard's drag: shuffle the row within the section it's already in.
+      onMove: (id, delta) => {
+        const section = (Object.keys(buckets) as BucketId[]).find((b) =>
+          buckets[b].some((t) => t.id === id)
+        )
+        if (!section) return
+        const order = buckets[section].map((t) => t.id)
+        const i = order.indexOf(id)
+        const j = i + delta
+        if (j < 0 || j >= order.length) return
+        ;[order[i], order[j]] = [order[j], order[i]]
+        void store.reorderTasks(order)
       }
     },
     // While an editor or the quick-add box is open it owns the keyboard —
@@ -246,30 +273,20 @@ export default function TasksPage({
         )}
         {BUCKETS.map(({ id, label, tone }) =>
           buckets[id].length === 0 ? null : (
-            <section key={id} className="mt-5">
-              <h2 className={`text-[13px] font-bold ${tone}`}>
-                {label}
-                <span className="text-faint ml-1.5 font-medium">{buckets[id].length}</span>
-              </h2>
-              <ul className="mt-2 space-y-1">
-                {buckets[id].map((t) => (
-                  <TaskRow
-                    key={t.id}
-                    task={t}
-                    series={t.seriesId ? seriesById.get(t.seriesId) : undefined}
-                    store={store}
-                    knownTags={tagNames}
-                    tagColors={tagColors}
-                    onLinger={linger}
-                    focused={nav.activeId === t.id}
-                    rowProps={nav.rowProps(t.id)}
-                    editing={editingId === t.id}
-                    onEdit={() => setEditingId(editingId === t.id ? null : t.id)}
-                    onClose={() => setEditingId(null)}
-                  />
-                ))}
-              </ul>
-            </section>
+            <TaskSection
+              key={id}
+              label={label}
+              tone={tone}
+              tasks={buckets[id]}
+              seriesById={seriesById}
+              store={store}
+              knownTags={tagNames}
+              tagColors={tagColors}
+              onLinger={linger}
+              nav={nav}
+              editingId={editingId}
+              setEditingId={setEditingId}
+            />
           )
         )}
       </div>
@@ -433,6 +450,66 @@ function TagBar({
   )
 }
 
+/** One dated section of the list. Each keeps its own drag gesture, which is
+ *  what confines a drag to the section it started in: a task's section is a
+ *  fact about its due date, not something you can drag it into. */
+function TaskSection({
+  label,
+  tone,
+  tasks,
+  seriesById,
+  store,
+  knownTags,
+  tagColors,
+  onLinger,
+  nav,
+  editingId,
+  setEditingId
+}: {
+  label: string
+  tone: string
+  tasks: Task[]
+  seriesById: Map<string, TaskSeries>
+  store: TasksStore
+  knownTags: string[]
+  tagColors: Map<string, string>
+  onLinger: (id: string) => void
+  nav: ListNav
+  editingId: string | null
+  setEditingId: (id: string | null) => void
+}) {
+  const ids = useMemo(() => tasks.map((t) => t.id), [tasks])
+  const drag = useDragSort(ids, (ordered) => void store.reorderTasks(ordered))
+
+  return (
+    <section className="mt-5">
+      <h2 className={`text-[13px] font-bold ${tone}`}>
+        {label}
+        <span className="text-faint ml-1.5 font-medium">{tasks.length}</span>
+      </h2>
+      <ul ref={drag.listRef} className="mt-2 space-y-1">
+        {tasks.map((t) => (
+          <TaskRow
+            key={t.id}
+            task={t}
+            series={t.seriesId ? seriesById.get(t.seriesId) : undefined}
+            store={store}
+            knownTags={knownTags}
+            tagColors={tagColors}
+            onLinger={onLinger}
+            focused={nav.activeId === t.id}
+            rowProps={nav.rowProps(t.id)}
+            drag={drag}
+            editing={editingId === t.id}
+            onEdit={() => setEditingId(editingId === t.id ? null : t.id)}
+            onClose={() => setEditingId(null)}
+          />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 function TaskRow({
   task,
   series,
@@ -442,6 +519,7 @@ function TaskRow({
   onLinger,
   focused = false,
   rowProps,
+  drag,
   editing,
   onEdit,
   onClose
@@ -456,6 +534,8 @@ function TaskRow({
   /** Under the keyboard cursor. */
   focused?: boolean
   rowProps?: { onMouseEnter: () => void; 'data-listnav': string }
+  /** The section's drag gesture. Absent in lists that don't reorder. */
+  drag?: DragSort
   editing: boolean
   onEdit: () => void
   onClose: () => void
@@ -503,11 +583,16 @@ function TaskRow({
     after?.()
   }
 
+  const dragging = drag?.draggingId === task.id
+
   return (
-    <li>
+    <li
+      {...drag?.rowProps(task.id)}
+      className={`drag-row ${dragging ? 'drag-row-lifted' : ''}`}
+    >
       <div
         {...rowProps}
-        className={`group bg-surface hover:bg-raised relative flex items-center gap-3 rounded-[14px] border px-3.5 py-2.5 shadow-[var(--shadow-soft)] transition-colors ${
+        className={`group bg-surface hover:bg-raised relative flex items-center gap-2.5 rounded-[14px] border py-2.5 pr-3.5 pl-1.5 shadow-[var(--shadow-soft)] transition-colors ${
           isDone ? 'opacity-60' : ''
         } ${swelling ? 'animate-complete' : ''} ${
           // A left rail rather than a ring: the cursor has to be visible while
@@ -515,6 +600,25 @@ function TaskRow({
           focused ? 'border-azure/45 bg-raised' : 'border-transparent'
         }`}
       >
+        {/* The grip stays out of sight until the row is under the pointer or
+            the keyboard cursor — it's a handle, not part of the task. The
+            spacer keeps lists without dragging aligned with the ones that have it. */}
+        {drag ? (
+          <button
+            type="button"
+            {...drag.handleProps(task.id)}
+            aria-label={`Reorder: ${task.title}`}
+            title="Drag to reorder · Alt+↑/↓"
+            className={`shrink-0 cursor-grab px-1 transition-colors active:cursor-grabbing ${
+              focused || dragging ? 'text-faint' : 'text-faint/0 group-hover:text-faint'
+            }`}
+          >
+            <IconGrip />
+          </button>
+        ) : (
+          <span className="w-4 shrink-0" aria-hidden />
+        )}
+
         <CheckCircle
           checked={isDone}
           label={`${isDone ? 'Reopen' : 'Complete'}: ${task.title}`}
@@ -715,6 +819,19 @@ function formToSeriesInput(v: FormValues) {
     dueTime: v.dueTime || null,
     reminderOffsetMin: v.reminderOffset === '' ? null : Number(v.reminderOffset)
   }
+}
+
+function IconGrip() {
+  return (
+    <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor" aria-hidden>
+      <circle cx="1.6" cy="2.4" r="1.15" />
+      <circle cx="6.4" cy="2.4" r="1.15" />
+      <circle cx="1.6" cy="7" r="1.15" />
+      <circle cx="6.4" cy="7" r="1.15" />
+      <circle cx="1.6" cy="11.6" r="1.15" />
+      <circle cx="6.4" cy="11.6" r="1.15" />
+    </svg>
+  )
 }
 
 function IconRepeat() {

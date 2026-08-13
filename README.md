@@ -28,6 +28,11 @@ window is closed, so nothing slips.
   once you complete the current.
 - **Reminders** run in the background from the system tray and toast even with
   the window closed. Missed reminders catch up on launch.
+- **Drag to reorder** by the grip on the left of a row (or `Alt+↑/↓` from the
+  keyboard). Order is kept *within* a section — Today, Tomorrow, No date — since
+  which section a task is in is a fact about its due date. Rows you've never
+  placed by hand keep sorting themselves by due date and priority, below the
+  ones you have; rescheduling a task drops it back into that natural order.
 
 ### Assistant (optional AI)
 - A slide-in assistant available on **every** page, plus an always-on box on the
@@ -49,11 +54,17 @@ window is closed, so nothing slips.
   with a weekly target and a streak.
 
 ### Events & registration alarms
-- Month-calendar and list views, manual entry, and `.ics` import.
+- **Month, week, day and list views**, manual entry, and `.ics` import. Week and
+  day are hour grids: **drag across the hours to block out a period**, and it
+  arrives in the create bubble already filled in.
+- Events are **periods, not points** — a start and an end, each with its own
+  date and time. That covers a 90-minute lecture, an overnight sprint, and a
+  four-day tournament. Whole-day and multi-day entries ride in the band above
+  the hours; overlapping blocks split their column instead of hiding each other.
 - Fetches the **Badminton Québec** tournament calendar and computes each event's
   registration window, with "opens" and "closes-soon" alarms and a "registered"
   toggle.
-- Click any event to **edit it inline** — type, date, time, location, URL, notes.
+- Click any event to **edit it inline** — type, period, location, URL, notes.
 
 ### Career — Summer 2027 internships
 - An application pipeline (Wishlist → Applied → OA → Interview → Offer) and a

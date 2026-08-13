@@ -5,6 +5,7 @@ import { useState } from 'react'
 import TimeField from './TimeField'
 import DateField from './DateField'
 import Select from './Select'
+import { popoverIsOpen } from './Popover'
 import type { Priority, Task, TaskSeries } from '../../shared/types'
 import { hmOfIso, todayYMD, ymdOfIso } from '../lib/dates'
 
@@ -163,10 +164,30 @@ export default function TaskEditor({
   return (
     <div
       className="bg-surface rounded-[16px] p-4 shadow-[var(--shadow-lift)]"
+      // Enter saves, Escape backs out — from any field in the form, so you
+      // never have to reach for the buttons. Both first give way to whatever
+      // is open on top: a dropdown or calendar takes the key, and the next
+      // press reaches the form.
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onCancel()
+        if (e.key === 'Escape') {
+          if (popoverIsOpen()) return
+          e.preventDefault()
+          onCancel()
+          return
+        }
+        if (e.key !== 'Enter') return
         // Ctrl/Cmd+Enter saves from anywhere, including the notes textarea.
-        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit()
+        if (e.metaKey || e.ctrlKey) {
+          submit()
+          return
+        }
+        // Everywhere else Enter is plain save — except where the key already
+        // means something: a newline in notes, and buttons (a weekday toggle,
+        // a calendar day, Cancel) which Enter is already pressing.
+        const el = e.target as HTMLElement
+        if (el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON' || el.isContentEditable) return
+        e.preventDefault()
+        submit()
       }}
     >
       <div className="grid gap-3">
@@ -180,13 +201,6 @@ export default function TaskEditor({
             value={v.title}
             autoFocus
             onChange={(e) => set('title', e.target.value)}
-            // Enter from the title saves — the common case is type-a-name-and-go.
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                submit()
-              }
-            }}
             placeholder="Task name"
           />
         </div>
@@ -469,7 +483,11 @@ function TagPicker({
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
-              e.stopPropagation() // don't submit the whole form
+              // With something typed, Enter commits the tag and nothing else.
+              // With the field empty there's no tag to commit, so let it
+              // through and save the form like Enter does everywhere else.
+              if (!draft.trim()) return
+              e.stopPropagation()
               add(draft)
             } else if (e.key === 'Backspace' && !draft && tags.length) {
               remove(tags[tags.length - 1])

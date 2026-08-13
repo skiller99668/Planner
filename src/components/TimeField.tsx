@@ -130,8 +130,11 @@ export default function TimeField({
         e.key === 'ArrowDown' ? Math.min(filtered.length - 1, i + 1) : Math.max(0, i - 1)
       )
     } else if (e.key === 'Enter') {
+      // While the list is open Enter picks a time and nothing else. Once it's
+      // closed the key belongs to the surrounding form, which saves on it.
+      if (!pop.open) return
       e.preventDefault()
-      e.stopPropagation() // don't submit the surrounding form
+      e.stopPropagation()
       // What you typed wins; otherwise take the highlighted row.
       const next = parseTimeInput(draft ?? '') ?? filtered[active]
       if (next) commit(next)
