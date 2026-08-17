@@ -1,11 +1,11 @@
 // Shared form for: quick-add details (create), editing a task, editing a series.
 // Dumb component — the page converts FormValues to TaskInput / SeriesInput.
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import TimeField from './TimeField'
 import DateField from './DateField'
 import Select from './Select'
-import { popoverIsOpen } from './Popover'
+import { popoverIsOpen, useDismissOnOutsidePress } from './Popover'
 import type { Priority, Task, TaskSeries } from '../../shared/types'
 import { hmOfIso, todayYMD, ymdOfIso } from '../lib/dates'
 
@@ -102,7 +102,7 @@ export function normalizeTag(raw: string): string {
     .slice(0, 24)
 }
 
-const MAX_TAGS = 6
+export const MAX_TAGS = 6
 
 const inputCls =
   'bg-bg rounded-[10px] px-3 py-2 text-[13.5px] placeholder:text-faint outline-none focus:ring-1 focus:ring-azure/60'
@@ -161,8 +161,15 @@ export default function TaskEditor({
     }
   }
 
+  // Clicking away backs out, and that click does nothing else — otherwise the
+  // press that closes this form also opens whatever task was under it, and two
+  // editors end up on screen at once.
+  const box = useRef<HTMLDivElement>(null)
+  useDismissOnOutsidePress(box, onCancel)
+
   return (
     <div
+      ref={box}
       className="bg-surface rounded-[16px] p-4 shadow-[var(--shadow-lift)]"
       // Enter saves, Escape backs out — from any field in the form, so you
       // never have to reach for the buttons. Both first give way to whatever

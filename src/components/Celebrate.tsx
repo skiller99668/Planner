@@ -13,12 +13,17 @@ export function Burst({
   fireKey,
   count = 7,
   spread = 34,
+  scale = 1,
   className = ''
 }: {
   /** Changing this value replays the burst. 0 = never fired. */
   fireKey: number
   count?: number
   spread?: number
+  /** Multiplier on each particle's size and glow. Throwing more confetti
+   *  further doesn't read as louder on its own — the pieces have to grow too,
+   *  or a big burst just looks like a fine spray. */
+  scale?: number
   className?: string
 }) {
   // eslint-disable-next-line react-hooks/rules-of-hooks -- fireKey===0 is a
@@ -40,10 +45,10 @@ export function Burst({
             className="particle absolute top-1/2 left-1/2 block rounded-full"
             style={
               {
-                width: i % 3 === 0 ? 8 : 5.5,
-                height: i % 3 === 0 ? 8 : 5.5,
+                width: (i % 3 === 0 ? 8 : 5.5) * scale,
+                height: (i % 3 === 0 ? 8 : 5.5) * scale,
                 background: PALETTE[i % PALETTE.length],
-                boxShadow: `0 0 8px ${PALETTE[i % PALETTE.length]}`,
+                boxShadow: `0 0 ${8 * scale}px ${PALETTE[i % PALETTE.length]}`,
                 animationDelay: `${i * 16}ms`,
                 '--dx': `${Math.cos(angle) * dist}px`,
                 '--dy': `${Math.sin(angle) * dist}px`
@@ -63,6 +68,25 @@ export function useCelebrate(): [number, () => void] {
   return [key, fire]
 }
 
+/** True for `ms` after each change of `fireKey`, then false again — for
+ *  one-shot flourishes driven by a CSS class.
+ *
+ *  A raw counter can't drive one: once it is non-zero the class stays on for
+ *  the life of the component, so whatever the class paints never leaves. And
+ *  re-applying a class name that is already present does not restart a CSS
+ *  animation, so every celebration after the first would pass in silence.
+ *  Taking the class off is what makes the next one able to play. */
+export function useFlash(fireKey: number, ms = 1200): boolean {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    if (!fireKey) return
+    setOn(true)
+    const id = setTimeout(() => setOn(false), ms)
+    return () => clearTimeout(id)
+  }, [fireKey, ms])
+  return on
+}
+
 /** Runs `onCross` when `value` rises to meet `target` — for target-met moments. */
 export function useThresholdCross(value: number, target: number, onCross: () => void): void {
   const prev = useRef<number | null>(null)
@@ -72,17 +96,26 @@ export function useThresholdCross(value: number, target: number, onCross: () => 
   }, [value, target, onCross])
 }
 
+/** Finishing a whole task is the loud moment: roughly four times the confetti,
+ *  three times as far, in bigger pieces. Subtasks keep the quieter default —
+ *  a step is progress, a task is an achievement, and the burst says which. */
+export const TASK_BURST = { count: 28, spread: 104, scale: 1.45 }
+
 /** The app's checkbox: springs, draws its tick, and bursts when checked. */
 export function CheckCircle({
   checked,
   onChange,
   label,
-  size = 20
+  size = 20,
+  burst
 }: {
   checked: boolean
   onChange: () => void
   label: string
   size?: number
+  /** Scale of the celebration. Defaults to the quiet one; pass TASK_BURST for
+   *  the moment that finishing a whole task deserves. */
+  burst?: { count?: number; spread?: number; scale?: number }
 }) {
   const [burstKey, fire] = useCelebrate()
 
@@ -122,7 +155,12 @@ export function CheckCircle({
           </svg>
         )}
       </button>
-      <Burst fireKey={burstKey} />
+      <Burst
+        fireKey={burstKey}
+        count={burst?.count}
+        spread={burst?.spread}
+        scale={burst?.scale}
+      />
     </span>
   )
 }

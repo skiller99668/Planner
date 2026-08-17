@@ -4,7 +4,7 @@
 //   1. the day    — what happens today, tasks and timed events in one list,
 //                   uncontained because it IS the content
 //   2. trackers   — gym and leetcode, deliberately identical in shape so both
-//                   read in a single glance
+//                   read in a single glance: a bar toward this week's target
 //   3. the horizon— upcoming events and live postings, quiet and click-through
 
 import { useEffect, useMemo, useState } from 'react'
@@ -15,10 +15,11 @@ import type {
   PlannerEvent,
   Task
 } from '../../shared/types'
-import { Burst, CheckCircle, useCelebrate } from '../components/Celebrate'
+import { Burst, CheckCircle, TASK_BURST, useCelebrate } from '../components/Celebrate'
 import type { ModuleId } from '../components/Sidebar'
 import { addDaysYMD, localYMD, timeOfIso, todayYMD, ymdOfIso } from '../lib/dates'
 import { topPostings } from '../lib/jobs'
+import { progressColor, progressPct } from '../lib/progress'
 import { deriveGym, useGym, useGymTarget } from '../lib/useGym'
 import { deriveLeetcode, useDsaTarget, useLeetcode } from '../lib/useLeetcode'
 import { collapseSeries, useTasks } from '../lib/useTasks'
@@ -218,8 +219,6 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
             count={g.weekCount}
             target={gymTarget}
             met={g.weekMet}
-            days={g.weekDates.map((d) => ({ date: d, filled: g.byDate.has(d) }))}
-            today={today}
             onOpen={() => onNavigate('gym')}
             action={
               g.today.length > 0 ? (
@@ -308,6 +307,7 @@ function TaskLine({
       <CheckCircle
         size={18}
         checked={isDone}
+        burst={TASK_BURST}
         label={`${isDone ? 'Reopen' : 'Complete'}: ${task.title}`}
         onChange={onToggle}
       />
@@ -354,15 +354,13 @@ function EventLine({ event, onOpen }: { event: PlannerEvent; onOpen: () => void 
 // ---------- trackers ----------
 
 /** The shared shape. Gym and LeetCode are the same kind of object — a weekly
- *  target, a week of dots, one logging action — so they get the same row and
- *  differ only in their action. */
+ *  target, a bar showing how near it is, one logging action — so they get the
+ *  same row and differ only in their action. */
 function TrackerRow({
   label,
   count,
   target,
   met,
-  days,
-  today,
   action,
   onOpen
 }: {
@@ -370,11 +368,11 @@ function TrackerRow({
   count: number
   target: number
   met: boolean
-  days: { date: string; filled: boolean }[]
-  today: string
   action: React.ReactNode
   onOpen: () => void
 }) {
+  const pct = progressPct(count, target)
+
   return (
     <div className="flex items-center gap-4 px-4 py-3.5">
       <button
@@ -390,24 +388,26 @@ function TrackerRow({
         {target}
       </span>
 
-      {/* Fixed width, not flex — stretched across the row these read as one
-          progress bar rather than as seven days. */}
+      {/* One continuous bar, not a segment per weekday: the question this row
+          answers is "how close am I", not "which days did I go". It takes the
+          row's slack so the distance left to run is legible at a glance, and
+          its colour carries the same answer for anyone reading at a glance. */}
       <span
-        className="flex w-[112px] shrink-0 gap-1"
-        aria-label={`${count} of ${target} this week`}
+        role="progressbar"
+        aria-valuenow={count}
+        aria-valuemin={0}
+        aria-valuemax={target}
+        aria-label={`${label}: ${count} of ${target} this week`}
+        className="bg-raised relative h-1.5 min-w-[72px] flex-1 overflow-hidden rounded-full"
       >
-        {days.map((d) => (
-          <span
-            key={d.date}
-            aria-hidden
-            className={`h-1.5 flex-1 rounded-full ${
-              d.filled ? 'bg-mint' : d.date === today ? 'bg-azure/45' : 'bg-raised'
-            }`}
-          />
-        ))}
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 rounded-full transition-[width,background-color] duration-500 ease-(--ease-spring)"
+          style={{ width: `${pct}%`, background: progressColor(pct) }}
+        />
       </span>
 
-      <span className="flex flex-1 shrink-0 justify-end">{action}</span>
+      <span className="shrink-0">{action}</span>
     </div>
   )
 }
@@ -498,8 +498,6 @@ function LeetcodeRow({
       count={derived.weekCount}
       target={target}
       met={derived.weekMet}
-      days={derived.weekDates.map((d) => ({ date: d, filled: derived.byDate.has(d) }))}
-      today={today}
       onOpen={onOpen}
       action={
         <button

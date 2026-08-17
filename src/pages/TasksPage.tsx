@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useConfirm } from '../components/ConfirmProvider'
-import type { Task, TaskSeries } from '../../shared/types'
+import type { Subtask, Task, TaskSeries } from '../../shared/types'
 import TaskEditor, {
+  MAX_TAGS,
   emptyForm,
   normalizeTag,
   sameRepeat,
@@ -9,7 +10,8 @@ import TaskEditor, {
   taskToForm,
   type FormValues
 } from '../components/TaskEditor'
-import { CheckCircle } from '../components/Celebrate'
+import { POPUP_CLASS, usePopoverAnchor } from '../components/Popover'
+import { CheckCircle, TASK_BURST } from '../components/Celebrate'
 import TagChip, { ColorSwatch, TagPill, nextTagColor } from '../components/TagChip'
 import type { Tag } from '../../shared/types'
 import { addDaysYMD, dueLabel, todayYMD, ymdOfIso } from '../lib/dates'
@@ -585,6 +587,12 @@ function TaskRow({
 
   const dragging = drag?.draggingId === task.id
 
+  const subs = store.subtasks.get(task.id) ?? []
+  const subsDone = subs.filter((s) => s.done).length
+  // Opens itself the moment a checklist exists, so adding the first step
+  // doesn't then ask you to go find it.
+  const [listOpen, setListOpen] = useState(false)
+
   return (
     <li
       {...drag?.rowProps(task.id)}
@@ -621,6 +629,7 @@ function TaskRow({
 
         <CheckCircle
           checked={isDone}
+          burst={TASK_BURST}
           label={`${isDone ? 'Reopen' : 'Complete'}: ${task.title}`}
           onChange={() => {
             if (!isDone) {
@@ -631,30 +640,68 @@ function TaskRow({
           }}
         />
 
-        <button onClick={onEdit} className="min-w-0 flex-1 text-left">
-          <span className={`text-[14px] ${isDone ? 'text-muted line-through' : ''}`}>
-            {task.title}
-          </span>
-          <span className="ml-2 inline-flex flex-wrap items-center gap-1.5 align-middle">
-            {task.priority > 0 && (
-              <span
-                aria-label={['', 'low', 'medium', 'high'][task.priority] + ' priority'}
-                className={`inline-block h-[7px] w-[7px] rounded-full ${
-                  ['', 'bg-violet', 'bg-gold', 'bg-coral'][task.priority]
-                }`}
-              />
-            )}
-            {task.dueAt && (
-              <span className={`nums text-[12px] ${overdue ? 'text-coral' : 'text-muted'}`}>
-                {dueLabel(task.dueAt, task.allDay)}
-              </span>
-            )}
-            {task.seriesId && <IconRepeat />}
-            {task.reminderAt && !isDone && <IconBell />}
-            {task.tags.map((tag) => (
-              <TagPill key={tag} name={tag} color={tagColors.get(tag) ?? '#93A4C8'} />
-            ))}
-          </span>
+        {/* Tags sit outside the title button rather than inside it, so the
+            add-tag control can stand right next to them — a button can't be
+            nested in a button, and anywhere else it stops reading as "one
+            more of these". */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <button onClick={onEdit} className="min-w-0 max-w-full text-left">
+            <span className={`text-[14px] ${isDone ? 'text-muted line-through' : ''}`}>
+              {task.title}
+            </span>
+            <span className="ml-2 inline-flex flex-wrap items-center gap-1.5 align-middle">
+              {task.priority > 0 && (
+                <span
+                  aria-label={['', 'low', 'medium', 'high'][task.priority] + ' priority'}
+                  className={`inline-block h-[7px] w-[7px] rounded-full ${
+                    ['', 'bg-violet', 'bg-gold', 'bg-coral'][task.priority]
+                  }`}
+                />
+              )}
+              {task.dueAt && (
+                <span className={`nums text-[12px] ${overdue ? 'text-coral' : 'text-muted'}`}>
+                  {dueLabel(task.dueAt, task.allDay)}
+                </span>
+              )}
+              {task.seriesId && <IconRepeat />}
+              {task.reminderAt && !isDone && <IconBell />}
+            </span>
+          </button>
+          {task.tags.map((tag) => (
+            <TagPill key={tag} name={tag} color={tagColors.get(tag) ?? '#93A4C8'} />
+          ))}
+          <TagAdder task={task} knownTags={knownTags} store={store} focused={focused} />
+        </div>
+
+        {/* Outside the title button, not inside it: that one is a <button>
+            already, and a button inside a button is invalid. Stays hidden
+            until hover or focus while the list is empty — same rule as the
+            grip, so an untouched row carries no extra ink. */}
+        <button
+          onClick={() => setListOpen((o) => !o)}
+          aria-expanded={listOpen}
+          aria-label={
+            subs.length
+              ? `${listOpen ? 'Hide' : 'Show'} steps (${subsDone} of ${subs.length} done): ${task.title}`
+              : `Add steps: ${task.title}`
+          }
+          title={subs.length ? 'Steps' : 'Add steps'}
+          className={`nums tactile shrink-0 rounded-lg px-1.5 py-1 text-[11.5px] font-semibold transition-colors ${
+            subs.length
+              ? subsDone === subs.length
+                ? 'text-mint'
+                : 'text-muted hover:text-ink'
+              : `text-faint hover:text-ink ${focused ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`
+          }`}
+        >
+          {subs.length ? (
+            <span className="flex items-center gap-1">
+              <IconChecklist />
+              {subsDone}/{subs.length}
+            </span>
+          ) : (
+            <IconChecklist />
+          )}
         </button>
 
         <button
@@ -668,6 +715,18 @@ function TaskRow({
           </svg>
         </button>
       </div>
+
+      {(listOpen || subs.length > 0) && (
+        <SubtaskList
+          taskId={task.id}
+          subs={subs}
+          store={store}
+          // Collapsed but non-empty: the chip shows the count, the steps stay
+          // folded away so a long checklist can't bury the list it sits in.
+          collapsed={!listOpen}
+          onExpand={() => setListOpen(true)}
+        />
+      )}
 
       {editing && (
         <div className="mt-1.5 mb-2">
@@ -683,6 +742,240 @@ function TaskRow({
         </div>
       )}
     </li>
+  )
+}
+
+/** Tag a task without opening its editor: a `+` beside the pills it already
+ *  has, opening the same picker shape the editor uses — a field that takes a
+ *  new tag, and one-click chips for the ones already in the vocabulary. */
+function TagAdder({
+  task,
+  knownTags,
+  store,
+  focused
+}: {
+  task: Task
+  knownTags: string[]
+  store: TasksStore
+  focused: boolean
+}) {
+  const pop = usePopoverAnchor('left')
+  const [draft, setDraft] = useState('')
+
+  const full = task.tags.length >= MAX_TAGS
+  const suggestions = knownTags.filter((t) => !task.tags.includes(t))
+  const clean = normalizeTag(draft)
+  const duplicate = clean.length > 0 && task.tags.includes(clean)
+  const canAdd = clean.length >= 1 && !duplicate && !full
+
+  const add = async (raw: string) => {
+    const tag = normalizeTag(raw)
+    if (!tag || task.tags.includes(tag) || full) return
+    setDraft('')
+    // A tag that isn't in the vocabulary yet is simply written onto the task —
+    // the list of known tags is the tags table UNION the ones in use, so it
+    // shows up everywhere from here on without a separate create step.
+    await store.updateTask(task.id, { tags: [...task.tags, tag] })
+  }
+
+  return (
+    <>
+      <button
+        ref={pop.triggerRef}
+        onClick={pop.toggle}
+        aria-haspopup="dialog"
+        aria-expanded={pop.open}
+        aria-label={`Add a tag to: ${task.title}`}
+        title="Add a tag"
+        className={`tactile flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-[13px] leading-none transition-colors ${
+          pop.open
+            ? 'bg-azure/20 text-azure'
+            : `text-faint hover:bg-raised hover:text-ink ${
+                focused || task.tags.length ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+              }`
+        }`}
+      >
+        +
+      </button>
+
+      {pop.open && (
+        <div
+          ref={pop.popupRef}
+          role="dialog"
+          aria-label={`Tags for ${task.title}`}
+          style={pop.popupStyle}
+          className={`${POPUP_CLASS} w-[236px]`}
+        >
+          <div className="bg-bg flex items-center rounded-[10px] pr-1.5">
+            <input
+              autoFocus
+              value={draft}
+              disabled={full}
+              placeholder={full ? `Max ${MAX_TAGS} tags` : 'Add a tag'}
+              aria-label="New tag"
+              onChange={(e) => {
+                if (e.target.value.includes(',')) void add(e.target.value.replace(',', ''))
+                else setDraft(e.target.value)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  void add(draft)
+                } else if (e.key === 'Escape') {
+                  e.stopPropagation()
+                  pop.close()
+                }
+              }}
+              className={`placeholder:text-faint min-w-0 flex-1 bg-transparent px-3 py-2 text-[13.5px] outline-none focus-visible:outline-none ${
+                duplicate ? 'text-coral' : ''
+              }`}
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void add(draft)}
+              disabled={!canAdd}
+              aria-label="Add tag"
+              title={duplicate ? `“${clean}” is already on this task` : 'Add tag'}
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] transition-colors ${
+                canAdd ? 'btn-primary' : 'text-faint'
+              }`}
+            >
+              →
+            </button>
+          </div>
+
+          {!full && suggestions.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {suggestions.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => void add(tag)}
+                  title={`Add ${tag}`}
+                  className="tactile bg-raised text-muted hover:text-ink rounded-full px-3 py-1 text-[12px] font-medium"
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {task.tags.length > 0 && (
+            <div className="border-line/50 mt-2 flex flex-wrap gap-1.5 border-t pt-2">
+              {task.tags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() =>
+                    void store.updateTask(task.id, {
+                      tags: task.tags.filter((t) => t !== tag)
+                    })
+                  }
+                  aria-label={`Remove tag ${tag}`}
+                  title={`Remove ${tag}`}
+                  className="bg-azure/15 text-azure hover:bg-coral/20 hover:text-coral flex items-center gap-1 rounded-full py-1 pr-2 pl-3 text-[12px] font-medium transition-colors"
+                >
+                  {tag} <span aria-hidden>×</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+/** A task's checklist. Steps are not tasks: no dates, no tags, no reminders —
+ *  a title you can tick, rename or remove. Renaming commits on blur or Enter,
+ *  and an empty title is refused by the repo rather than stored, so a stray
+ *  click away from the field can't blank a step. */
+function SubtaskList({
+  taskId,
+  subs,
+  store,
+  collapsed,
+  onExpand
+}: {
+  taskId: string
+  subs: Subtask[]
+  store: TasksStore
+  collapsed: boolean
+  onExpand: () => void
+}) {
+  const [draft, setDraft] = useState('')
+
+  const add = async () => {
+    const title = draft.trim()
+    if (!title) return
+    setDraft('')
+    onExpand()
+    await store.addSubtask(taskId, title)
+  }
+
+  if (collapsed) return null
+
+  return (
+    <div className="mt-1 mb-1.5 ml-[46px] flex flex-col gap-0.5">
+      {subs.map((s) => (
+        <div key={s.id} className="group/sub flex items-center gap-2.5 py-0.5">
+          <CheckCircle
+            size={15}
+            checked={s.done}
+            label={`${s.done ? 'Reopen' : 'Complete'} step: ${s.title}`}
+            onChange={() => void store.updateSubtask(s.id, { done: !s.done })}
+          />
+          {/* Uncontrolled, keyed by id: a refetch after every mutation would
+              otherwise fight whatever is being typed here. */}
+          <input
+            key={s.id}
+            defaultValue={s.title}
+            aria-label={`Step: ${s.title}`}
+            onBlur={(e) => {
+              if (e.target.value.trim() !== s.title) {
+                void store.updateSubtask(s.id, { title: e.target.value })
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+              else if (e.key === 'Escape') {
+                e.currentTarget.value = s.title
+                e.currentTarget.blur()
+              }
+            }}
+            className={`focus:bg-bg min-w-0 flex-1 rounded-[7px] bg-transparent px-1.5 py-0.5 text-[13px] outline-none ${
+              s.done ? 'text-muted line-through' : ''
+            }`}
+          />
+          <button
+            onClick={() => void store.deleteSubtask(s.id)}
+            aria-label={`Delete step: ${s.title}`}
+            className="text-faint/0 group-hover/sub:text-faint hover:!text-coral tactile shrink-0 rounded-md p-1 transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+      ))}
+
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            void add()
+          }
+        }}
+        onBlur={() => void add()}
+        placeholder="Add a step"
+        aria-label="Add a step"
+        className="placeholder:text-faint focus:bg-bg ml-[25px] rounded-[7px] bg-transparent px-1.5 py-1 text-[13px] outline-none"
+      />
+    </div>
   )
 }
 
@@ -830,6 +1123,16 @@ function IconGrip() {
       <circle cx="6.4" cy="7" r="1.15" />
       <circle cx="1.6" cy="11.6" r="1.15" />
       <circle cx="6.4" cy="11.6" r="1.15" />
+    </svg>
+  )
+}
+
+/** Ticked lines — a checklist, distinct from the row's own round checkbox. */
+function IconChecklist() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="m3 7 2 2 3.5-3.5M3 17l2 2 3.5-3.5M12 7h9M12 17h9" />
     </svg>
   )
 }

@@ -2,8 +2,9 @@ import { useState } from 'react'
 import DateField from '../components/DateField'
 import Select from '../components/Select'
 import type { GymSession, GymType } from '../../shared/types'
-import { Burst, useCelebrate, useThresholdCross } from '../components/Celebrate'
+import { Burst, useCelebrate, useFlash, useThresholdCross } from '../components/Celebrate'
 import { addDaysYMD, todayYMD } from '../lib/dates'
+import { progressColor, progressPct } from '../lib/progress'
 import { deriveGym, PPL_ORDER, useGym, useGymTarget } from '../lib/useGym'
 
 const TYPE_LABEL: Record<GymType, string> = {
@@ -31,6 +32,8 @@ export default function GymPage() {
   const [cellBurst, setCellBurst] = useState({ date: '', key: 0 })
   // Crossing the weekly target is the milestone moment, so it gets its own flourish.
   useThresholdCross(g.weekCount, target, fireTarget)
+  const ringOn = useFlash(logKey, 900)
+  const sheenOn = useFlash(targetKey)
 
   const today = todayYMD()
   const isToday = selectedDate === today
@@ -51,6 +54,7 @@ export default function GymPage() {
   const viewDates = Array.from({ length: 7 }, (_, i) => addDaysYMD(viewStart, i))
   const viewCount = viewDates.filter((d) => g.byDate.has(d)).length
   const viewMet = viewCount >= target
+  const viewPct = progressPct(viewCount, target)
 
   return (
     <div>
@@ -60,7 +64,7 @@ export default function GymPage() {
       {/* Cycle + one-tap log */}
       <section
         className={`bg-surface relative mt-6 max-w-2xl overflow-hidden rounded-[20px] p-6 shadow-[var(--shadow-soft)] ${
-          logKey ? 'animate-ring' : ''
+          ringOn ? 'animate-ring' : ''
         }`}
       >
         {isToday ? (
@@ -141,7 +145,7 @@ export default function GymPage() {
       {/* Week grid + streak */}
       <section
         className={`bg-surface relative mt-4 max-w-2xl overflow-hidden rounded-[20px] p-6 shadow-[var(--shadow-soft)] ${
-          targetKey ? 'animate-sheen' : ''
+          sheenOn ? 'animate-sheen' : ''
         }`}
       >
         <div className="flex items-center justify-between">
@@ -221,10 +225,17 @@ export default function GymPage() {
           {isToday ? 'Tap any day to log a workout for it.' : 'Logging for the selected day.'}
         </p>
 
-        <div className="bg-bg mt-4 h-1.5 overflow-hidden rounded-full">
+        <div
+          role="progressbar"
+          aria-valuenow={viewCount}
+          aria-valuemin={0}
+          aria-valuemax={target}
+          aria-label={`${viewCount} of ${target} workouts this week`}
+          className="bg-bg mt-4 h-1.5 overflow-hidden rounded-full"
+        >
           <div
-            className={`h-full rounded-full transition-all duration-500 ${viewMet ? 'bg-mint' : 'bg-azure'}`}
-            style={{ width: `${Math.min(100, (viewCount / target) * 100)}%` }}
+            className="h-full rounded-full transition-[width,background-color] duration-500 ease-(--ease-spring)"
+            style={{ width: `${viewPct}%`, background: progressColor(viewPct) }}
           />
         </div>
 

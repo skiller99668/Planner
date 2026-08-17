@@ -516,7 +516,10 @@ function createWindow(): void {
             process.env.PLANNER_SHOT_TARGET === 'capture' ? (showCapture(), captureWin!) : win!
           if (target !== win) await new Promise((r) => setTimeout(r, 700))
           if (process.env.PLANNER_SHOT_JS) {
-            await target.webContents.executeJavaScript(process.env.PLANNER_SHOT_JS)
+            // Log what the snippet returned: it's the only channel back out of
+            // the page, and probing layout is half of what it gets used for.
+            const result = await target.webContents.executeJavaScript(process.env.PLANNER_SHOT_JS)
+            if (result !== undefined) console.log(`SHOT JS ${JSON.stringify(result)}`)
             await new Promise((r) => setTimeout(r, 600))
           }
           const img = await target.webContents.capturePage()

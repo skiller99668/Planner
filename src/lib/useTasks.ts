@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type {
   SeriesInput,
   SeriesPatch,
+  Subtask,
+  SubtaskPatch,
   Task,
   Tag,
   TaskInput,
@@ -17,6 +19,9 @@ export interface TasksStore {
   series: TaskSeries[]
   /** Full tag vocabulary — includes tags not currently on any task. */
   tags: Tag[]
+  /** Checklist items keyed by the task they hang off, in list order. Tasks
+   *  with no subtasks are simply absent. */
+  subtasks: Map<string, Subtask[]>
   loaded: boolean
   refresh: () => Promise<void>
   createTask: (input: TaskInput) => Promise<void>
@@ -25,6 +30,9 @@ export interface TasksStore {
   deleteTask: (id: string) => Promise<void>
   /** Hand-placed order for one section of the list, in the order given. */
   reorderTasks: (ids: string[]) => Promise<void>
+  addSubtask: (taskId: string, title: string) => Promise<void>
+  updateSubtask: (id: string, patch: SubtaskPatch) => Promise<void>
+  deleteSubtask: (id: string) => Promise<void>
   /** Change how one task repeats; null stops the repeat. See PlannerApi. */
   setRecurrence: (id: string, input: SeriesInput | null) => Promise<void>
   createSeries: (input: SeriesInput) => Promise<void>
@@ -60,18 +68,29 @@ export function useTasks(): TasksStore {
   const [tasks, setTasks] = useState<Task[]>([])
   const [series, setSeries] = useState<TaskSeries[]>([])
   const [tags, setTags] = useState<Tag[]>([])
+  const [subtasks, setSubtasks] = useState<Map<string, Subtask[]>>(new Map())
   const [loaded, setLoaded] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!window.planner) return
-    const [t, s, g] = await Promise.all([
+    const [t, s, g, sub] = await Promise.all([
       window.planner.tasksList(),
       window.planner.seriesList(),
-      window.planner.tagsList()
+      window.planner.tagsList(),
+      window.planner.subtasksList()
     ])
     setTasks(t)
     setSeries(s)
     setTags(g)
+    // Arrives as one flat list in list order; grouping here keeps the rows
+    // from each having to filter the whole set.
+    const grouped = new Map<string, Subtask[]>()
+    for (const item of sub) {
+      const list = grouped.get(item.taskId)
+      if (list) list.push(item)
+      else grouped.set(item.taskId, [item])
+    }
+    setSubtasks(grouped)
     setLoaded(true)
   }, [])
 
@@ -94,6 +113,7 @@ export function useTasks(): TasksStore {
     tasks,
     series,
     tags,
+    subtasks,
     loaded,
     refresh,
     createTask: (input) => wrap(() => window.planner!.tasksCreate(input)),
@@ -118,6 +138,9 @@ export function useTasks(): TasksStore {
       await window.planner!.tasksReorder(ids)
       await refresh()
     },
+    addSubtask: (taskId, title) => wrap(() => window.planner!.subtasksCreate(taskId, title)),
+    updateSubtask: (id, patch) => wrap(() => window.planner!.subtasksUpdate(id, patch)),
+    deleteSubtask: (id) => wrap(() => window.planner!.subtasksDelete(id)),
     setRecurrence: (id, input) => wrap(() => window.planner!.tasksSetRecurrence(id, input)),
     createSeries: (input) => wrap(() => window.planner!.seriesCreate(input)),
     updateSeries: (id, patch) => wrap(() => window.planner!.seriesUpdate(id, patch)),

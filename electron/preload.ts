@@ -28,6 +28,7 @@ import type {
   SeriesInput,
   SeriesPatch,
   Settings,
+  SubtaskPatch,
   TaskInput,
   TaskPatch
 } from '../shared/types'
@@ -46,6 +47,15 @@ const api: PlannerApi = {
   tasksReorder: (ids: string[]) => ipcRenderer.invoke(IPC.tasksReorder, ids),
   tasksSetRecurrence: (id: string, input: SeriesInput | null) =>
     ipcRenderer.invoke(IPC.tasksSetRecurrence, id, input),
+
+  subtasksList: () => ipcRenderer.invoke(IPC.subtasksList),
+  subtasksCreate: (taskId: string, title: string) =>
+    ipcRenderer.invoke(IPC.subtasksCreate, taskId, title),
+  subtasksUpdate: (id: string, patch: SubtaskPatch) =>
+    ipcRenderer.invoke(IPC.subtasksUpdate, id, patch),
+  subtasksDelete: (id: string) => ipcRenderer.invoke(IPC.subtasksDelete, id),
+  subtasksReorder: (taskId: string, ids: string[]) =>
+    ipcRenderer.invoke(IPC.subtasksReorder, taskId, ids),
 
   seriesList: () => ipcRenderer.invoke(IPC.seriesList),
   seriesCreate: (input: SeriesInput) => ipcRenderer.invoke(IPC.seriesCreate, input),

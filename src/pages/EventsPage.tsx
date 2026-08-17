@@ -86,7 +86,7 @@ export default function EventsPage() {
   const [importKind, setImportKind] = useState<EventKind>('badminton')
   const [importMsg, setImportMsg] = useState<string | null>(null)
   const [showPast, setShowPast] = useState(false)
-  const [view, setView] = useState<View>('month')
+  const [view, setView] = useState<View>('week')
   const [cursor, setCursor] = useState(() => new Date())
   const [bubble, setBubble] = useState<Bubble>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)

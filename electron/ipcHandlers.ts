@@ -21,6 +21,7 @@ import type {
   SeriesInput,
   SeriesPatch,
   Settings,
+  SubtaskPatch,
   TaskInput,
   TaskPatch
 } from '../shared/types'
@@ -79,6 +80,13 @@ import {
 } from './recurrence'
 import { searchAll } from './searchRepo'
 import { getSettings, patchSettings } from './settings'
+import {
+  createSubtask,
+  deleteSubtask,
+  listSubtasks,
+  reorderSubtasks,
+  updateSubtask
+} from './subtasksRepo'
 import { createTask, deleteTask, listTasks, reorderTasks, updateTask } from './tasksRepo'
 
 export interface IpcDeps {
@@ -133,6 +141,19 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.tasksReorder, (_e, ids: string[]) => reorderTasks(ids))
   ipcMain.handle(IPC.tasksSetRecurrence, (_e, id: string, input: SeriesInput | null) =>
     setTaskRecurrence(id, input)
+  )
+
+  // ---------- subtasks ----------
+  ipcMain.handle(IPC.subtasksList, () => listSubtasks())
+  ipcMain.handle(IPC.subtasksCreate, (_e, taskId: string, title: string) =>
+    createSubtask(taskId, title)
+  )
+  ipcMain.handle(IPC.subtasksUpdate, (_e, id: string, patch: SubtaskPatch) =>
+    updateSubtask(id, patch)
+  )
+  ipcMain.handle(IPC.subtasksDelete, (_e, id: string) => deleteSubtask(id))
+  ipcMain.handle(IPC.subtasksReorder, (_e, taskId: string, ids: string[]) =>
+    reorderSubtasks(taskId, ids)
   )
 
   // ---------- recurring series ----------

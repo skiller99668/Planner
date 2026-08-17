@@ -34,6 +34,8 @@ import type {
   SeriesInput,
   SeriesPatch,
   Settings,
+  Subtask,
+  SubtaskPatch,
   Tag,
   Task,
   TaskInput,
@@ -53,6 +55,11 @@ export const IPC = {
   tasksDelete: 'tasks:delete',
   tasksReorder: 'tasks:reorder',
   tasksSetRecurrence: 'tasks:setRecurrence',
+  subtasksList: 'subtasks:list',
+  subtasksCreate: 'subtasks:create',
+  subtasksUpdate: 'subtasks:update',
+  subtasksDelete: 'subtasks:delete',
+  subtasksReorder: 'subtasks:reorder',
   seriesList: 'series:list',
   seriesCreate: 'series:create',
   seriesUpdate: 'series:update',
@@ -170,6 +177,18 @@ export interface PlannerApi {
    *  - standalone task → it becomes a series, replaced by its occurrences;
    *  - `null` → the series stops, but this task survives as a one-off. */
   tasksSetRecurrence(id: string, input: SeriesInput | null): Promise<void>
+
+  /** Every checklist item in the DB, grouped by task in the renderer — the
+   *  same fetch-it-all shape as tasksList. */
+  subtasksList(): Promise<Subtask[]>
+  /** Appends to the end of the task's checklist. Rejects an empty title. */
+  subtasksCreate(taskId: string, title: string): Promise<Subtask>
+  /** An empty title is ignored rather than stored, so a blurred editor can't
+   *  blank a row. */
+  subtasksUpdate(id: string, patch: SubtaskPatch): Promise<Subtask>
+  subtasksDelete(id: string): Promise<void>
+  /** Order within one task's checklist: the ids take positions 1..n. */
+  subtasksReorder(taskId: string, ids: string[]): Promise<void>
 
   seriesList(): Promise<TaskSeries[]>
   seriesCreate(input: SeriesInput): Promise<TaskSeries>

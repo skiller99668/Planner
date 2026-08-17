@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { useConfirm } from '../components/ConfirmProvider'
 import DateField from '../components/DateField'
 import type { LeetcodeDifficulty, LeetcodeProblem } from '../../shared/types'
-import { Burst, useCelebrate, useThresholdCross } from '../components/Celebrate'
+import { Burst, useCelebrate, useFlash, useThresholdCross } from '../components/Celebrate'
 import { addDaysYMD, todayYMD } from '../lib/dates'
+import { progressColor, progressPct } from '../lib/progress'
 import { deriveLeetcode, useDsaTarget, useLeetcode } from '../lib/useLeetcode'
 
 const DIFFS: LeetcodeDifficulty[] = ['easy', 'medium', 'hard']
@@ -28,6 +29,8 @@ export default function LeetcodePage() {
   const [logKey, fireLog] = useCelebrate()
   const [targetKey, fireTarget] = useCelebrate()
   useThresholdCross(d.weekCount, target, fireTarget)
+  const sheenOn = useFlash(targetKey)
+  const weekPct = progressPct(d.weekCount, target)
 
   return (
     <div>
@@ -45,7 +48,7 @@ export default function LeetcodePage() {
       {/* Weekly progress */}
       <section
         className={`bg-surface relative mt-6 max-w-2xl overflow-hidden rounded-[20px] p-6 shadow-[var(--shadow-soft)] ${
-          targetKey ? 'animate-sheen' : ''
+          sheenOn ? 'animate-sheen' : ''
         }`}
       >
         <div className="flex items-start justify-between">
@@ -70,10 +73,17 @@ export default function LeetcodePage() {
           </div>
         </div>
 
-        <div className="bg-bg mt-4 h-1.5 overflow-hidden rounded-full">
+        <div
+          role="progressbar"
+          aria-valuenow={d.weekCount}
+          aria-valuemin={0}
+          aria-valuemax={target}
+          aria-label={`${d.weekCount} of ${target} problems this week`}
+          className="bg-bg mt-4 h-1.5 overflow-hidden rounded-full"
+        >
           <div
-            className={`h-full rounded-full transition-all duration-500 ${d.weekMet ? 'bg-mint' : 'bg-azure'}`}
-            style={{ width: `${Math.min(100, (d.weekCount / Math.max(1, target)) * 100)}%` }}
+            className="h-full rounded-full transition-[width,background-color] duration-500 ease-(--ease-spring)"
+            style={{ width: `${weekPct}%`, background: progressColor(weekPct) }}
           />
         </div>
 

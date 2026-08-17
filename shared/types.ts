@@ -32,6 +32,28 @@ export interface Task {
   updatedAt: string
 }
 
+/** A checklist step under a task.
+ *
+ *  Deliberately not a Task of its own: a subtask has no due date, tags,
+ *  priority, reminder or recurrence. Making them real tasks would mean every
+ *  list query, the scheduler, drag-sort and search all had to learn to exclude
+ *  children — a lot of new ways to break for something that is a checklist.
+ *  Rows are deleted with their parent (FK ON DELETE CASCADE). */
+export interface Subtask {
+  id: string
+  taskId: string
+  title: string
+  done: boolean
+  /** Position within its own task's list. */
+  sortOrder: number
+  createdAt: string
+}
+
+export interface SubtaskPatch {
+  title?: string
+  done?: boolean
+}
+
 /** Recurrence rule subset: FREQ + INTERVAL + BYDAY, mirroring RFC 5545 semantics. */
 export interface RecurrenceRule {
   freq: 'daily' | 'weekly' | 'monthly'

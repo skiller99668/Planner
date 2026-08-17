@@ -235,5 +235,24 @@ export const MIGRATIONS: Migration[] = [
       -- row can later be slotted between two others without renumbering.
       ALTER TABLE tasks ADD COLUMN sort_order REAL;
     `
+  },
+  {
+    version: 7,
+    sql: `
+      -- Checklist steps under a task. A separate table rather than a parent_id
+      -- on tasks: subtasks carry none of a task's machinery (due dates,
+      -- reminders, tags, recurrence), and keeping them out of the tasks table
+      -- means no existing query has to learn to filter children out.
+      -- ON DELETE CASCADE is live — db.ts sets PRAGMA foreign_keys = ON.
+      CREATE TABLE subtasks (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        done INTEGER NOT NULL DEFAULT 0,
+        sort_order REAL NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_subtasks_task ON subtasks (task_id, sort_order);
+    `
   }
 ]

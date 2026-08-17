@@ -140,6 +140,36 @@ export function useDismiss(
   }, [open, close, popupRef])
 }
 
+/** Close an open panel when the pointer goes down outside it, and let that same
+ *  press carry on to whatever it landed on.
+ *
+ *  The click is deliberately not swallowed: clicking another task should both
+ *  back out of this editor and open that one, in a single motion. Closing
+ *  happens on `pointerdown` so the panel is already gone by the time the click
+ *  resolves — otherwise both editors would sit open at once.
+ *
+ *  A press inside a calendar or dropdown hanging off the panel is not outside
+ *  it — those render as descendants, and `popoverIsOpen()` covers the moment
+ *  one is closing under the same press. */
+export function useDismissOnOutsidePress(
+  ref: React.RefObject<HTMLElement | null>,
+  close: () => void,
+  active = true
+): void {
+  useEffect(() => {
+    if (!active) return
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0) return
+      const target = e.target as Node | null
+      if (!target || ref.current?.contains(target)) return
+      if (popoverIsOpen()) return
+      close()
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [ref, close, active])
+}
+
 /** Fixed placement beside an arbitrary rect: below it when there's room, above
  *  when there isn't, always clamped inside the viewport. The popup is measured
  *  after each render, so it stays right when its own content grows. */
