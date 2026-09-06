@@ -65,7 +65,8 @@ export function searchAll(rawQuery: string): SearchHit[] {
   const events = db
     .prepare(
       `SELECT id, title, location, start_at FROM events
-       WHERE title LIKE ? ESCAPE '\\' OR location LIKE ? ESCAPE '\\' OR notes LIKE ? ESCAPE '\\'
+       WHERE skipped = 0
+         AND (title LIKE ? ESCAPE '\\' OR location LIKE ? ESCAPE '\\' OR notes LIKE ? ESCAPE '\\')
        ORDER BY start_at DESC LIMIT ?`
     )
     .all(term, term, term, PER_MODULE) as unknown as {
@@ -160,6 +161,40 @@ export function searchAll(rawQuery: string): SearchHit[] {
     })
   }
 
+  // --- goals (and their steps, which is where the specifics usually live) ---
+  const goals = db
+    .prepare(
+      `SELECT g.id, g.title, g.month, g.kind, g.archived,
+              (SELECT s.title FROM goal_steps s
+                WHERE s.goal_id = g.id AND s.title LIKE ? ESCAPE '\\'
+                ORDER BY s.sort_order LIMIT 1) AS step
+       FROM goals g
+       WHERE g.title LIKE ? ESCAPE '\\'
+          OR EXISTS (SELECT 1 FROM goal_steps s
+                      WHERE s.goal_id = g.id AND s.title LIKE ? ESCAPE '\\')
+       ORDER BY g.month DESC, g.sort_order LIMIT ?`
+    )
+    .all(term, term, term, PER_MODULE) as unknown as {
+    id: string
+    title: string
+    month: string
+    kind: string
+    archived: number
+    step: string | null
+  }[]
+  for (const g of goals) {
+    hits.push({
+      module: 'goal',
+      id: g.id,
+      title: g.title,
+      // When the match was a step rather than the goal, say which step —
+      // otherwise the hit looks like it came back for no reason.
+      subtitle: g.step ? `${monthLabel(g.month)} · ${g.step}` : monthLabel(g.month),
+      date: `${g.month}-01`,
+      done: g.archived === 1
+    })
+  }
+
   // A title that starts with what you typed is almost always the one you meant,
   // then whole-word matches, then everything else. Finished things sink.
   const q = query.toLowerCase()
@@ -175,4 +210,11 @@ export function searchAll(rawQuery: string): SearchHit[] {
     if (r !== 0) return r
     return (b.date ?? '').localeCompare(a.date ?? '')
   })
+}
+
+/** "2026-09" → "Sep 2026", so a goal hit says which month it belongs to. */
+function monthLabel(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  if (!y || !m) return month
+  return `${new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'short' })} ${y}`
 }

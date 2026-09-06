@@ -6,7 +6,7 @@
 // assistant message (meta.receipts) and rendered in the chat.
 
 import type { ChatMessage, GymType, Priority } from '../shared/types'
-import { getLecture, getCourse, recentCourseLectures } from './academicsRepo'
+import { getLecture, getCourse, getTerm, recentCourseLectures } from './academicsRepo'
 import { appendMessage, createThread, getThread, listMessages } from './chatRepo'
 import { getDb } from './db'
 import { gymStatusSummary, logGymSession } from './gymRepo'
@@ -170,12 +170,13 @@ function buildSystemPrompt(scope: 'general' | 'lecture', refId: string | null): 
     try {
       const lecture = getLecture(refId)
       const course = getCourse(lecture.courseId)
+      const term = course.termId ? getTerm(course.termId) : null
       const prev = recentCourseLectures(course.id, lecture.id)
       return [
         base,
         ``,
         `CONTEXT — this chat is attached to a lecture.`,
-        `Course: ${course.code} — ${course.name} (${course.term})`,
+        `Course: ${course.code} — ${course.name}${term ? ` (${term.name})` : ''}`,
         `Lecture: "${lecture.title}" on ${lecture.lectureDate}`,
         `Skyler's summary of this lecture: ${lecture.summary || '(not written yet)'}`,
         prev.length

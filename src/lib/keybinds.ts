@@ -18,6 +18,7 @@ export type KeybindAction =
   | 'goEvents'
   | 'goCareer'
   | 'goLeetcode'
+  | 'goGoals'
   | 'goSettings'
 
 export interface KeybindDef {
@@ -73,6 +74,7 @@ export const KEYBIND_ACTIONS: readonly KeybindDef[] = [
   { id: 'goEvents', label: 'Go to Events', hint: '', group: 'Go to page', default: 'ctrl+5' },
   { id: 'goCareer', label: 'Go to Career', hint: '', group: 'Go to page', default: 'ctrl+6' },
   { id: 'goLeetcode', label: 'Go to LeetCode', hint: '', group: 'Go to page', default: 'ctrl+7' },
+  { id: 'goGoals', label: 'Go to Goals', hint: '', group: 'Go to page', default: 'ctrl+9' },
   { id: 'goSettings', label: 'Go to Settings', hint: '', group: 'Go to page', default: 'ctrl+8' }
 ]
 

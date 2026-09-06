@@ -11,6 +11,7 @@ import TaskEditor, {
   type FormValues
 } from '../components/TaskEditor'
 import { POPUP_CLASS, usePopoverAnchor } from '../components/Popover'
+import IconGrip from '../components/Grip'
 import { CheckCircle, TASK_BURST } from '../components/Celebrate'
 import TagChip, { ColorSwatch, TagPill, nextTagColor } from '../components/TagChip'
 import type { Tag } from '../../shared/types'
@@ -1112,19 +1113,6 @@ function formToSeriesInput(v: FormValues) {
     dueTime: v.dueTime || null,
     reminderOffsetMin: v.reminderOffset === '' ? null : Number(v.reminderOffset)
   }
-}
-
-function IconGrip() {
-  return (
-    <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor" aria-hidden>
-      <circle cx="1.6" cy="2.4" r="1.15" />
-      <circle cx="6.4" cy="2.4" r="1.15" />
-      <circle cx="1.6" cy="7" r="1.15" />
-      <circle cx="6.4" cy="7" r="1.15" />
-      <circle cx="1.6" cy="11.6" r="1.15" />
-      <circle cx="6.4" cy="11.6" r="1.15" />
-    </svg>
-  )
 }
 
 /** Ticked lines — a checklist, distinct from the row's own round checkbox. */

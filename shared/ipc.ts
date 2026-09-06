@@ -14,11 +14,20 @@ import type {
   ChatThread,
   Course,
   CourseInput,
+  CoursePatch,
   EventInput,
   EventPatch,
+  EventScope,
   GymLogInput,
   GymPatch,
   GymSession,
+  Goal,
+  GoalEntry,
+  GoalEntryInput,
+  GoalInput,
+  GoalPatch,
+  GoalStep,
+  GoalStepPatch,
   FeedEvent,
   IcsImportResult,
   JobPosting,
@@ -40,7 +49,10 @@ import type {
   Task,
   TaskInput,
   TaskPatch,
-  TaskSeries
+  TaskSeries,
+  Term,
+  TermInput,
+  TermPatch
 } from './types'
 
 export const IPC = {
@@ -75,9 +87,30 @@ export const IPC = {
   leetcodeUpdate: 'leetcode:update',
   leetcodeDelete: 'leetcode:delete',
   leetcodeSync: 'leetcode:sync',
+  goalsList: 'goals:list',
+  goalsCreate: 'goals:create',
+  goalsUpdate: 'goals:update',
+  goalsDelete: 'goals:delete',
+  goalsReorder: 'goals:reorder',
+  goalsCarry: 'goals:carry',
+  goalStepsList: 'goalSteps:list',
+  goalStepsCreate: 'goalSteps:create',
+  goalStepsUpdate: 'goalSteps:update',
+  goalStepsDelete: 'goalSteps:delete',
+  goalStepsReorder: 'goalSteps:reorder',
+  goalEntriesList: 'goalEntries:list',
+  goalEntryAdd: 'goalEntries:add',
+  goalEntryDelete: 'goalEntries:delete',
+  termsList: 'terms:list',
+  termsCreate: 'terms:create',
+  termsUpdate: 'terms:update',
+  termsDelete: 'terms:delete',
+  termsReorder: 'terms:reorder',
   coursesList: 'courses:list',
   coursesCreate: 'courses:create',
+  coursesUpdate: 'courses:update',
   coursesDelete: 'courses:delete',
+  coursesReorder: 'courses:reorder',
   lecturesList: 'lectures:list',
   lecturesCreate: 'lectures:create',
   lecturesUpdate: 'lectures:update',
@@ -220,9 +253,59 @@ export interface PlannerApi {
   /** Subscribe to data-changed pushes; returns an unsubscribe function. */
   onTasksChanged(cb: () => void): () => void
 
+  /** One month's live goals (YYYY-MM), in hand-placed order. Archived ones
+   *  are left out — a dropped goal is gone from the page, not shelved. */
+  goalsList(month: string): Promise<Goal[]>
+  goalsCreate(input: GoalInput): Promise<Goal>
+  /** Rename, retarget, recolour, relink, or archive. `kind` is ignored once
+   *  the goal has entries — a bench log can't be reread as a tally. */
+  goalsUpdate(id: string, patch: GoalPatch): Promise<Goal>
+  /** Hard delete, taking the goal's steps and measurements with it. */
+  goalsDelete(id: string): Promise<void>
+  /** Order within one month: the ids take positions 1..n. */
+  goalsReorder(month: string, ids: string[]): Promise<void>
+  /** Move a goal into another month, keeping its steps and measurements. The
+   *  row moves rather than being copied, so its history stays in one place. */
+  goalsCarry(id: string, month: string): Promise<Goal>
+
+  /** Every goal's steps, grouped by goal in the renderer — the same
+   *  fetch-it-all shape as subtasksList. */
+  goalStepsList(): Promise<GoalStep[]>
+  goalStepsCreate(goalId: string, title: string): Promise<GoalStep>
+  /** An empty title is ignored rather than stored, so a blurred editor can't
+   *  blank a row. */
+  goalStepsUpdate(id: string, patch: GoalStepPatch): Promise<GoalStep>
+  goalStepsDelete(id: string): Promise<void>
+  goalStepsReorder(goalId: string, ids: string[]): Promise<void>
+
+  /** Every goal's dated entries, newest first within each goal. */
+  goalEntriesList(): Promise<GoalEntry[]>
+  /** Log a measurement, or one step of a manual tally. The first measurement
+   *  on a number goal stamps its start value. */
+  goalEntryAdd(input: GoalEntryInput): Promise<GoalEntry>
+  goalEntryDelete(id: string): Promise<void>
+
+  /** Every term, archived included, in hand-placed order. */
+  termsList(): Promise<Term[]>
+  termsCreate(input: TermInput): Promise<Term>
+  /** An empty name is ignored rather than stored, so a blurred inline editor
+   *  can't blank a folder. */
+  termsUpdate(id: string, patch: TermPatch): Promise<Term>
+  /** Drops the folder only: its courses fall back to unfiled and keep their
+   *  lectures and chats. Archive instead when the semester is just over. */
+  termsDelete(id: string): Promise<void>
+  /** Order of the shelves: the ids take positions 1..n. */
+  termsReorder(ids: string[]): Promise<void>
+
+  /** Every course, archived included — callers filter for what they show. */
   coursesList(): Promise<Course[]>
   coursesCreate(input: CourseInput): Promise<Course>
+  /** Rename, recolour, re-file into another term, or archive. */
+  coursesUpdate(id: string, patch: CoursePatch): Promise<Course>
+  /** Hard delete, taking the course's lectures and chats with it. */
   coursesDelete(id: string): Promise<void>
+  /** Order within one term's shelf: the ids take positions 1..n. */
+  coursesReorder(termId: string | null, ids: string[]): Promise<void>
   lecturesList(courseId: string): Promise<Lecture[]>
   lecturesCreate(input: LectureInput): Promise<Lecture>
   lecturesUpdate(id: string, patch: LecturePatch): Promise<Lecture>
@@ -235,11 +318,20 @@ export interface PlannerApi {
 
   /** Events from the last ~4 months onward, soonest first. */
   eventsList(): Promise<PlannerEvent[]>
+  /** A `repeat` rule on the input builds a series; the first occurrence of it
+   *  comes back, so the caller gets an event either way. */
   eventsCreate(input: EventInput): Promise<PlannerEvent>
-  eventsUpdate(id: string, patch: EventPatch): Promise<PlannerEvent>
-  eventsDelete(id: string): Promise<void>
-  /** Opens a file dialog in main, imports VEVENTs under the given kind. */
-  eventsImportIcs(kind: PlannerEvent['kind']): Promise<IcsImportResult>
+  /** `scope` decides how far an edit to an occurrence reaches: 'one' (the
+   *  default) touches only that row, 'series' re-stamps every future one.
+   *  Patching `repeat` is always a series edit; patching it to null stops the
+   *  repeat while keeping this occurrence as a plain event. */
+  eventsUpdate(id: string, patch: EventPatch, scope?: EventScope): Promise<PlannerEvent>
+  /** 'one' strikes out a single occurrence for good (it never comes back);
+   *  'series' ends the repeat, keeping the occurrences already past. */
+  eventsDelete(id: string, scope?: EventScope): Promise<void>
+  /** Opens a file dialog in main, imports VEVENTs under the given kind — or
+   *  filed under a course, which implies the 'academic' kind. */
+  eventsImportIcs(kind: PlannerEvent['kind'], courseId?: string | null): Promise<IcsImportResult>
   /** Reads the Badminton Québec calendar (10-min cache). */
   eventsFetchBadminton(force?: boolean): Promise<BadmintonFeedResult>
   /** Imports the chosen feed events, computing BQ registration windows. */

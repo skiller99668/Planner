@@ -216,15 +216,142 @@ export interface LeetcodeSyncResult {
   warning?: string
 }
 
+// ---------- Monthly goals ----------
+
+/** What arithmetic a goal's bar runs on.
+ *  - `number`    a measurement moving from a start value to a target, in some
+ *                unit ("bench 175 → 190 lbs")
+ *  - `checklist` steps done over steps total
+ *  - `counter`   a tally toward N ("apply to 20 jobs")
+ *
+ *  Steps exist on all three. They only *drive* the bar on a checklist — on the
+ *  other two they sit under it as deliverables. */
+export type GoalKind = 'number' | 'checklist' | 'counter'
+
+/** Where a counter goal borrows its count from, scoped to the goal's month.
+ *  A goal with no source is manual: you tap +1. A linked goal has no +1
+ *  button, because the number isn't yours to change — it's a reading of
+ *  another page. */
+export type GoalSource = 'applications' | 'gym' | 'leetcode' | 'tasks'
+
+export interface Goal {
+  id: string
+  /** YYYY-MM. A goal lives in exactly one month; carrying it forward rewrites
+   *  this rather than copying the row, so its measurements and steps come with
+   *  it and its personal best stays in one place. */
+  month: string
+  title: string
+  kind: GoalKind
+  /** `number` only: the baseline the bar runs from. null until the first
+   *  measurement, which the repo stamps in here — a bar with no start reads
+   *  nearly full the moment you log a real lift. */
+  startValue: number | null
+  /** What the number is in — 'lbs', '$', '%'. null for a bare count. */
+  unit: string | null
+  /** `number`: what you're after. `counter`: how many. Unused by a checklist,
+   *  whose steps are its target. */
+  targetValue: number
+  /** `counter` only: the table this goal's count is read from, or null for a
+   *  hand-tapped tally. */
+  source: GoalSource | null
+  /** `source: 'tasks'` only: completed tasks carrying this tag are the count.
+   *  Deliberately not a foreign key — the tag vocabulary is keyed by name and
+   *  tags exist implicitly, so a deleted tag should make this read zero with
+   *  the tag still visible rather than break the row. */
+  sourceTag: string | null
+  color: string // hex from TAG_COLORS
+  /** Archived goals are kept but shown nowhere — what Drop does on the
+   *  carried-over shelf. Delete, which takes the history with it, lives in the
+   *  card's ··· menu. */
+  archived: boolean
+  /** Hand-placed position within its own month, set by dragging. */
+  sortOrder: number
+  /** For a linked counter: how many rows the source table holds for this
+   *  goal's month. Derived, but carried on the row — computed in `rowToGoal`
+   *  so every path that produces a Goal has it, since a value filled in only
+   *  by the list query would leave every update returning a goal whose bar
+   *  reads zero for one render. 0 for every other kind. */
+  autoCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** A deliverable under a goal. The same shape as a Subtask, and kept separate
+ *  for the same reason that one is kept out of `tasks`. */
+export interface GoalStep {
+  id: string
+  goalId: string
+  title: string
+  done: boolean
+  /** Position within its own goal's list. */
+  sortOrder: number
+  createdAt: string
+}
+
+/** One dated data point: a measurement on a number goal, or one tally step on
+ *  a manual counter. */
+export interface GoalEntry {
+  id: string
+  goalId: string
+  date: string // YYYY-MM-DD
+  value: number
+  note: string | null
+  createdAt: string
+}
+
+export interface GoalInput {
+  month: string // YYYY-MM
+  title: string
+  kind: GoalKind
+  startValue?: number | null
+  unit?: string | null
+  targetValue?: number
+  source?: GoalSource | null
+  sourceTag?: string | null
+  color?: string
+}
+
+export type GoalPatch = Partial<GoalInput> & { archived?: boolean }
+
+export interface GoalStepPatch {
+  title?: string
+  done?: boolean
+}
+
+export interface GoalEntryInput {
+  goalId: string
+  date: string // YYYY-MM-DD
+  value: number
+  note?: string | null
+}
+
 // ---------- Academics ----------
+
+/** A semester, as a place things go rather than a string repeated on every
+ *  course. A term can be renamed, recoloured, collapsed, archived and
+ *  reordered, and it exists before the first course goes into it — none of
+ *  which the free-text `term` field it replaced could do. */
+export interface Term {
+  id: string
+  name: string // e.g. Fall 2026
+  color: string // hex from TAG_COLORS
+  archived: boolean
+  /** Hand-placed position among the terms, set by dragging. */
+  sortOrder: number
+  createdAt: string
+}
 
 export interface Course {
   id: string
   code: string // e.g. ECSE 200
   name: string
-  term: string // e.g. Fall 2026
-  color: string // hex accent used in UI
+  /** The term folder this sits in. null when its term was deleted out from
+   *  under it — the course survives, unfiled, rather than going with it. */
+  termId: string | null
+  color: string // hex from TAG_COLORS
   archived: boolean
+  /** Hand-placed position within its own term. */
+  sortOrder: number
   createdAt: string
 }
 
@@ -238,10 +365,30 @@ export interface Lecture {
   updatedAt: string
 }
 
+export interface TermInput {
+  name: string
+  color?: string
+}
+
+export interface TermPatch {
+  name?: string
+  color?: string
+  archived?: boolean
+}
+
 export interface CourseInput {
   code: string
   name: string
-  term: string
+  termId: string | null
+  color?: string
+}
+
+export interface CoursePatch {
+  code?: string
+  name?: string
+  termId?: string | null
+  color?: string
+  archived?: boolean
 }
 
 export interface LectureInput {
@@ -294,6 +441,10 @@ export interface PlannerEvent {
   url: string | null
   notes: string | null
   source: EventSource
+  /** The course this belongs to, when it was filed under one instead of a
+   *  plain kind. Set alongside kind 'academic'; goes null if the course is
+   *  deleted, leaving the event on the calendar as a generic academic one. */
+  courseId: string | null
   /** UID from an imported ICS VEVENT, used to dedupe reimports. */
   externalUid: string | null
   /** Badminton Québec registration window, computed or manual. */
@@ -301,6 +452,18 @@ export interface PlannerEvent {
   regClosesAt: string | null
   /** User marked themselves registered → close-soon reminder is dropped. */
   registered: boolean
+  /** The repeating series this is an occurrence of, or null for a one-off. */
+  seriesId: string | null
+  /** Local date (YYYY-MM-DD) this occurrence was generated for. */
+  occurrenceDate: string | null
+  /** The series' rule, carried on every occurrence so the calendar can show
+   *  and edit "repeats weekly" without a second round trip for the series. */
+  repeat: RecurrenceRule | null
+  /** Inclusive last date the series may produce, or null for open-ended. */
+  repeatUntil: string | null
+  /** Minutes before the start to be reminded — one reminder per entry, so
+   *  [10080, 1440, 30] is a week, a day and half an hour ahead. */
+  reminderOffsets: number[]
   createdAt: string
   updatedAt: string
 }
@@ -308,6 +471,8 @@ export interface PlannerEvent {
 export interface EventInput {
   title: string
   kind: EventKind
+  /** Files the event under a course. Passing one implies kind 'academic'. */
+  courseId?: string | null
   date: string // YYYY-MM-DD
   time?: string | null // HH:mm; null = all-day
   /** End of the period. `endDate` alone spans whole days; `endTime` alone ends
@@ -320,7 +485,21 @@ export interface EventInput {
   notes?: string | null
   /** Badminton only: compute BQ registration window + alarms (default true). */
   autoRegWindow?: boolean
+  /** Makes the event repeat. On create, a rule builds a series and the first
+   *  occurrence comes back; patching one onto a standalone event converts it,
+   *  and patching null stops the series while keeping this occurrence. */
+  repeat?: RecurrenceRule | null
+  /** Inclusive last date the repeat may produce; null is open-ended. */
+  repeatUntil?: string | null
+  /** Minutes before the start to be reminded, one reminder each. Defaults to
+   *  a day before; an empty array means no reminders at all. */
+  reminderOffsets?: number[]
 }
+
+/** Editing one occurrence of a repeating event, or the whole series. Every
+ *  write defaults to 'one' — changing every future occurrence is the bigger
+ *  action, so it is the one you have to ask for. */
+export type EventScope = 'one' | 'series'
 
 export type EventPatch = Partial<EventInput> & { registered?: boolean }
 
@@ -420,7 +599,7 @@ export interface CareerLog {
 // ---------- Search ----------
 
 /** Which page a hit belongs to — the palette routes there when you pick it. */
-export type SearchModule = 'task' | 'event' | 'application' | 'lecture' | 'leetcode'
+export type SearchModule = 'task' | 'event' | 'application' | 'lecture' | 'leetcode' | 'goal'
 
 export interface SearchHit {
   module: SearchModule
@@ -466,6 +645,10 @@ export interface Settings {
   internshipTrackFocus: 'swe' | 'hardware'
   /** LeetCode username for best-effort solve sync; null until set. */
   leetcodeUsername: string | null
+  /** Term folders the user has rolled up on the Academics page. Kept here
+   *  rather than in component state because the page unmounts on every
+   *  navigation, and a folder that springs back open is not a folder. */
+  collapsedTerms: string[]
   /** User overrides for keyboard shortcuts, keyed by action id. Defaults live in src/lib/keybinds.ts. */
   keybinds: Record<string, string>
   /** OS-wide capture hotkey (Electron accelerator). null disables it entirely. */
@@ -484,6 +667,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   internshipTrackFocus: 'swe',
   leetcodeUsername: null,
+  collapsedTerms: [],
   keybinds: {},
   captureShortcut: 'Control+Alt+Space'
 }

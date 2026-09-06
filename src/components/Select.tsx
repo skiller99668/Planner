@@ -8,6 +8,13 @@ import { Chevron, FIELD_CLASS, POPUP_CLASS, usePopoverAnchor } from './Popover'
 export interface SelectOption<T extends string> {
   value: T
   label: string
+  /** Heading this option sits under. Consecutive options sharing one are drawn
+   *  as a run with the heading above the first; options without one lead the
+   *  list. Purely visual — grouping never reorders the options given. */
+  group?: string
+  /** Colour chip drawn before the label, for options that carry a hue of their
+   *  own (an event kind, a course). */
+  dot?: string
 }
 
 export default function Select<T extends string>({
@@ -91,8 +98,19 @@ export default function Select<T extends string>({
         onKeyDown={onKeyDown}
         className={`${FIELD_CLASS} ${pop.open ? 'ring-azure/60 ring-1' : ''} ${className}`}
       >
-        <span className={`truncate ${mono ? 'font-mono text-[12px]' : ''}`}>
-          {selected?.label ?? ''}
+        {/* One unit: FIELD_CLASS spaces its children with justify-between, so
+            a dot left as a bare sibling drifts to the far side of the label. */}
+        <span className="flex min-w-0 items-center gap-1.5">
+          {selected?.dot && (
+            <span
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ background: selected.dot }}
+              aria-hidden
+            />
+          )}
+          <span className={`truncate ${mono ? 'font-mono text-[12px]' : ''}`}>
+            {selected?.label ?? ''}
+          </span>
         </span>
         <Chevron open={pop.open} />
       </button>
@@ -107,31 +125,43 @@ export default function Select<T extends string>({
         >
           {options.map((o, i) => {
             const isSelected = o.value === value
+            const heading = o.group && o.group !== options[i - 1]?.group ? o.group : null
             return (
-              <button
-                key={o.value}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => commit(o.value)}
-                className={`flex w-full items-center gap-2 rounded-[9px] px-2.5 py-1.5 text-left text-[13.5px] whitespace-nowrap transition-colors ${
-                  i === active ? 'bg-surface text-ink' : 'text-muted'
-                } ${isSelected ? 'text-azure font-semibold' : ''}`}
-              >
-                <span className={`flex-1 ${mono ? 'font-mono text-[12px]' : ''}`}>{o.label}</span>
-                {isSelected && (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M5 12.5l4.5 4.5L19 7"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+              <div key={o.value}>
+                {heading && (
+                  <div className="section-label px-2.5 pt-2 pb-1 text-[10.5px]">{heading}</div>
                 )}
-              </button>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => commit(o.value)}
+                  className={`flex w-full items-center gap-2 rounded-[9px] px-2.5 py-1.5 text-left text-[13.5px] whitespace-nowrap transition-colors ${
+                    i === active ? 'bg-surface text-ink' : 'text-muted'
+                  } ${isSelected ? 'text-azure font-semibold' : ''}`}
+                >
+                  {o.dot && (
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ background: o.dot }}
+                      aria-hidden
+                    />
+                  )}
+                  <span className={`flex-1 ${mono ? 'font-mono text-[12px]' : ''}`}>{o.label}</span>
+                  {isSelected && (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M5 12.5l4.5 4.5L19 7"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
             )
           })}
         </div>

@@ -35,7 +35,8 @@ const MODULE_PAGE: Record<SearchModule, ModuleId> = {
   event: 'events',
   application: 'career',
   lecture: 'academics',
-  leetcode: 'leetcode'
+  leetcode: 'leetcode',
+  goal: 'goals'
 }
 
 const MODULE_LABEL: Record<SearchModule, string> = {
@@ -43,7 +44,8 @@ const MODULE_LABEL: Record<SearchModule, string> = {
   event: 'Event',
   application: 'Application',
   lecture: 'Lecture',
-  leetcode: 'LeetCode'
+  leetcode: 'LeetCode',
+  goal: 'Goal'
 }
 
 type Row =
@@ -101,6 +103,7 @@ export default function CommandPalette({
       { id: 'go-events', label: 'Events', group: 'Go to', keywords: 'calendar tournaments', run: () => go('events') },
       { id: 'go-career', label: 'Career', group: 'Go to', keywords: 'internships jobs applications', run: () => go('career') },
       { id: 'go-leetcode', label: 'LeetCode', group: 'Go to', keywords: 'dsa problems', run: () => go('leetcode') },
+      { id: 'go-goals', label: 'Goals', group: 'Go to', keywords: 'targets month progress', run: () => go('goals') },
       { id: 'go-settings', label: 'Settings', group: 'Go to', keywords: 'preferences', run: () => go('settings') },
       {
         id: 'new-task',

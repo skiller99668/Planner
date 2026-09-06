@@ -4,14 +4,22 @@
 // bubble in read mode. Imports and hackathon links sit below the grid, where
 // they don't compete with the calendar.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useConfirm } from '../components/ConfirmProvider'
 import TimeField, { formatTimeLabel } from '../components/TimeField'
 import DateField from '../components/DateField'
-import Select from '../components/Select'
+import Select, { type SelectOption } from '../components/Select'
 import { useAnchoredStyle, useDismiss } from '../components/Popover'
-import type { EventKind, FeedEvent, PlannerEvent } from '../../shared/types'
+import type {
+  Course,
+  EventKind,
+  EventScope,
+  FeedEvent,
+  PlannerEvent,
+  RecurrenceRule
+} from '../../shared/types'
 import { addDaysYMD, localYMD, todayYMD } from '../lib/dates'
+import { useAcademics } from '../lib/useAcademics'
 
 /** One row per kind: label and the hue it carries everywhere on this page. */
 const KINDS: { id: EventKind; label: string; color: string }[] = [
@@ -29,6 +37,53 @@ const KIND_LABEL = Object.fromEntries(KINDS.map((k) => [k.id, k.label])) as Reco
   EventKind,
   string
 >
+
+/** The category dropdown's value space. A base kind stands for itself; a course
+ *  rides in behind a prefix — course ids are uuids, so they can't collide with
+ *  a kind name. */
+type CategoryValue = EventKind | `course:${string}`
+const COURSE_PREFIX = 'course:'
+
+/** Picking a course is what makes an event academic. The kind isn't a second
+ *  choice the user could contradict — the repo derives it the same way. */
+function parseCategory(v: CategoryValue): { kind: EventKind; courseId: string | null } {
+  return v.startsWith(COURSE_PREFIX)
+    ? { kind: 'academic', courseId: v.slice(COURSE_PREFIX.length) }
+    : { kind: v as EventKind, courseId: null }
+}
+
+function categoryValue(e: { kind: EventKind; courseId: string | null }): CategoryValue {
+  return e.courseId ? `${COURSE_PREFIX}${e.courseId}` : e.kind
+}
+
+/** How an event paints and names itself: its kind's hue, or its course's when
+ *  one is attached. */
+interface Category {
+  color: string
+  label: string
+}
+
+/** Just enough of an event to categorize it, so a half-filled form can ask too. */
+type Categorized = { kind: EventKind; courseId: string | null }
+
+interface EventCategories {
+  of: (e: Categorized) => Category
+  /** The current value is passed in so a course archived *after* it was tagged
+   *  can be pinned back onto the list — Select renders a blank trigger for a
+   *  value it has no option for. */
+  options: (current: CategoryValue) => SelectOption<CategoryValue>[]
+}
+
+// The default is the pre-course behaviour, so a bubble rendered outside the
+// page still paints rather than throwing.
+const CategoryContext = createContext<EventCategories>({
+  of: (e) => ({ color: KIND_COLOR[e.kind], label: KIND_LABEL[e.kind] }),
+  options: () => KINDS.map((k) => ({ value: k.id, label: k.label, dot: k.color }))
+})
+
+function useCategories(): EventCategories {
+  return useContext(CategoryContext)
+}
 
 /** Hackathons worth knowing about — opened in the browser, not scraped. */
 const HACKATHON_LINKS = [
@@ -52,7 +107,7 @@ const inputCls =
 // rather than appended to it: two padding utilities on one element resolve by
 // stylesheet order, not by which was written last.
 const BUBBLE_CLASS =
-  'bg-raised animate-pop fixed z-50 rounded-[16px] p-3.5 shadow-[var(--shadow-lift)]'
+  'bg-raised animate-pop fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-[16px] p-3.5 shadow-[var(--shadow-lift)]'
 
 /** Wide enough for the start/end rows to keep their fields on one line. */
 const BUBBLE_W = 348
@@ -98,11 +153,54 @@ export default function EventsPage() {
   const [bqBusy, setBqBusy] = useState(false)
   const [bqError, setBqError] = useState<string | null>(null)
 
+  // The same terms/courses the Academics page draws. Fetched here because a
+  // course is a category on this page: it colours events and fills the picker.
+  const academics = useAcademics()
+
   const refresh = useCallback(async () => {
     if (!window.planner) return
     setEvents(await window.planner.eventsList())
     setLoaded(true)
   }, [])
+
+  const { courseById, terms, courses } = academics
+  const categories = useMemo<EventCategories>(() => {
+    // Archiving a course is not unpainting it: an event keeps the colour and
+    // code of whatever it was filed under, on the shelf or off it.
+    const of = (e: Categorized): Category => {
+      const c = e.courseId ? courseById.get(e.courseId) : undefined
+      return c
+        ? { color: c.color, label: c.code }
+        : { color: KIND_COLOR[e.kind], label: KIND_LABEL[e.kind] }
+    }
+
+    const live = courses.filter((c) => !c.archived)
+    const options = (current: CategoryValue): SelectOption<CategoryValue>[] => {
+      const out: SelectOption<CategoryValue>[] = KINDS.map((k) => ({
+        value: k.id,
+        label: k.label,
+        dot: k.color
+      }))
+      const push = (group: string, list: Course[]) => {
+        for (const c of list) out.push({ value: `${COURSE_PREFIX}${c.id}`, label: c.code, group, dot: c.color })
+      }
+      // An empty term contributes no heading — headings are emitted by their
+      // first option, so a term with nothing in it costs nothing here.
+      for (const t of terms.filter((t) => !t.archived)) {
+        push(t.name, live.filter((c) => c.termId === t.id))
+      }
+      push('No term', live.filter((c) => c.termId === null))
+      // The trigger has to keep reading "ECSE 200" after that course is
+      // archived; only the open menu explains where it went.
+      if (current.startsWith(COURSE_PREFIX) && !out.some((o) => o.value === current)) {
+        const c = courseById.get(current.slice(COURSE_PREFIX.length))
+        if (c) out.push({ value: current, label: c.code, group: 'Archived', dot: c.color })
+      }
+      return out
+    }
+
+    return { of, options }
+  }, [courseById, terms, courses])
 
   useEffect(() => {
     void refresh()
@@ -261,6 +359,7 @@ export default function EventsPage() {
     bubble?.mode === 'event' ? (events.find((e) => e.id === bubble.id) ?? null) : null
 
   return (
+    <CategoryContext.Provider value={categories}>
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
@@ -418,6 +517,7 @@ export default function EventsPage() {
         />
       )}
     </div>
+    </CategoryContext.Provider>
   )
 }
 
@@ -587,7 +687,7 @@ function EventChip({
   ymd: string
   onOpen: (b: Bubble) => void
 }) {
-  const color = KIND_COLOR[event.kind]
+  const { color } = useCategories().of(event)
   const d = new Date(event.startAt)
   // Only the first day of a run carries the clock; the rest carry a marker
   // saying the event came from somewhere to the left.
@@ -643,7 +743,11 @@ function TimeGrid({
   const scroller = useRef<HTMLDivElement>(null)
   const now = useNow(60_000)
 
-  const bands = useMemo(() => layoutBands(days, byDay, regDays), [days, byDay, regDays])
+  const { of: categoryOf } = useCategories()
+  const bands = useMemo(
+    () => layoutBands(days, byDay, regDays, categoryOf),
+    [days, byDay, regDays, categoryOf]
+  )
 
   // Open on the working day rather than at midnight: the earliest thing in
   // range, or 8am when the range is empty. Keyed to the range so scrolling
@@ -873,7 +977,7 @@ function TimeBlock({
   onOpen: (b: Bubble) => void
 }) {
   const { event, from, to, col, cols } = block
-  const color = KIND_COLOR[event.kind]
+  const { color } = useCategories().of(event)
   const height = ((to - from) / 60) * HOUR_H
   // Under ~34px the two lines don't fit, so they sit side by side instead.
   // A button also centres its content, which a tall block must not do — it
@@ -1074,7 +1178,10 @@ interface Band {
 function layoutBands(
   days: string[],
   byDay: Map<string, PlannerEvent[]>,
-  regDays: Map<string, RegDay>
+  regDays: Map<string, RegDay>,
+  /** Passed in rather than read from context: this is a plain function, and
+   *  the bars have to carry the course's hue like every other surface. */
+  categoryOf: (e: Categorized) => Category
 ): Band[] {
   const first = days[0]
   const last = days[days.length - 1]
@@ -1097,7 +1204,7 @@ function layoutBands(
     .map(({ event, startDay, endDay }) => ({
       key: event.id,
       label: event.title,
-      color: KIND_COLOR[event.kind],
+      color: categoryOf(event).color,
       from: index.get(startDay < first ? first : startDay)!,
       to: index.get(endDay > last ? last : endDay)!,
       clippedStart: startDay < first,
@@ -1152,35 +1259,29 @@ function layoutBands(
   })
 }
 
-/** The kind row, shared by create and edit. Selected reads as filled in the
- *  kind's own hue; the rest sit back so the choice is obvious at a glance. */
-function KindPicker({
-  kind,
+/** The category field, shared by create and edit: the five base kinds, then a
+ *  group per term listing its courses.
+ *
+ *  A wrapping pill row can't hold this — the list grows with every course
+ *  added, and a bubble 320px wide has no room to grow with it. Full width, not
+ *  shrink-wrapped: the trigger would otherwise change size between "Other" and
+ *  "Badminton", and `truncate` does nothing without a width to truncate to. */
+function CategoryPicker({
+  value,
   onChange
 }: {
-  kind: EventKind
-  onChange: (k: EventKind) => void
+  value: CategoryValue
+  onChange: (v: CategoryValue) => void
 }) {
+  const { options } = useCategories()
   return (
-    <div className="mt-2.5 flex flex-wrap gap-1" role="group" aria-label="Kind">
-      {KINDS.map((k) => {
-        const on = kind === k.id
-        return (
-          <button
-            key={k.id}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(k.id)}
-            className={`tactile rounded-full px-2.5 py-1 text-[11.5px] transition-colors ${
-              on ? 'font-semibold' : 'bg-surface text-faint hover:text-muted font-medium'
-            }`}
-            style={on ? { color: '#0b1120', background: k.color } : undefined}
-          >
-            {k.label}
-          </button>
-        )
-      })}
-    </div>
+    <Select
+      value={value}
+      ariaLabel="Category"
+      className="mt-2.5 w-full"
+      options={options(value)}
+      onChange={onChange}
+    />
   )
 }
 
@@ -1264,6 +1365,281 @@ function WhenFields({ when, onChange }: { when: When; onChange: (w: When) => voi
   )
 }
 
+/** How the event repeats, as the form holds it — flat, because a `<Select>`
+ *  and three inputs cannot each edit a corner of a nested rule object. */
+interface Repeat {
+  freq: 'none' | 'daily' | 'weekly' | 'monthly'
+  interval: number
+  weekdays: number[]
+  until: string
+}
+
+const NO_REPEAT: Repeat = { freq: 'none', interval: 1, weekdays: [], until: '' }
+
+/** The repeat an existing event is already on. Every occurrence carries its
+ *  series' rule, so this needs no extra round trip. */
+function repeatOf(event: PlannerEvent): Repeat {
+  if (!event.repeat) return NO_REPEAT
+  return {
+    freq: event.repeat.freq,
+    interval: event.repeat.interval,
+    weekdays: event.repeat.byWeekdays,
+    until: event.repeatUntil ?? ''
+  }
+}
+
+/** The rule as the IPC layer wants it — or null, which is how "doesn't repeat"
+ *  is spelled all the way down to the database. */
+function repeatToRule(r: Repeat, day: string): RecurrenceRule | null {
+  if (r.freq === 'none') return null
+  return {
+    freq: r.freq,
+    interval: Math.max(1, r.interval),
+    // An empty weekday list is legal: the main process fills in the start
+    // date's own weekday, which is what an unspecified weekly repeat means.
+    byWeekdays: r.freq === 'weekly' ? r.weekdays : [],
+    byMonthDay: r.freq === 'monthly' ? Number(day.slice(8, 10)) : null
+  }
+}
+
+/** The repeat in one line, for the read view. */
+function describeRepeat(event: PlannerEvent): string {
+  const rule = event.repeat
+  if (!rule) return ''
+  const n = rule.interval
+  let base: string
+  if (rule.freq === 'daily') base = n === 1 ? 'Every day' : `Every ${n} days`
+  else if (rule.freq === 'weekly') {
+    const days = rule.byWeekdays.map((d) => DOW[(d + 1) % 7]).join(', ')
+    base = n === 1 ? 'Every week' : `Every ${n} weeks`
+    if (days) base += ` on ${days}`
+  } else base = n === 1 ? 'Every month' : `Every ${n} months`
+  return event.repeatUntil ? `${base}, until ${event.repeatUntil}` : base
+}
+
+const WEEKDAY_ORDER = [6, 0, 1, 2, 3, 4, 5]
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+/** Repeat controls: a frequency, and only the extra fields that frequency
+ *  actually needs. Collapsed to a single dropdown until it repeats, so an
+ *  event that doesn't costs one line. */
+function RepeatFields({
+  repeat,
+  day,
+  onChange
+}: {
+  repeat: Repeat
+  day: string
+  onChange: (r: Repeat) => void
+}) {
+  const on = repeat.freq !== 'none'
+  const noun = repeat.freq === 'daily' ? 'day' : repeat.freq === 'weekly' ? 'week' : 'month'
+  const unit = repeat.interval === 1 ? noun : `${noun}s`
+
+  return (
+    <div className="mt-2.5 grid gap-1.5">
+      <Select
+        value={repeat.freq}
+        ariaLabel="Repeat"
+        className="w-full"
+        onChange={(val) => onChange({ ...repeat, freq: val as Repeat['freq'] })}
+        options={[
+          { value: 'none', label: "Doesn't repeat" },
+          { value: 'daily', label: 'Daily' },
+          { value: 'weekly', label: 'Weekly' },
+          { value: 'monthly', label: 'Monthly' }
+        ]}
+      />
+
+      {on && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-faint w-[38px] shrink-0 text-[11.5px] font-semibold">Every</span>
+          <input
+            type="number"
+            min={1}
+            max={30}
+            aria-label={`Repeat every N ${noun}s`}
+            className={`${inputCls} nums w-14`}
+            value={repeat.interval}
+            onChange={(e) =>
+              onChange({ ...repeat, interval: Math.max(1, Number(e.target.value) || 1) })
+            }
+          />
+          <span className="text-muted text-[12px]">{unit}</span>
+        </div>
+      )}
+
+      {on && repeat.freq === 'weekly' && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-faint w-[38px] shrink-0 text-[11.5px] font-semibold">On</span>
+          <div className="flex gap-1" role="group" aria-label="Weekdays">
+            {WEEKDAY_ORDER.map((i, pos) => {
+              const picked = repeat.weekdays.includes(i)
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  aria-pressed={picked}
+                  aria-label={WEEKDAY_NAMES[i]}
+                  onClick={() =>
+                    onChange({
+                      ...repeat,
+                      weekdays: picked
+                        ? repeat.weekdays.filter((d) => d !== i)
+                        : [...repeat.weekdays, i].sort((a, b) => a - b)
+                    })
+                  }
+                  className={`tactile h-7 w-7 rounded-full text-[11px] font-semibold ${
+                    picked ? 'btn-primary' : 'bg-bg text-muted hover:text-ink'
+                  }`}
+                >
+                  {WEEKDAY_LABELS[pos]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {on && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-faint w-[38px] shrink-0 text-[11.5px] font-semibold">Until</span>
+          <DateField
+            value={repeat.until}
+            ariaLabel="Repeat until"
+            placeholder="Forever"
+            min={day}
+            className="min-w-0 flex-1"
+            onChange={(next) => onChange({ ...repeat, until: next })}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** How far ahead to be warned. Every offset is a whole number of minutes
+ *  before the start, which is the only unit the scheduler deals in. */
+const REMIND_CHOICES: { mins: number; label: string }[] = [
+  { mins: 0, label: 'At start' },
+  { mins: 10, label: '10 min' },
+  { mins: 30, label: '30 min' },
+  { mins: 60, label: '1 hour' },
+  { mins: 120, label: '2 hours' },
+  { mins: 1440, label: '1 day' },
+  { mins: 2880, label: '2 days' },
+  { mins: 10_080, label: '1 week' }
+]
+
+/** Reminders as toggles rather than a dropdown, because an event can want
+ *  several — a week out to book the day off, and half an hour out to leave. */
+function RemindFields({
+  offsets,
+  allDay,
+  onChange
+}: {
+  offsets: number[]
+  allDay: boolean
+  onChange: (next: number[]) => void
+}) {
+  const toggle = (mins: number) =>
+    onChange(
+      offsets.includes(mins)
+        ? offsets.filter((m) => m !== mins)
+        : [...offsets, mins].sort((a, b) => b - a)
+    )
+
+  return (
+    <div className="mt-2.5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-faint text-[11.5px] font-semibold">Remind me</span>
+        {offsets.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className="text-faint hover:text-ink text-[11px] transition-colors"
+          >
+            None
+          </button>
+        )}
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-1" role="group" aria-label="Reminders">
+        {REMIND_CHOICES.map(({ mins, label }) => {
+          const picked = offsets.includes(mins)
+          return (
+            <button
+              key={mins}
+              type="button"
+              aria-pressed={picked}
+              onClick={() => toggle(mins)}
+              className={`tactile rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${
+                picked ? 'btn-primary' : 'bg-bg text-muted hover:text-ink'
+              }`}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+      {allDay && offsets.length > 0 && (
+        <p className="text-faint mt-1.5 text-[11px]">Counted back from 9am on the day.</p>
+      )}
+    </div>
+  )
+}
+
+/** What a new event is reminded at until the user says otherwise. Matches the
+ *  main process's own default, so an event created before this control existed
+ *  and one created through it behave the same. */
+const DEFAULT_REMIND = [1440]
+
+/** "This one, or all of them?" — asked in place inside the bubble rather than
+ *  in a dialog on top of it, because the answer is about the event you are
+ *  already looking at and the two options are peers, not a yes and a no. */
+function ScopeAsk({
+  prompt,
+  danger,
+  onPick,
+  onCancel
+}: {
+  prompt: string
+  danger?: boolean
+  onPick: (scope: EventScope) => void
+  onCancel: () => void
+}) {
+  const pick = `tactile rounded-[10px] border px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+    danger ? 'border-coral/50 text-coral hover:bg-coral/10' : 'border-line text-ink hover:bg-surface'
+  }`
+  return (
+    <div className="border-line mt-3 border-t pt-2.5">
+      <p className="text-muted text-[12px]">{prompt}…</p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <button type="button" autoFocus className={pick} onClick={() => onPick('one')}>
+          This event
+        </button>
+        <button type="button" className={pick} onClick={() => onPick('series')}>
+          All events
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-muted hover:text-ink px-1.5 py-1 text-[12px] transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Reminders in one line, for the read view. */
+function describeReminders(offsets: number[]): string {
+  if (offsets.length === 0) return ''
+  const label = (m: number) => REMIND_CHOICES.find((c) => c.mins === m)?.label ?? `${m} min`
+  return offsets.map(label).join(' · ')
+}
+
 /** The four fields that describe a period, as the form holds them. */
 interface When {
   day: string
@@ -1341,7 +1717,8 @@ function QuickCreate({
   useDismiss(true, onClose, ref)
 
   const [title, setTitle] = useState('')
-  const [kind, setKind] = useState<EventKind>('other')
+  const [category, setCategory] = useState<CategoryValue>('other')
+  const { kind, courseId } = parseCategory(category)
   const [when, setWhen] = useState<When>(() =>
     normalizeWhen({
       day: date,
@@ -1354,6 +1731,8 @@ function QuickCreate({
   const [url, setUrl] = useState('')
   const [notes, setNotes] = useState('')
   const [autoReg, setAutoReg] = useState(true)
+  const [repeat, setRepeat] = useState<Repeat>(NO_REPEAT)
+  const [offsets, setOffsets] = useState<number[]>(DEFAULT_REMIND)
   const [more, setMore] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -1363,11 +1742,15 @@ function QuickCreate({
     await window.planner.eventsCreate({
       title,
       kind,
+      courseId,
       ...whenToInput(when),
       location: location || null,
       url: url || null,
       notes: notes || null,
-      autoRegWindow: kind === 'badminton' ? autoReg : false
+      autoRegWindow: kind === 'badminton' ? autoReg : false,
+      repeat: repeatToRule(repeat, when.day),
+      repeatUntil: repeat.until || null,
+      reminderOffsets: offsets
     })
     await onCreated()
   }
@@ -1399,10 +1782,13 @@ function QuickCreate({
       />
 
       <WhenFields when={when} onChange={setWhen} />
-      <KindPicker kind={kind} onChange={setKind} />
+      <CategoryPicker value={category} onChange={setCategory} />
+      <RepeatFields repeat={repeat} day={when.day} onChange={setRepeat} />
 
       {more && (
-        <div className="mt-2.5 grid gap-1.5">
+        <>
+          <RemindFields offsets={offsets} allDay={!when.time} onChange={setOffsets} />
+          <div className="mt-2.5 grid gap-1.5">
           <input
             className={inputCls}
             placeholder="Location"
@@ -1436,7 +1822,8 @@ function QuickCreate({
               Registration alarms
             </label>
           )}
-        </div>
+          </div>
+        </>
       )}
 
       <div className="mt-3 flex items-center justify-between">
@@ -1478,39 +1865,81 @@ function EventBubble({
 
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(event.title)
-  const [kind, setKind] = useState<EventKind>(event.kind)
+  const [category, setCategory] = useState<CategoryValue>(() => categoryValue(event))
+  const { kind, courseId } = parseCategory(category)
   const [when, setWhen] = useState<When>(() => whenOf(event))
   const [location, setLocation] = useState(event.location ?? '')
   const [url, setUrl] = useState(event.url ?? '')
   const [notes, setNotes] = useState(event.notes ?? '')
   const [autoReg, setAutoReg] = useState(event.regOpensAt !== null)
+  const [repeat, setRepeat] = useState<Repeat>(() => repeatOf(event))
+  const [offsets, setOffsets] = useState<number[]>(event.reminderOffsets)
+  // Which of "this one" and "all of them" a pending save or delete meant. Only
+  // asked when the event repeats and the answer could differ; null = not asked.
+  const [asking, setAsking] = useState<'save' | 'delete' | null>(null)
 
-  const color = KIND_COLOR[event.kind]
+  const rule = repeatToRule(repeat, when.day)
+  const ruleChanged =
+    JSON.stringify(rule) !== JSON.stringify(event.repeat) ||
+    (repeat.until || null) !== event.repeatUntil
 
-  const save = async () => {
+  const categories = useCategories()
+  const { color } = categories.of(event)
+
+  const save = async (scope: EventScope) => {
     if (!title.trim() || !when.day || !window.planner) return
-    await window.planner.eventsUpdate(event.id, {
-      title,
-      kind,
-      ...whenToInput(when),
-      location: location || null,
-      url: url || null,
-      notes: notes || null,
-      autoRegWindow: kind === 'badminton' ? autoReg : false
-    })
+    await window.planner.eventsUpdate(
+      event.id,
+      {
+        title,
+        kind,
+        courseId,
+        ...whenToInput(when),
+        location: location || null,
+        url: url || null,
+        notes: notes || null,
+        autoRegWindow: kind === 'badminton' ? autoReg : false,
+        // Sent only when the repeat itself changed. Passing it otherwise would
+        // route a one-occurrence edit through the series and rewrite them all.
+        ...(ruleChanged ? { repeat: rule, repeatUntil: repeat.until || null } : {}),
+        reminderOffsets: offsets
+      },
+      scope
+    )
     await onChanged()
+    setAsking(null)
     setEditing(false)
   }
 
-  const remove = async () => {
-    const ok = await confirm({
-      title: `Delete “${event.title}”?`,
-      body: 'It comes off your calendar for good.',
-      confirmLabel: 'Delete',
-      danger: true
-    })
-    if (!ok) return
-    await window.planner?.eventsDelete(event.id)
+  /** A save or delete on a repeating event is ambiguous, so it stops and asks
+   *  — except when the repeat rule itself changed, which can only mean the
+   *  series, and when the event doesn't repeat at all. */
+  const submit = () => {
+    if (!title.trim() || !when.day) return
+    if (ruleChanged || !event.seriesId) return void save('series')
+    setAsking('save')
+  }
+
+  const remove = async (scope: EventScope) => {
+    const ok = await confirm(
+      scope === 'series'
+        ? {
+            title: `Delete every “${event.title}”?`,
+            body: 'The whole repeat ends. Ones that already happened stay on your calendar.',
+            confirmLabel: 'Delete all',
+            danger: true
+          }
+        : {
+            title: `Delete “${event.title}”?`,
+            body: event.seriesId
+              ? 'Just this one comes off the calendar — the repeat carries on without it.'
+              : 'It comes off your calendar for good.',
+            confirmLabel: 'Delete',
+            danger: true
+          }
+    )
+    if (!ok) return setAsking(null)
+    await window.planner?.eventsDelete(event.id, scope)
     await onChanged()
     onClose()
   }
@@ -1523,7 +1952,7 @@ function EventBubble({
       style={style}
       className={BUBBLE_CLASS}
       onKeyDown={(e) => {
-        if (editing && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void save()
+        if (editing && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit()
       }}
     >
       {editing ? (
@@ -1535,14 +1964,16 @@ function EventBubble({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
-                void save()
+                submit()
               }
             }}
             aria-label="Event title"
             className="border-line focus:border-azure w-full border-b bg-transparent pb-1.5 text-[16px] font-semibold outline-none transition-colors"
           />
           <WhenFields when={when} onChange={setWhen} />
-          <KindPicker kind={kind} onChange={setKind} />
+          <CategoryPicker value={category} onChange={setCategory} />
+          <RepeatFields repeat={repeat} day={when.day} onChange={setRepeat} />
+          <RemindFields offsets={offsets} allDay={!when.time} onChange={setOffsets} />
           <div className="mt-2.5 grid gap-1.5">
             <input
               className={inputCls}
@@ -1578,21 +2009,29 @@ function EventBubble({
               </label>
             )}
           </div>
-          <div className="mt-3 flex items-center justify-end gap-1">
-            <button
-              onClick={() => setEditing(false)}
-              className="text-muted hover:text-ink rounded-[10px] px-3 py-1.5 text-[12.5px] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => void save()}
-              disabled={!title.trim() || !when.day}
-              className="tactile btn-primary rounded-[10px] px-4 py-1.5 text-[12.5px] font-bold disabled:opacity-35"
-            >
-              Save
-            </button>
-          </div>
+          {asking === 'save' ? (
+            <ScopeAsk
+              prompt="Save the change to"
+              onPick={(scope) => void save(scope)}
+              onCancel={() => setAsking(null)}
+            />
+          ) : (
+            <div className="mt-3 flex items-center justify-end gap-1">
+              <button
+                onClick={() => setEditing(false)}
+                className="text-muted hover:text-ink rounded-[10px] px-3 py-1.5 text-[12.5px] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submit}
+                disabled={!title.trim() || !when.day}
+                className="tactile btn-primary rounded-[10px] px-4 py-1.5 text-[12.5px] font-bold disabled:opacity-35"
+              >
+                Save
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -1606,8 +2045,17 @@ function EventBubble({
               <h2 className="text-[15.5px] leading-snug font-semibold">{event.title}</h2>
               <p className="text-muted nums mt-0.5 text-[12.5px]">{longWhen(event)}</p>
             </div>
-            <span className="text-faint shrink-0 text-[11px]">{KIND_LABEL[event.kind]}</span>
+            <span className="text-faint shrink-0 text-[11px]">{categories.of(event).label}</span>
           </div>
+
+          {(event.repeat || event.reminderOffsets.length > 0) && (
+            <div className="text-faint mt-2 space-y-0.5 text-[11.5px]">
+              {event.repeat && <p>↻ {describeRepeat(event)}</p>}
+              {event.reminderOffsets.length > 0 && (
+                <p>◔ {describeReminders(event.reminderOffsets)} before</p>
+              )}
+            </div>
+          )}
 
           {(event.location || event.notes) && (
             <div className="text-muted mt-2.5 space-y-1 text-[12.5px]">
@@ -1653,12 +2101,21 @@ function EventBubble({
               Edit
             </button>
             <button
-              onClick={() => void remove()}
+              onClick={() => (event.seriesId ? setAsking('delete') : void remove('one'))}
               className="text-muted hover:text-coral hover:bg-surface rounded-[10px] px-2.5 py-1.5 text-[12.5px] font-medium transition-colors"
             >
               Delete
             </button>
           </div>
+
+          {asking === 'delete' && (
+            <ScopeAsk
+              prompt="Delete"
+              danger
+              onPick={(scope) => void remove(scope)}
+              onCancel={() => setAsking(null)}
+            />
+          )}
         </>
       )}
     </div>
@@ -1682,6 +2139,7 @@ function DayBubble({
   const ref = useRef<HTMLDivElement>(null)
   const style = useAnchoredStyle(rect, ref, 240)
   useDismiss(true, onClose, ref)
+  const { of: categoryOf } = useCategories()
   const d = new Date(`${date}T00:00:00`)
 
   return (
@@ -1699,7 +2157,7 @@ function DayBubble({
               <span
                 aria-hidden
                 className="h-2 w-2 shrink-0 rounded-[2px]"
-                style={{ background: KIND_COLOR[e.kind] }}
+                style={{ background: categoryOf(e).color }}
               />
               <span className="min-w-0 flex-1 truncate text-[12.5px]">{e.title}</span>
               {!isAllDayIso(e.startAt) && (
@@ -1897,7 +2355,7 @@ function EventRow({
   const rowRef = useRef<HTMLDivElement>(null)
   const d = new Date(event.startAt)
   const allDay = d.getHours() === 0 && d.getMinutes() === 0
-  const color = KIND_COLOR[event.kind]
+  const { color, label: categoryLabel } = useCategories().of(event)
 
   return (
     <li>
@@ -1920,7 +2378,7 @@ function EventRow({
               className="rounded-full px-2 py-0.5 text-[11px]"
               style={{ color, background: `${color}1f` }}
             >
-              {KIND_LABEL[event.kind].toLowerCase()}
+              {categoryLabel}
             </span>
             <RegBadge event={event} />
           </div>

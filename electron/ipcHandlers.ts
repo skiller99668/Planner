@@ -8,10 +8,16 @@ import type {
   ApplicationPatch,
   CareerLogKind,
   CourseInput,
+  CoursePatch,
   EventInput,
   EventKind,
   EventPatch,
+  EventScope,
   FeedEvent,
+  GoalEntryInput,
+  GoalInput,
+  GoalPatch,
+  GoalStepPatch,
   GymLogInput,
   GymPatch,
   LectureInput,
@@ -23,17 +29,42 @@ import type {
   Settings,
   SubtaskPatch,
   TaskInput,
-  TaskPatch
+  TaskPatch,
+  TermInput,
+  TermPatch
 } from '../shared/types'
 import {
   createCourse,
   createLecture,
+  createTerm,
   deleteCourse,
   deleteLecture,
+  deleteTerm,
   listCourses,
   listLectures,
-  updateLecture
+  listTerms,
+  reorderCourses,
+  reorderTerms,
+  updateCourse,
+  updateLecture,
+  updateTerm
 } from './academicsRepo'
+import {
+  addGoalEntry,
+  carryGoal,
+  createGoal,
+  createGoalStep,
+  deleteGoal,
+  deleteGoalEntry,
+  deleteGoalStep,
+  listGoalEntries,
+  listGoalSteps,
+  listGoals,
+  reorderGoalSteps,
+  reorderGoals,
+  updateGoal,
+  updateGoalStep
+} from './goalsRepo'
 import { assistantSend } from './assistant'
 import {
   addCareerLog,
@@ -185,9 +216,39 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.groqListModels, () => listModels())
 
   // ---------- academics ----------
+  ipcMain.handle(IPC.goalsList, (_e, month: string) => listGoals(month))
+  ipcMain.handle(IPC.goalsCreate, (_e, input: GoalInput) => createGoal(input))
+  ipcMain.handle(IPC.goalsUpdate, (_e, id: string, patch: GoalPatch) => updateGoal(id, patch))
+  ipcMain.handle(IPC.goalsDelete, (_e, id: string) => deleteGoal(id))
+  ipcMain.handle(IPC.goalsReorder, (_e, month: string, ids: string[]) => reorderGoals(month, ids))
+  ipcMain.handle(IPC.goalsCarry, (_e, id: string, month: string) => carryGoal(id, month))
+  ipcMain.handle(IPC.goalStepsList, () => listGoalSteps())
+  ipcMain.handle(IPC.goalStepsCreate, (_e, goalId: string, title: string) =>
+    createGoalStep(goalId, title)
+  )
+  ipcMain.handle(IPC.goalStepsUpdate, (_e, id: string, patch: GoalStepPatch) =>
+    updateGoalStep(id, patch)
+  )
+  ipcMain.handle(IPC.goalStepsDelete, (_e, id: string) => deleteGoalStep(id))
+  ipcMain.handle(IPC.goalStepsReorder, (_e, goalId: string, ids: string[]) =>
+    reorderGoalSteps(goalId, ids)
+  )
+  ipcMain.handle(IPC.goalEntriesList, () => listGoalEntries())
+  ipcMain.handle(IPC.goalEntryAdd, (_e, input: GoalEntryInput) => addGoalEntry(input))
+  ipcMain.handle(IPC.goalEntryDelete, (_e, id: string) => deleteGoalEntry(id))
+
+  ipcMain.handle(IPC.termsList, () => listTerms())
+  ipcMain.handle(IPC.termsCreate, (_e, input: TermInput) => createTerm(input))
+  ipcMain.handle(IPC.termsUpdate, (_e, id: string, patch: TermPatch) => updateTerm(id, patch))
+  ipcMain.handle(IPC.termsDelete, (_e, id: string) => deleteTerm(id))
+  ipcMain.handle(IPC.termsReorder, (_e, ids: string[]) => reorderTerms(ids))
   ipcMain.handle(IPC.coursesList, () => listCourses())
   ipcMain.handle(IPC.coursesCreate, (_e, input: CourseInput) => createCourse(input))
+  ipcMain.handle(IPC.coursesUpdate, (_e, id: string, patch: CoursePatch) => updateCourse(id, patch))
   ipcMain.handle(IPC.coursesDelete, (_e, id: string) => deleteCourse(id))
+  ipcMain.handle(IPC.coursesReorder, (_e, termId: string | null, ids: string[]) =>
+    reorderCourses(termId, ids)
+  )
   ipcMain.handle(IPC.lecturesList, (_e, courseId: string) => listLectures(courseId))
   ipcMain.handle(IPC.lecturesCreate, (_e, input: LectureInput) => createLecture(input))
   ipcMain.handle(IPC.lecturesUpdate, (_e, id: string, patch: LecturePatch) =>
@@ -207,9 +268,15 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   // ---------- events ----------
   ipcMain.handle(IPC.eventsList, () => listEvents())
   ipcMain.handle(IPC.eventsCreate, (_e, input: EventInput) => createEvent(input))
-  ipcMain.handle(IPC.eventsUpdate, (_e, id: string, patch: EventPatch) => updateEvent(id, patch))
-  ipcMain.handle(IPC.eventsDelete, (_e, id: string) => deleteEvent(id))
-  ipcMain.handle(IPC.eventsImportIcs, (_e, kind: EventKind) => importIcs(kind))
+  ipcMain.handle(IPC.eventsUpdate, (_e, id: string, patch: EventPatch, scope?: EventScope) =>
+    updateEvent(id, patch, scope ?? 'one')
+  )
+  ipcMain.handle(IPC.eventsDelete, (_e, id: string, scope?: EventScope) =>
+    deleteEvent(id, scope ?? 'one')
+  )
+  ipcMain.handle(IPC.eventsImportIcs, (_e, kind: EventKind, courseId: string | null) =>
+    importIcs(kind, courseId)
+  )
   ipcMain.handle(IPC.eventsFetchBadminton, (_e, force?: boolean) =>
     fetchBadmintonQuebec(force === true)
   )

@@ -10,6 +10,7 @@ import path from 'node:path'
 import { CAPTURE_RESET_EVENT, TASKS_CHANGED_EVENT } from '../shared/ipc'
 import { closeDb, getDbPath, getSchemaVersion, openDb } from './db'
 import { registerIpcHandlers } from './ipcHandlers'
+import { materializeAllEventSeries } from './eventSeries'
 import { materializeAllSeries } from './recurrence'
 import { startScheduler, stopScheduler } from './scheduler'
 import { getSettings } from './settings'
@@ -151,6 +152,96 @@ if (isSmokeTest) {
       return
     }
 
+    // PLANNER_REPEAT_TEST=YYYY-MM-DD walks a repeating event through its whole
+    // life on the real path — materialize, strike one out, edit the series,
+    // stop repeating — printing what happened at each step, then cleans up.
+    const repeatTestDate = process.env.PLANNER_REPEAT_TEST
+    if (repeatTestDate) {
+      try {
+        const { createEvent, deleteEvent, listEvents, updateEvent } = await import('./eventsRepo')
+        const { materializeAllEventSeries } = await import('./eventSeries')
+        const { getDb } = await import('./db')
+        const db = getDb()
+        const count = (sql: string, ...args: unknown[]) =>
+          (db.prepare(sql).get(...(args as never[])) as { n: number }).n
+        const steps: Record<string, unknown> = {}
+
+        const first = createEvent({
+          title: 'Repeat self-test',
+          kind: 'other',
+          date: repeatTestDate,
+          time: '18:30',
+          endTime: '20:00',
+          reminderOffsets: [10_080, 1440, 30],
+          repeat: { freq: 'weekly', interval: 1, byWeekdays: [], byMonthDay: null },
+          repeatUntil: null
+        })
+        const seriesId = first.seriesId
+        if (!seriesId) throw new Error('a repeat rule did not produce a series')
+
+        const dates = () =>
+          (
+            db
+              .prepare(
+                `SELECT occurrence_date AS d FROM events
+                 WHERE series_id = ? AND skipped = 0 ORDER BY d`
+              )
+              .all(seriesId) as unknown as { d: string }[]
+          ).map((r) => r.d)
+
+        const all = dates()
+        steps.generated = all.length
+        steps.firstThree = all.slice(0, 3)
+        steps.spacingDays = [
+          ...new Set(
+            all.slice(1).map((d, i) => Math.round((Date.parse(d) - Date.parse(all[i])) / 86_400_000))
+          )
+        ]
+        steps.remindersOnFirst = count('SELECT COUNT(*) AS n FROM reminders WHERE ref_id = ?', first.id)
+
+        // A struck-out occurrence must stay gone across a re-materialization —
+        // the tombstone is the only thing standing between it and tomorrow.
+        const victim = listEvents().find((e) => e.seriesId === seriesId && e.id !== first.id)
+        if (!victim?.occurrenceDate) throw new Error('series produced only one occurrence')
+        deleteEvent(victim.id)
+        materializeAllEventSeries()
+        steps.skippedStaysGone = !dates().includes(victim.occurrenceDate)
+        steps.remindersOnSkipped = count(
+          'SELECT COUNT(*) AS n FROM reminders WHERE ref_id = ?',
+          victim.id
+        )
+
+        // A series edit rewrites the future and leaves the tombstone alone.
+        updateEvent(first.id, { title: 'Repeat self-test renamed' }, 'series')
+        steps.renamedOccurrences = count(
+          'SELECT COUNT(*) AS n FROM events WHERE series_id = ? AND skipped = 0 AND title = ?',
+          seriesId,
+          'Repeat self-test renamed'
+        )
+        steps.stillMissingSkipped = !dates().includes(victim.occurrenceDate)
+
+        // Stopping the repeat keeps the occurrence it was asked from.
+        const survivor = listEvents().find((e) => e.seriesId === seriesId)
+        if (!survivor) throw new Error('nothing left to stop repeating')
+        const kept = updateEvent(survivor.id, { repeat: null })
+        steps.keptStandalone = kept.seriesId === null && kept.repeat === null
+        steps.seriesRowsLeft = count('SELECT COUNT(*) AS n FROM event_series WHERE id = ?', seriesId)
+        steps.occurrencesLeft = count('SELECT COUNT(*) AS n FROM events WHERE series_id = ?', seriesId)
+
+        console.log('REPEAT OK', JSON.stringify(steps))
+
+        deleteEvent(kept.id)
+        db.prepare("DELETE FROM events WHERE title LIKE 'Repeat self-test%'").run()
+        db.prepare("DELETE FROM event_series WHERE title LIKE 'Repeat self-test%'").run()
+        db.prepare("DELETE FROM reminders WHERE title LIKE 'Repeat self-test%'").run()
+        app.exit(0)
+      } catch (err) {
+        console.error('REPEAT FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
     // PLANNER_SEARCH_TEST="query" runs one cross-module search against the real
     // DB and prints per-module hit counts plus a sample.
     const searchQuery = process.env.PLANNER_SEARCH_TEST
@@ -236,6 +327,225 @@ if (isSmokeTest) {
         app.exit(0)
       } catch (err) {
         console.error('PARSE FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
+    // PLANNER_GOAL_PARSE_TEST=1 does the same for the goal composer's parser.
+    // Half these cases exist to prove what it does NOT eat — the failure that
+    // matters here is a goal whose title lost a word.
+    if (process.env.PLANNER_GOAL_PARSE_TEST) {
+      try {
+        const { parseGoal } = await import('../shared/parseGoal')
+        const cases: [string, Partial<ReturnType<typeof parseGoal>>][] = [
+          // The three the feature was asked for.
+          ['bench 190 lbs', { title: 'bench', kind: 'number', targetValue: 190, unit: 'lbs', startValue: null }],
+          ['apply to 20 jobs', { title: 'apply to jobs', kind: 'counter', targetValue: 20 }],
+          ['grab rim', { title: 'grab rim', kind: 'checklist', targetValue: 0 }],
+          // Ranges, in every spelling.
+          ['bench 175 -> 190', { title: 'bench', kind: 'number', startValue: 175, targetValue: 190 }],
+          ['bench 175 to 190 lbs', { title: 'bench', kind: 'number', startValue: 175, targetValue: 190, unit: 'lbs' }],
+          ['weight from 185 to 170', { title: 'weight', kind: 'number', startValue: 185, targetValue: 170 }],
+          // A descending range is a real goal, not a mistake.
+          ['weight 185 -> 170 lbs', { title: 'weight', startValue: 185, targetValue: 170, unit: 'lbs' }],
+          ['save $5000', { title: 'save', kind: 'number', targetValue: 5000, unit: '$' }],
+          ['hit 90%', { title: 'hit', kind: 'number', targetValue: 90, unit: '%' }],
+          ['pushups x20', { title: 'pushups', kind: 'counter', targetValue: 20 }],
+          ['read 12 books', { title: 'read books', kind: 'counter', targetValue: 12 }],
+          ['gpa 3.9', { title: 'gpa', kind: 'number', targetValue: 3.9, unit: null }],
+          // --- everything below must come back untouched ---
+          // A year is a word.
+          ['finish 2026 taxes', { title: 'finish 2026 taxes', kind: 'checklist', targetValue: 0 }],
+          // An unknown suffix rejects the whole token rather than dropping it.
+          ['run 5k', { title: 'run 5k', kind: 'checklist' }],
+          // A number inside a larger token is part of that token.
+          ['pass ECSE200', { title: 'pass ECSE200', kind: 'checklist' }],
+          ['ship v2.1', { title: 'ship v2.1', kind: 'checklist' }],
+          // Tags and dates belong to the goal's own words.
+          ['ship #v2 by aug 30', { title: 'ship #v2 by aug 30', kind: 'checklist' }],
+          // Only the first numeric construct is ever consumed — the 190 stays
+          // in the title. "3 sets" is a count of things, so this is a counter.
+          ['bench 3 sets of 190', { title: 'bench sets of 190', kind: 'counter', targetValue: 3 }]
+        ]
+        const failures: string[] = []
+        for (const [input, want] of cases) {
+          const got = parseGoal(input)
+          for (const [k, v] of Object.entries(want)) {
+            const actual = (got as unknown as Record<string, unknown>)[k]
+            if (actual !== v) {
+              failures.push(`"${input}" → ${k}: want ${JSON.stringify(v)}, got ${JSON.stringify(actual)}`)
+            }
+          }
+        }
+        if (failures.length) {
+          console.error(`GOAL PARSE FAIL (${failures.length})\n  ${failures.join('\n  ')}`)
+          app.exit(1)
+          return
+        }
+        console.log(`GOAL PARSE OK ${cases.length} cases`)
+        app.exit(0)
+      } catch (err) {
+        console.error('GOAL PARSE FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
+    // PLANNER_GOAL_TEST=1 drives the goals repo end to end, asserting the two
+    // rules that are easy to break by accident: a personal best survives a
+    // worse reading logged after it, and a carry keeps the history. Creates and
+    // removes its own rows.
+    if (process.env.PLANNER_GOAL_TEST) {
+      const MARK = 'GOAL self-test'
+      const { getDb } = await import('./db')
+      const wipe = (): void => {
+        // Steps and entries cascade off the goal row.
+        getDb().prepare('DELETE FROM goals WHERE title LIKE ?').run(`${MARK}%`)
+      }
+      try {
+        const repo = await import('./goalsRepo')
+        const check = (label: string, ok: boolean): void => {
+          if (!ok) throw new Error(label)
+        }
+        const now = new Date()
+        const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        const next = `${now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()}-${String(
+          now.getMonth() === 11 ? 1 : now.getMonth() + 2
+        ).padStart(2, '0')}`
+        const day = `${month}-05`
+        wipe()
+
+        // A number goal handed a source must come back without one: the source
+        // only means anything on a counter, and the repo derives that.
+        const bench = repo.createGoal({
+          month,
+          title: `${MARK} bench`,
+          kind: 'number',
+          targetValue: 190,
+          unit: 'lbs',
+          source: 'gym'
+        })
+        check('number goal must not keep a source', bench.source === null)
+
+        repo.addGoalEntry({ goalId: bench.id, date: day, value: 175 })
+        check('first entry stamps the start value', repo.getGoal(bench.id).startValue === 175)
+        repo.addGoalEntry({ goalId: bench.id, date: day, value: 190 })
+        repo.addGoalEntry({ goalId: bench.id, date: day, value: 178 })
+        const benchEntries = repo.listGoalEntries().filter((e) => e.goalId === bench.id)
+        check('every reading is kept', benchEntries.length === 3)
+        check(
+          'a worse reading after a PR does not erase it',
+          Math.max(...benchEntries.map((e) => e.value)) === 190
+        )
+
+        // Descending: losing weight, where the best reading is the lowest.
+        const weight = repo.createGoal({
+          month,
+          title: `${MARK} weight`,
+          kind: 'number',
+          startValue: 185,
+          targetValue: 170
+        })
+        repo.addGoalEntry({ goalId: weight.id, date: day, value: 180 })
+        repo.addGoalEntry({ goalId: weight.id, date: day, value: 174 })
+        const wEntries = repo.listGoalEntries().filter((e) => e.goalId === weight.id)
+        check('descending best is the minimum', Math.min(...wEntries.map((e) => e.value)) === 174)
+        check('an explicit start is not overwritten', repo.getGoal(weight.id).startValue === 185)
+
+        // Checklist + steps.
+        const rim = repo.createGoal({ month, title: `${MARK} rim`, kind: 'checklist' })
+        const s1 = repo.createGoalStep(rim.id, 'Touch backboard')
+        const s2 = repo.createGoalStep(rim.id, 'Depth jumps')
+        repo.updateGoalStep(s1.id, { done: true })
+        repo.reorderGoalSteps(rim.id, [s2.id, s1.id])
+        const steps = repo.listGoalSteps().filter((s) => s.goalId === rim.id)
+        check('steps reorder 1..n', steps[0].id === s2.id && steps[0].sortOrder === 1)
+        check('an empty retitle is ignored', repo.updateGoalStep(s1.id, { title: '  ' }).title === 'Touch backboard')
+
+        // A linked counter reads another table rather than its own rows.
+        const linked = repo.createGoal({
+          month,
+          title: `${MARK} gym`,
+          kind: 'counter',
+          targetValue: 20,
+          source: 'gym'
+        })
+        check('a counter keeps its source', repo.getGoal(linked.id).source === 'gym')
+        check('autoCount is carried on the row', typeof repo.getGoal(linked.id).autoCount === 'number')
+
+        // The trap: tasks.done_at is a UTC instant while every other source is
+        // a local YYYY-MM-DD. A task finished late on the last evening of the
+        // month is already "next month" in UTC, and a prefix match would file
+        // it there. Both goals below read the same task and must disagree.
+        {
+          const db = getDb()
+          const [gy, gm] = month.split('-').map(Number)
+          const lastDay = new Date(gy, gm, 0).getDate()
+          const lateLocal = new Date(gy, gm - 1, lastDay, 21, 0).toISOString()
+          const taskId = `goal-test-${Date.now()}`
+          db.prepare(
+            `INSERT INTO tasks (id, title, tags, all_day, priority, status, done_at, created_at, updated_at)
+             VALUES (?, ?, ?, 1, 0, 'done', ?, ?, ?)`
+          ).run(taskId, MARK, '["goaltest"]', lateLocal, lateLocal, lateLocal)
+
+          const thisMonth = repo.createGoal({
+            month,
+            title: `${MARK} tagged`,
+            kind: 'counter',
+            targetValue: 5,
+            source: 'tasks',
+            sourceTag: 'goaltest'
+          })
+          const nextMonth = repo.createGoal({
+            month: next,
+            title: `${MARK} tagged next`,
+            kind: 'counter',
+            targetValue: 5,
+            source: 'tasks',
+            sourceTag: 'goaltest'
+          })
+          check('a late-evening completion counts in its own month', thisMonth.autoCount === 1)
+          check('and not in the next one', nextMonth.autoCount === 0)
+          db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId)
+        }
+
+        // Carry moves the row and keeps everything hanging off it.
+        repo.carryGoal(bench.id, next)
+        const moved = repo.getGoal(bench.id)
+        check('carry rewrites the month', moved.month === next)
+        check('carry keeps the start value', moved.startValue === 175)
+        check(
+          'carry keeps every entry',
+          repo.listGoalEntries().filter((e) => e.goalId === bench.id).length === 3
+        )
+        check('the old month no longer lists it', !repo.listGoals(month).some((g) => g.id === bench.id))
+        check('the new month does', repo.listGoals(next).some((g) => g.id === bench.id))
+
+        // Kind is frozen once there is history to reinterpret.
+        check(
+          'kind is refused once entries exist',
+          repo.updateGoal(bench.id, { kind: 'counter' }).kind === 'number'
+        )
+
+        // Delete cascades both child tables.
+        repo.deleteGoal(rim.id)
+        check(
+          'steps go with the goal',
+          repo.listGoalSteps().filter((s) => s.goalId === rim.id).length === 0
+        )
+        repo.deleteGoal(bench.id)
+        check(
+          'entries go with the goal',
+          repo.listGoalEntries().filter((e) => e.goalId === bench.id).length === 0
+        )
+
+        wipe()
+        console.log('GOAL OK 20 assertions')
+        app.exit(0)
+      } catch (err) {
+        wipe()
+        console.error('GOAL FAIL', err)
         app.exit(1)
       }
       return
@@ -368,11 +678,14 @@ if (isSmokeTest) {
     createTray()
     applyAutostart(getSettings().autostart)
     registerCaptureShortcut(getSettings().captureShortcut)
-    // Daily job generates upcoming occurrences of recurring series (runs on
-    // first tick, then at each local-date rollover).
+    // Daily job generates upcoming occurrences of recurring tasks and events
+    // (runs on first tick, then at each local-date rollover).
     startScheduler(
       () => showWindow(),
-      () => materializeAllSeries()
+      () => {
+        materializeAllSeries()
+        materializeAllEventSeries()
+      }
     )
   })
 }

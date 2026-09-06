@@ -44,9 +44,17 @@ window is closed, so nothing slips.
   machine except in calls to Groq.
 
 ### Academics
-- Courses → lectures → your written summaries.
+- **Terms are folders you make** — Fall 2026, Winter 2027 — and courses live in
+  one. Rename, recolour, roll up, drag into order, and **archive** a term when
+  the semester ends: archived things keep their lectures and chats, and sit on
+  their own shelf. Deleting a term drops only the folder; its courses fall back
+  to *No term* with everything intact.
+- Courses → lectures → your written summaries. Codes, names, term and colour are
+  all editable in place; drag to reorder courses within a term.
 - A per-lecture AI chat that knows the course, your summary, and recent lectures
   — quiz yourself, go deeper, or generate study tasks.
+- A course doubles as an **event category**: file a midterm under ECSE 200 and it
+  shows up on the calendar in that course's colour, labelled with its code.
 
 ### Gym (Push / Pull / Legs)
 - One-tap logging that suggests the next workout in the PPL cycle.
@@ -61,10 +69,19 @@ window is closed, so nothing slips.
   date and time. That covers a 90-minute lecture, an overnight sprint, and a
   four-day tournament. Whole-day and multi-day entries ride in the band above
   the hours; overlapping blocks split their column instead of hiding each other.
+- **Events repeat** daily, weekly (on chosen weekdays) or monthly, with an
+  optional end date. The rule lives on a series and each occurrence is a real
+  event, so a repeat can be edited or deleted one occurrence at a time —
+  "this event" or "all events", asked at the moment it matters.
+- **Reminders you choose**: any combination of a week, two days, a day, two
+  hours, an hour, 30 or 10 minutes before, or at the start. All-day events count
+  back from 9am on the day, so "1 day before" arrives while you can still act on
+  it. New events keep the day-before nudge unless you say otherwise.
 - Fetches the **Badminton Québec** tournament calendar and computes each event's
   registration window, with "opens" and "closes-soon" alarms and a "registered"
   toggle.
-- Click any event to **edit it inline** — type, period, location, URL, notes.
+- Click any event to **edit it inline** — type, period, repeat, reminders,
+  location, URL, notes.
 
 ### Career — Summer 2027 internships
 - An application pipeline (Wishlist → Applied → OA → Interview → Offer) and a
@@ -79,6 +96,28 @@ window is closed, so nothing slips.
 - **Best-effort sync** of your recent accepted solves from a LeetCode username,
   and one-click launch links to LeetCode and NeetCode.
 - Drives the Career page's weekly DSA count, so there's a single source of truth.
+
+### Goals for the month
+- **Type the goal in plain English** and it works out what kind it is:
+  `bench 190 lbs` is a measurement, `apply to 20 jobs` is a tally, `grab rim` is
+  a checklist. It shows what it understood, and the kind is one click to change.
+  It never eats a word it wasn't sure about — `finish 2026 taxes` and `run 5k`
+  keep their numbers.
+- **Number goals track a personal best, not the last reading.** Log a lift
+  whenever you hit one; a worse day logged afterwards can't erase the PR, and
+  the entry marked ★ best is usually not the newest. Goals that count *down*
+  (losing weight, cutting a mile time) work the same way in reverse.
+- **Checklist goals** are the deliverables you set yourself, and **any** goal
+  can carry steps — a tally toward 20 applications can hold "upgrade resume"
+  and "build a project" underneath it.
+- **Counters can track themselves.** Point one at Applications, Gym, LeetCode,
+  or tasks carrying a tag, and it counts that month's rows for you instead of
+  asking you to log the same thing twice.
+- Goals live in a month, with ‹ › to move between them. Anything unfinished
+  turns up at the top of the next month under **Carried over** — Keep brings it
+  forward with its history intact, Drop archives it. Nothing moves on its own.
+- Progress shows on **Today** under the weekly trackers, in the same bar
+  language: today → this week → this month.
 
 ### Throughout
 - **Keyboard shortcuts** for everything — new task (`Ctrl+T`), assistant

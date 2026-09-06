@@ -17,13 +17,14 @@ import AcademicsPage from './pages/AcademicsPage'
 import CareerPage from './pages/CareerPage'
 import DashboardPage from './pages/DashboardPage'
 import EventsPage from './pages/EventsPage'
+import GoalsPage from './pages/GoalsPage'
 import GymPage from './pages/GymPage'
 import LeetcodePage from './pages/LeetcodePage'
 import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
 
 const MODULE_IDS: ModuleId[] = [
-  'dashboard', 'tasks', 'academics', 'gym', 'events', 'career', 'leetcode', 'settings'
+  'dashboard', 'tasks', 'academics', 'gym', 'events', 'career', 'leetcode', 'goals', 'settings'
 ]
 
 /** Initial view can be deep-linked via URL hash (set by PLANNER_OPEN / notifications). */
@@ -79,6 +80,7 @@ export default function App() {
       goEvents: () => setActive('events'),
       goCareer: () => setActive('career'),
       goLeetcode: () => setActive('leetcode'),
+      goGoals: () => setActive('goals'),
       goSettings: () => setActive('settings')
     }
 
@@ -129,6 +131,8 @@ export default function App() {
             <CareerPage onNavigate={setActive} />
           ) : active === 'leetcode' ? (
             <LeetcodePage />
+          ) : active === 'goals' ? (
+            <GoalsPage />
           ) : (
             <SettingsPage />
           )}

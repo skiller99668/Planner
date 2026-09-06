@@ -7,8 +7,9 @@
 //                   read in a single glance: a bar toward this week's target
 //   3. the horizon— upcoming events and live postings, quiet and click-through
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
+  Goal,
   JobPosting,
   LeetcodeDifficulty,
   GymType,
@@ -17,6 +18,8 @@ import type {
 } from '../../shared/types'
 import { Burst, CheckCircle, TASK_BURST, useCelebrate } from '../components/Celebrate'
 import type { ModuleId } from '../components/Sidebar'
+import { useAcademics } from '../lib/useAcademics'
+import { deriveGoal, useGoals, type GoalDerived } from '../lib/useGoals'
 import { addDaysYMD, localYMD, timeOfIso, todayYMD, ymdOfIso } from '../lib/dates'
 import { topPostings } from '../lib/jobs'
 import { progressColor, progressPct } from '../lib/progress'
@@ -39,6 +42,69 @@ const KIND_COLOR: Record<PlannerEvent['kind'], string> = {
   other: '#93A4C8'
 }
 
+/** An event filed under a course wears the course's colour here too, or the
+ *  same event reads as two different things on two pages. */
+function useEventColor(): (event: PlannerEvent) => string {
+  const { courseById } = useAcademics()
+  return useCallback(
+    (event) =>
+      (event.courseId ? courseById.get(event.courseId)?.color : undefined) ??
+      KIND_COLOR[event.kind],
+    [courseById]
+  )
+}
+
+/** One goal on the Today page: the same bar as the trackers above it, but a
+ *  goal names itself, so the label takes the room a fixed tracker doesn't. */
+function GoalLine({
+  goal,
+  derived,
+  onOpen
+}: {
+  goal: Goal
+  derived: GoalDerived
+  onOpen: () => void
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <span
+        aria-hidden
+        className="size-2.5 shrink-0 rounded-full"
+        style={{ background: goal.color }}
+      />
+      {/* Fixed title and label columns rather than a flexing title: it puts
+          every bar's left edge in the same place, so this block reads as the
+          same instrument as the trackers above instead of a different one. */}
+      <button
+        onClick={onOpen}
+        title={goal.title}
+        className="hover:text-azure text-body w-36 shrink-0 truncate text-left font-semibold transition-colors"
+      >
+        {goal.title}
+      </button>
+      <span
+        className={`nums text-meta w-24 shrink-0 ${derived.met ? 'text-mint font-bold' : 'text-muted'}`}
+      >
+        {derived.label}
+      </span>
+      <span
+        role="progressbar"
+        aria-valuenow={Math.round(derived.pct)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`${goal.title}: ${derived.label}`}
+        className="bg-raised relative h-1.5 min-w-16 flex-1 overflow-hidden rounded-full"
+      >
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 rounded-full transition-[width,background-color] duration-500 ease-(--ease-spring)"
+          style={{ width: `${derived.pct}%`, background: progressColor(derived.pct) }}
+        />
+      </span>
+    </div>
+  )
+}
+
 /** One line in the Today list — a task to tick off or an event to be aware of. */
 type DayItem =
   | { type: 'task'; at: number | null; task: Task }
@@ -52,6 +118,10 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
   const leet = useLeetcode()
   const dsaTarget = useDsaTarget()
   const l = deriveLeetcode(leet.problems, dsaTarget)
+  const goals = useGoals()
+  const goalsMet = goals.goals.filter(
+    (g) => deriveGoal(g, goals.steps.get(g.id) ?? [], goals.entries.get(g.id) ?? []).met
+  ).length
 
   const [events, setEvents] = useState<PlannerEvent[]>([])
   const [gymKey, fireGym] = useCelebrate()
@@ -230,7 +300,9 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
                   <button
                     onClick={() => {
                       fireGym()
-                      void gym.log({ date: today, type: g.nextType })
+                      // A linked goal's count is computed in main, so logging
+                      // here can't reach it — refetch rather than add a bus.
+                      void gym.log({ date: today, type: g.nextType }).then(goals.refresh)
                     }}
                     className="tactile btn-primary text-meta rounded-[10px] px-3 py-1.5 font-bold"
                   >
@@ -248,11 +320,52 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (m: ModuleId
             derived={l}
             target={dsaTarget}
             today={today}
-            onLog={(input) => leet.log(input)}
+            onLog={(input) => leet.log(input).then(goals.refresh)}
             onOpen={() => onNavigate('leetcode')}
           />
         </div>
       </section>
+
+      {/* ---- 2b. this month ----
+           Between the weekly trackers and the horizon on purpose: the page
+           reads as one zoom-out, today → this week → this month → beyond. */}
+      {goals.goals.length > 0 && (
+        <section className="mt-9">
+          <div className="flex items-baseline justify-between">
+            <h2 className="section-label">This month</h2>
+            <button
+              onClick={() => onNavigate('goals')}
+              className="text-muted hover:text-azure text-meta font-medium transition-colors"
+            >
+              {goalsMet} of {goals.goals.length} met
+            </button>
+          </div>
+          <div className="surface-recessed mt-3 overflow-hidden">
+            {goals.goals.slice(0, 4).map((g, i) => (
+              <div key={g.id}>
+                {i > 0 && <div className="bg-line/40 h-px" />}
+                <GoalLine
+                  goal={g}
+                  derived={deriveGoal(
+                    g,
+                    goals.steps.get(g.id) ?? [],
+                    goals.entries.get(g.id) ?? []
+                  )}
+                  onOpen={() => onNavigate('goals')}
+                />
+              </div>
+            ))}
+          </div>
+          {goals.goals.length > 4 && (
+            <button
+              onClick={() => onNavigate('goals')}
+              className="text-muted hover:text-azure text-meta mt-2 font-medium transition-colors"
+            >
+              {goals.goals.length - 4} more →
+            </button>
+          )}
+        </section>
+      )}
 
       {/* ---- 3. the horizon ---- */}
       <div className="mt-9 grid gap-x-10 gap-y-9 sm:grid-cols-2">
@@ -330,6 +443,7 @@ function TaskLine({
 }
 
 function EventLine({ event, onOpen }: { event: PlannerEvent; onOpen: () => void }) {
+  const colorOf = useEventColor()
   const d = new Date(event.startAt)
   const allDay = d.getHours() === 0 && d.getMinutes() === 0
 
@@ -340,7 +454,7 @@ function EventLine({ event, onOpen }: { event: PlannerEvent; onOpen: () => void 
         <span
           aria-hidden
           className="ml-[3px] h-3 w-3 shrink-0 rounded-[3px]"
-          style={{ background: KIND_COLOR[event.kind] }}
+          style={{ background: colorOf(event) }}
         />
         <span className="text-body min-w-0 flex-1 truncate">{event.title}</span>
         <span className="nums text-meta text-muted shrink-0">
@@ -529,6 +643,7 @@ function UpcomingLine({
   through: string | null
   onOpen: () => void
 }) {
+  const colorOf = useEventColor()
   const d = new Date(event.startAt)
   const regOpen =
     event.regOpensAt &&
@@ -542,7 +657,7 @@ function UpcomingLine({
       <button onClick={onOpen} className="flex w-full items-baseline gap-3 text-left">
         <span
           className="nums text-meta w-[74px] shrink-0 font-semibold"
-          style={{ color: KIND_COLOR[event.kind] }}
+          style={{ color: colorOf(event) }}
         >
           {d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           {through && `–${new Date(`${through}T00:00:00`).getDate()}`}

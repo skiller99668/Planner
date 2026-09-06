@@ -15,10 +15,16 @@ import type {
   ApplicationPatch,
   CareerLogKind,
   CourseInput,
+  CoursePatch,
   EventInput,
   EventKind,
   EventPatch,
+  EventScope,
   FeedEvent,
+  GoalEntryInput,
+  GoalInput,
+  GoalPatch,
+  GoalStepPatch,
   GymLogInput,
   GymPatch,
   LectureInput,
@@ -30,7 +36,9 @@ import type {
   Settings,
   SubtaskPatch,
   TaskInput,
-  TaskPatch
+  TaskPatch,
+  TermInput,
+  TermPatch
 } from '../shared/types'
 
 const api: PlannerApi = {
@@ -79,9 +87,38 @@ const api: PlannerApi = {
   groqSetKey: (key: string) => ipcRenderer.invoke(IPC.groqSetKey, key),
   groqListModels: () => ipcRenderer.invoke(IPC.groqListModels),
 
+  goalsList: (month: string) => ipcRenderer.invoke(IPC.goalsList, month),
+  goalsCreate: (input: GoalInput) => ipcRenderer.invoke(IPC.goalsCreate, input),
+  goalsUpdate: (id: string, patch: GoalPatch) => ipcRenderer.invoke(IPC.goalsUpdate, id, patch),
+  goalsDelete: (id: string) => ipcRenderer.invoke(IPC.goalsDelete, id),
+  goalsReorder: (month: string, ids: string[]) =>
+    ipcRenderer.invoke(IPC.goalsReorder, month, ids),
+  goalsCarry: (id: string, month: string) => ipcRenderer.invoke(IPC.goalsCarry, id, month),
+  goalStepsList: () => ipcRenderer.invoke(IPC.goalStepsList),
+  goalStepsCreate: (goalId: string, title: string) =>
+    ipcRenderer.invoke(IPC.goalStepsCreate, goalId, title),
+  goalStepsUpdate: (id: string, patch: GoalStepPatch) =>
+    ipcRenderer.invoke(IPC.goalStepsUpdate, id, patch),
+  goalStepsDelete: (id: string) => ipcRenderer.invoke(IPC.goalStepsDelete, id),
+  goalStepsReorder: (goalId: string, ids: string[]) =>
+    ipcRenderer.invoke(IPC.goalStepsReorder, goalId, ids),
+  goalEntriesList: () => ipcRenderer.invoke(IPC.goalEntriesList),
+  goalEntryAdd: (input: GoalEntryInput) => ipcRenderer.invoke(IPC.goalEntryAdd, input),
+  goalEntryDelete: (id: string) => ipcRenderer.invoke(IPC.goalEntryDelete, id),
+
+  termsList: () => ipcRenderer.invoke(IPC.termsList),
+  termsCreate: (input: TermInput) => ipcRenderer.invoke(IPC.termsCreate, input),
+  termsUpdate: (id: string, patch: TermPatch) => ipcRenderer.invoke(IPC.termsUpdate, id, patch),
+  termsDelete: (id: string) => ipcRenderer.invoke(IPC.termsDelete, id),
+  termsReorder: (ids: string[]) => ipcRenderer.invoke(IPC.termsReorder, ids),
+
   coursesList: () => ipcRenderer.invoke(IPC.coursesList),
   coursesCreate: (input: CourseInput) => ipcRenderer.invoke(IPC.coursesCreate, input),
+  coursesUpdate: (id: string, patch: CoursePatch) =>
+    ipcRenderer.invoke(IPC.coursesUpdate, id, patch),
   coursesDelete: (id: string) => ipcRenderer.invoke(IPC.coursesDelete, id),
+  coursesReorder: (termId: string | null, ids: string[]) =>
+    ipcRenderer.invoke(IPC.coursesReorder, termId, ids),
   lecturesList: (courseId: string) => ipcRenderer.invoke(IPC.lecturesList, courseId),
   lecturesCreate: (input: LectureInput) => ipcRenderer.invoke(IPC.lecturesCreate, input),
   lecturesUpdate: (id: string, patch: LecturePatch) =>
@@ -95,9 +132,12 @@ const api: PlannerApi = {
 
   eventsList: () => ipcRenderer.invoke(IPC.eventsList),
   eventsCreate: (input: EventInput) => ipcRenderer.invoke(IPC.eventsCreate, input),
-  eventsUpdate: (id: string, patch: EventPatch) => ipcRenderer.invoke(IPC.eventsUpdate, id, patch),
-  eventsDelete: (id: string) => ipcRenderer.invoke(IPC.eventsDelete, id),
-  eventsImportIcs: (kind: EventKind) => ipcRenderer.invoke(IPC.eventsImportIcs, kind),
+  eventsUpdate: (id: string, patch: EventPatch, scope?: EventScope) =>
+    ipcRenderer.invoke(IPC.eventsUpdate, id, patch, scope ?? 'one'),
+  eventsDelete: (id: string, scope?: EventScope) =>
+    ipcRenderer.invoke(IPC.eventsDelete, id, scope ?? 'one'),
+  eventsImportIcs: (kind: EventKind, courseId?: string | null) =>
+    ipcRenderer.invoke(IPC.eventsImportIcs, kind, courseId ?? null),
   eventsFetchBadminton: (force?: boolean) => ipcRenderer.invoke(IPC.eventsFetchBadminton, force),
   eventsImportFeed: (events: FeedEvent[]) => ipcRenderer.invoke(IPC.eventsImportFeed, events),
 

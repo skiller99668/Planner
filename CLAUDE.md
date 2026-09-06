@@ -24,7 +24,10 @@ Verification runs the built app headlessly with env flags; each skips the single
 - `PLANNER_SMOKE=1 PLANNER_JOBS_TEST=1 npx electron .` — fetch + parse all six job feeds; per-source counts (verifies parsers against the live repos).
 - `PLANNER_SMOKE=1 PLANNER_BQ_TEST=1 npx electron .` — fetch/parse the Badminton Québec calendar.
 - `PLANNER_SMOKE=1 PLANNER_EVENT_TEST=YYYY-MM-DD npx electron .` — create a badminton event through the real path, print the computed registration window + queued reminders, then clean up.
+- `PLANNER_SMOKE=1 PLANNER_REPEAT_TEST=YYYY-MM-DD npx electron .` — walk a repeating event through its whole life (materialize, strike one occurrence out, edit the series, stop repeating), printing each step, then clean up.
 - `PLANNER_SMOKE=1 PLANNER_ASSIST_TEST="add a task…" npx electron .` — one headless assistant round (needs a stored Groq key); prints reply + tool receipts.
+- `PLANNER_SMOKE=1 PLANNER_GOAL_PARSE_TEST=1 npx electron .` — the goal quick-add parser over a table of inputs. Pure and offline; half the cases assert what it must *not* consume.
+- `PLANNER_SMOKE=1 PLANNER_GOAL_TEST=1 npx electron .` — the goals repo end to end: PR survives a worse reading, descending goals, carry keeps history, the `done_at` month boundary, cascade on delete. Creates and removes its own rows.
 - `PLANNER_SHOT=out.png [PLANNER_SHOT_JS="…"] npx electron .` — self-capture the rendered window to PNG then exit (ground-truth screenshots that bypass DWM quirks).
 - `PLANNER_OPEN=<view>` deep-links the initial page; `--hidden` boots minimized to tray.
 
@@ -73,7 +76,21 @@ Full rules are in `README.md`; these are the ones easy to violate:
 
 - **Recurring tasks:** the rule lives on a *series*; occurrences are real task rows keyed `UNIQUE(series_id, occurrence_date)`. Deleting an occurrence marks it `skipped` (hidden forever, never regenerated); editing a series rewrites only *future open* occurrences; deleting a series keeps past/done history. `tasksDelete` hard-deletes standalone tasks but only skips series occurrences.
 - **Event periods:** `events.start_at`/`end_at` are ISO instants; **local midnight means all-day**. An all-day event's `end_at` is midnight of the last day it *covers* (inclusive), so `spanOf()` in `EventsPage.tsx` reads it directly — but a timed event's `end_at` is the real end instant, so one ending at midnight belongs to the day *before*. `end_at` NULL = a single point. Patching only `date`/`time` shifts `end_at` by the same delta (moving an event keeps its length); patching `endDate`/`endTime` recomputes it outright.
-- **Reminders** require a due *time* (all-day tasks don't toast) and are re-synced to the `reminders` table on every task write.
+- **Terms & courses:** a term is a row, not a string. Deleting a term is
+  `ON DELETE SET NULL` — the courses survive unfiled, so *archive* is the
+  ordinary end-of-semester move and delete is for mistakes. `listCourses()`
+  returns archived rows too; every caller filters for itself. Course/term
+  colours must come from `TAG_COLORS` (the repo drops anything else), because
+  the picker can only show a swatch it owns.
+- **Course-tagged events:** `events.course_id` set implies `kind = 'academic'` —
+  the repo derives the kind rather than trusting the caller, so the calendar
+  can't colour one thing and filter another. A deleted course leaves the event
+  as a plain academic one (SET NULL); an *archived* course still paints its
+  events, it just stops being offered in the picker.
+- **Recurring events** mirror recurring tasks and share `occurrenceDates()`, but an occurrence is a plain `events` row — which is why the calendar, dashboard and search needed no changes. Two consequences that bite: deleting one occurrence sets `skipped = 1` instead of removing the row (that tombstone is the only thing stopping the next rollover regenerating it, so every read of `events` must filter `skipped = 0`), and a `scope: 'series'` write **never moves the series' start date** — a series is edited through whichever occurrence was open, and honouring that occurrence's date would drag the anchor forward and silently drop every occurrence in between.
+- **Reminders** require a due *time* for tasks (all-day tasks don't toast) and are re-synced to the `reminders` table on every task write. **Events** work differently: they carry a list of minutes-before offsets, and all-day ones anchor at 09:00 on the day — so an all-day event does toast.
+- **Goals:** progress is *never* stored — there is deliberately no `current_value` column. A number goal's headline is the **best** entry in the goal's own direction (max when `target > start`, min when it's below, so losing weight works), which is what stops a worse reading logged after a PR from erasing it. Carrying a goal to another month **moves the row**, never copies it: a copy forks the measurement log and two halves can't agree on a best. `source` only means anything on a `counter` and is cleared otherwise; `kind` is frozen once the goal has entries.
+- **The `done_at` trap:** three of the four goal auto-sources hold a local `YYYY-MM-DD`, but `tasks.done_at` is a UTC instant. Matching it with `LIKE '2026-08%'` misfiles every task finished after ~20:00 local on the last day of the month — `goalsRepo.monthBounds()` returns both forms for exactly this reason, and `PLANNER_GOAL_TEST` asserts it. Don't "simplify" it back.
 - **Tags** normalize to lowercase-kebab (`ECSE 200` → `ecse-200`) so a tag can't exist twice; the picker offers every tag in use across tasks *and* series.
 - **External feeds** (`jobsFeed.ts`, `badmintonFeed.ts`) are fetched on demand with a ~10-min cache, **never background-polled**. A dead source degrades to a warning line, never an empty page. Don't add scrape-hostile sources (LinkedIn/Indeed/Handshake) — use structured lists/boards.
 

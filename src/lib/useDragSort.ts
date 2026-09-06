@@ -98,8 +98,11 @@ export function useDragSort(ids: string[], onCommit: (ordered: string[]) => void
       if (!list) return
 
       const listTop = list.getBoundingClientRect().top
+      // `:scope >` and not a bare selector: a sortable list can contain
+      // another one (a shelf of courses inside a shelf of terms), and an
+      // unscoped query would pull the inner rows into the outer drag.
       const rows: Row[] = Array.from(
-        list.querySelectorAll<HTMLElement>('[data-dragsort]')
+        list.querySelectorAll<HTMLElement>(':scope > [data-dragsort]')
       ).map((el) => {
         const r = el.getBoundingClientRect()
         return { id: el.dataset.dragsort ?? '', el, top: r.top - listTop, height: r.height }
