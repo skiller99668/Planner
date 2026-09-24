@@ -124,7 +124,8 @@ export function createTask(input: TaskInput): Task {
 }
 
 /** Insert a generated series occurrence; silently no-ops if it already exists
- *  (including as done/skipped) thanks to UNIQUE(series_id, occurrence_date). */
+ *  (including as done/skipped) thanks to UNIQUE(series_id, occurrence_date).
+ *  Returns the new row's id, or null when nothing was inserted. */
 export function insertOccurrence(task: {
   title: string
   notes: string | null
@@ -135,7 +136,7 @@ export function insertOccurrence(task: {
   dueAt: string
   allDay: boolean
   reminderAt: string | null
-}): void {
+}): string | null {
   const now = new Date().toISOString()
   const id = crypto.randomUUID()
   const res = getDb()
@@ -159,7 +160,9 @@ export function insertOccurrence(task: {
       now,
       now
     )
-  if (res.changes > 0) syncReminder(getTask(id))
+  if (res.changes === 0) return null
+  syncReminder(getTask(id))
+  return id
 }
 
 export function updateTask(id: string, patch: TaskPatch): Task {

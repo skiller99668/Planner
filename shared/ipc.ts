@@ -31,6 +31,10 @@ import type {
   FeedEvent,
   IcsImportResult,
   JobPosting,
+  JournalEntry,
+  JournalEntryMeta,
+  JournalStatus,
+  Mood,
   Lecture,
   LectureInput,
   LecturePatch,
@@ -87,6 +91,18 @@ export const IPC = {
   leetcodeUpdate: 'leetcode:update',
   leetcodeDelete: 'leetcode:delete',
   leetcodeSync: 'leetcode:sync',
+  journalStatus: 'journal:status',
+  journalSetPasscode: 'journal:setPasscode',
+  journalChangePasscode: 'journal:changePasscode',
+  journalUnlock: 'journal:unlock',
+  journalLock: 'journal:lock',
+  journalList: 'journal:list',
+  journalGet: 'journal:get',
+  journalSave: 'journal:save',
+  journalSetMood: 'journal:setMood',
+  journalDelete: 'journal:delete',
+  journalResetPasscode: 'journal:resetPasscode',
+  journalReset: 'journal:reset',
   goalsList: 'goals:list',
   goalsCreate: 'goals:create',
   goalsUpdate: 'goals:update',
@@ -252,6 +268,40 @@ export interface PlannerApi {
   groqListModels(): Promise<string[]>
   /** Subscribe to data-changed pushes; returns an unsubscribe function. */
   onTasksChanged(cb: () => void): () => void
+
+  /** Whether a passcode exists and whether the key is in memory right now.
+   *  The only journal call that works while locked. */
+  journalStatus(): Promise<JournalStatus>
+  /** First-time setup. Derives the key, stores a salt and verifier, and
+   *  leaves the journal unlocked. Refused once a passcode already exists —
+   *  changing one goes through journalChangePasscode so the entries get
+   *  re-encrypted rather than stranded. */
+  journalSetPasscode(passcode: string): Promise<JournalStatus>
+  /** Swaps the passcode you already know. Only the key wrappers move, so no
+   *  entry is rewritten. Wrong current passcode is refused. */
+  journalChangePasscode(current: string, next: string): Promise<{ ok: boolean }>
+  /** Sets a new passcode *without* the old one, opening the data key through
+   *  the OS wrapper. Keeps every entry. `ok: false` means there is no usable
+   *  wrapper (see JournalStatus.recoverable) and erasing is the only way on. */
+  journalResetPasscode(next: string): Promise<{ ok: boolean }>
+  /** Holds the derived key in main for the rest of this run. `ok: false` is a
+   *  wrong passcode — indistinguishable from any other wrong one. */
+  journalUnlock(passcode: string): Promise<{ ok: boolean }>
+  /** Drops the key from memory. Everything below starts failing again. */
+  journalLock(): Promise<JournalStatus>
+  /** Newest first. Empty while locked. */
+  journalList(): Promise<JournalEntryMeta[]>
+  /** One day's full text, or null if nothing was written that day. */
+  journalGet(date: string): Promise<JournalEntry | null>
+  /** Creates or replaces the day's entry. An entry whose body is emptied is
+   *  deleted rather than kept as a blank row. */
+  journalSave(date: string, body: string): Promise<JournalEntryMeta | null>
+  /** Rate the day, or pass null to clear it. Works on a day with no text. */
+  journalSetMood(date: string, mood: Mood | null): Promise<void>
+  journalDelete(date: string): Promise<void>
+  /** The only way out of a forgotten passcode: destroys every entry and the
+   *  lock itself, leaving the journal as if it had never been set up. */
+  journalReset(): Promise<JournalStatus>
 
   /** One month's live goals (YYYY-MM), in hand-placed order. Archived ones
    *  are left out — a dropped goal is gone from the page, not shelved. */

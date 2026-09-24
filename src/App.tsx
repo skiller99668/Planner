@@ -18,13 +18,15 @@ import CareerPage from './pages/CareerPage'
 import DashboardPage from './pages/DashboardPage'
 import EventsPage from './pages/EventsPage'
 import GoalsPage from './pages/GoalsPage'
+import JournalPage from './pages/JournalPage'
 import GymPage from './pages/GymPage'
 import LeetcodePage from './pages/LeetcodePage'
 import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
 
 const MODULE_IDS: ModuleId[] = [
-  'dashboard', 'tasks', 'academics', 'gym', 'events', 'career', 'leetcode', 'goals', 'settings'
+  'dashboard', 'tasks', 'academics', 'gym', 'events', 'career', 'leetcode', 'goals', 'journal',
+  'settings'
 ]
 
 /** Initial view can be deep-linked via URL hash (set by PLANNER_OPEN / notifications). */
@@ -81,6 +83,7 @@ export default function App() {
       goCareer: () => setActive('career'),
       goLeetcode: () => setActive('leetcode'),
       goGoals: () => setActive('goals'),
+      goJournal: () => setActive('journal'),
       goSettings: () => setActive('settings')
     }
 
@@ -133,6 +136,8 @@ export default function App() {
             <LeetcodePage />
           ) : active === 'goals' ? (
             <GoalsPage />
+          ) : active === 'journal' ? (
+            <JournalPage />
           ) : (
             <SettingsPage />
           )}

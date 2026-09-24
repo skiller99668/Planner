@@ -24,6 +24,7 @@ import type {
   LecturePatch,
   LeetcodeLogInput,
   LeetcodePatch,
+  Mood,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -65,6 +66,20 @@ import {
   updateGoal,
   updateGoalStep
 } from './goalsRepo'
+import {
+  changeJournalPasscode,
+  deleteJournalEntry,
+  getJournalEntry,
+  journalStatus,
+  listJournalEntries,
+  lockJournal,
+  resetJournal,
+  resetJournalPasscode,
+  saveJournalEntry,
+  setJournalMood,
+  setJournalPasscode,
+  unlockJournal
+} from './journalRepo'
 import { assistantSend } from './assistant'
 import {
   addCareerLog,
@@ -215,7 +230,25 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.handle(IPC.groqSetKey, (_e, key: string) => setGroqKey(key))
   ipcMain.handle(IPC.groqListModels, () => listModels())
 
-  // ---------- academics ----------
+  // ---------- journal ----------
+  ipcMain.handle(IPC.journalStatus, () => journalStatus())
+  ipcMain.handle(IPC.journalSetPasscode, (_e, passcode: string) => setJournalPasscode(passcode))
+  ipcMain.handle(IPC.journalChangePasscode, (_e, current: string, next: string) =>
+    changeJournalPasscode(current, next)
+  )
+  ipcMain.handle(IPC.journalUnlock, (_e, passcode: string) => unlockJournal(passcode))
+  ipcMain.handle(IPC.journalLock, () => lockJournal())
+  ipcMain.handle(IPC.journalList, () => listJournalEntries())
+  ipcMain.handle(IPC.journalGet, (_e, date: string) => getJournalEntry(date))
+  ipcMain.handle(IPC.journalSave, (_e, date: string, body: string) => saveJournalEntry(date, body))
+  ipcMain.handle(IPC.journalSetMood, (_e, date: string, mood: Mood | null) =>
+    setJournalMood(date, mood)
+  )
+  ipcMain.handle(IPC.journalDelete, (_e, date: string) => deleteJournalEntry(date))
+  ipcMain.handle(IPC.journalResetPasscode, (_e, next: string) => resetJournalPasscode(next))
+  ipcMain.handle(IPC.journalReset, () => resetJournal())
+
+  // ---------- goals ----------
   ipcMain.handle(IPC.goalsList, (_e, month: string) => listGoals(month))
   ipcMain.handle(IPC.goalsCreate, (_e, input: GoalInput) => createGoal(input))
   ipcMain.handle(IPC.goalsUpdate, (_e, id: string, patch: GoalPatch) => updateGoal(id, patch))

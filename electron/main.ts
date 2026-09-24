@@ -392,6 +392,162 @@ if (isSmokeTest) {
       return
     }
 
+    // PLANNER_JOURNAL_TEST=1 exercises the journal lock. The assertion that
+    // matters most is the plainest one: what lands in the database is not the
+    // words that were typed. Creates and removes its own rows.
+    if (process.env.PLANNER_JOURNAL_TEST) {
+      const { getDb } = await import('./db')
+      const wipe = (): void => {
+        const db = getDb()
+        db.prepare('DELETE FROM journal_entries').run()
+        db.prepare('DELETE FROM journal_lock').run()
+      }
+      try {
+        const j = await import('./journalRepo')
+        const check = (label: string, ok: boolean): void => {
+          if (!ok) throw new Error(label)
+        }
+        const threw = (fn: () => unknown): boolean => {
+          try {
+            fn()
+            return false
+          } catch {
+            return true
+          }
+        }
+        const had = (getDb().prepare('SELECT COUNT(*) AS n FROM journal_lock').get() as {
+          n: number
+        }).n
+        check('refusing to run against a real journal', had === 0)
+
+        const SECRET = 'the quick brown fox felt genuinely awful today'
+        const DAY = '2026-09-09'
+
+        check('starts unconfigured', !j.journalStatus().configured)
+        check('locked reads throw', threw(() => j.listJournalEntries()))
+
+        j.setJournalPasscode('correct horse')
+        check('setup leaves it unlocked', j.journalStatus().unlocked)
+
+        j.saveJournalEntry(DAY, SECRET)
+        j.setJournalMood(DAY, 4)
+
+        // The headline claim: the row holds ciphertext, not the sentence.
+        const raw = (getDb()
+          .prepare('SELECT body, mood FROM journal_entries WHERE date = ?')
+          .get(DAY) as { body: string; mood: number })
+        check('the stored body is not the plaintext', !raw.body.includes('quick brown fox'))
+        check('and not any of it', !Buffer.from(raw.body, 'base64').toString('utf8').includes('fox'))
+        check('mood is stored in the clear, as designed', raw.mood === 4)
+
+        check('reads back exactly', j.getJournalEntry(DAY)?.body === SECRET)
+        check('mood survives', j.getJournalEntry(DAY)?.mood === 4)
+
+        // Writing the body again must not clear a mood already set that day.
+        j.saveJournalEntry(DAY, `${SECRET} (edited)`)
+        check('a rewrite keeps the mood', j.getJournalEntry(DAY)?.mood === 4)
+
+        j.lockJournal()
+        check('locking closes it', !j.journalStatus().unlocked)
+        check('and reads throw again', threw(() => j.getJournalEntry(DAY)))
+        check('a wrong passcode is refused', !j.unlockJournal('incorrect horse').ok)
+        check('the right one is not', j.unlockJournal('correct horse').ok)
+        check('and the text is still there', j.getJournalEntry(DAY)?.body.startsWith(SECRET) === true)
+
+        // Changing the passcode re-encrypts everything under the new key.
+        check('a wrong current passcode is refused', !j.changeJournalPasscode('nope', 'battery staple').ok)
+        check('the right one works', j.changeJournalPasscode('correct horse', 'battery staple').ok)
+        j.lockJournal()
+        check('the old passcode stops working', !j.unlockJournal('correct horse').ok)
+        check('the new one works', j.unlockJournal('battery staple').ok)
+        check('and nothing was lost in the swap', j.getJournalEntry(DAY)?.body.startsWith(SECRET) === true)
+
+        // Forgetting the passcode now costs a reset, not the journal: the OS
+        // wrapper opens the data key and a new passcode re-wraps it.
+        check('a fresh journal is recoverable', j.journalStatus().recoverable)
+        j.lockJournal()
+        check('reset without the old passcode works', j.resetJournalPasscode('third passcode').ok)
+        check('it leaves it unlocked', j.journalStatus().unlocked)
+        check('and every word survived', j.getJournalEntry(DAY)?.body.startsWith(SECRET) === true)
+        j.lockJournal()
+        check('the reset passcode is the live one', j.unlockJournal('third passcode').ok)
+        check('and the one it replaced is not', !j.unlockJournal('battery staple').ok)
+        j.unlockJournal('third passcode')
+
+        // Word counts ride along on the list, counted where the plaintext is.
+        check('words are counted', j.listJournalEntries()[0].words === 9)
+
+        // Emptying an entry with no mood removes it rather than leaving a blank.
+        j.saveJournalEntry('2026-09-08', 'temporary')
+        j.saveJournalEntry('2026-09-08', '   ')
+        check('an emptied entry is deleted', j.getJournalEntry('2026-09-08') === null)
+
+        check('the list decrypts an excerpt', j.listJournalEntries()[0].excerpt.startsWith('the quick'))
+
+        j.resetJournal()
+        check('reset clears the lock', !j.journalStatus().configured)
+        check('and every entry', (getDb().prepare('SELECT COUNT(*) AS n FROM journal_entries').get() as { n: number }).n === 0)
+
+        // --- the v12 → v13 upgrade, which is the path a journal written
+        // before the recovery wrapper existed actually takes ---
+        wipe()
+        {
+          const { createCipheriv, randomBytes, scryptSync } = await import('node:crypto')
+          // The v12 shape, rebuilt by hand: entries encrypted directly under
+          // the passcode key, and no wrapped data key anywhere.
+          const enc = (key: Buffer, plain: string): string => {
+            const iv = randomBytes(12)
+            const c = createCipheriv('aes-256-gcm', key, iv)
+            const ct = Buffer.concat([c.update(plain, 'utf8'), c.final()])
+            return Buffer.concat([iv, c.getAuthTag(), ct]).toString('base64')
+          }
+          const salt = randomBytes(16)
+          const passKey = scryptSync('old ways', salt, 32, {
+            N: 32768,
+            r: 8,
+            p: 1,
+            maxmem: 64 * 1024 * 1024
+          })
+          const db = getDb()
+          const nowIso = new Date().toISOString()
+          db.prepare(
+            `INSERT INTO journal_lock (id, salt, verifier, dek_pass, dek_recovery, created_at)
+             VALUES ('lock', ?, ?, NULL, NULL, ?)`
+          ).run(salt.toString('base64'), enc(passKey, 'planner-journal-v1'), nowIso)
+          db.prepare(
+            `INSERT INTO journal_entries (id, date, body, mood, created_at, updated_at)
+             VALUES (?, ?, ?, 2, ?, ?)`
+          ).run('legacy-1', '2026-09-01', enc(passKey, 'written before any of this'), nowIso, nowIso)
+
+          check('a legacy lock is not recoverable yet', !j.journalStatus().recoverable)
+          check('a wrong passcode still fails on it', !j.unlockJournal('wrong').ok)
+          check('the real one opens it', j.unlockJournal('old ways').ok)
+          check(
+            'and the old entry reads back intact',
+            j.getJournalEntry('2026-09-01')?.body === 'written before any of this'
+          )
+          check('its mood survived the upgrade', j.getJournalEntry('2026-09-01')?.mood === 2)
+          check('unlocking upgraded it in place', j.journalStatus().recoverable)
+          j.lockJournal()
+          check('the same passcode still works after', j.unlockJournal('old ways').ok)
+          check('and forgetting it is now survivable', j.resetJournalPasscode('brand new').ok)
+          check(
+            'with the pre-upgrade entry still there',
+            j.getJournalEntry('2026-09-01')?.body === 'written before any of this'
+          )
+        }
+
+        wipe()
+        console.log('JOURNAL OK 37 assertions')
+        app.exit(0)
+      } catch (err) {
+        wipe()
+        console.error('JOURNAL FAIL', err)
+        app.exit(1)
+      }
+      return
+    }
+
     // PLANNER_GOAL_TEST=1 drives the goals repo end to end, asserting the two
     // rules that are easy to break by accident: a personal best survives a
     // worse reading logged after it, and a carry keeps the history. Creates and
@@ -627,6 +783,93 @@ if (isSmokeTest) {
         app.exit(0)
       } catch (err) {
         console.error('RECUR FAIL', err)
+        wipe()
+        app.exit(1)
+      }
+      return
+    }
+
+    // PLANNER_SUBTASK_TEST=1 walks a checklist through a repeating task: it
+    // comes along when a one-off starts repeating, edits carry forward (never
+    // back), ticks stay put, and a series edit doesn't clear today's ticks.
+    // Creates and removes its own rows in the real DB.
+    if (process.env.PLANNER_SUBTASK_TEST) {
+      const MARK = 'SUBTASK self-test'
+      const { getDb } = await import('./db')
+      const wipe = (): void => {
+        const db = getDb()
+        db.prepare('DELETE FROM task_series WHERE title = ?').run(MARK)
+        db.prepare('DELETE FROM tasks WHERE title = ?').run(MARK)
+      }
+      try {
+        const { createTask, listTasks } = await import('./tasksRepo')
+        const { listSeries, setTaskRecurrence, updateSeries } = await import('./recurrence')
+        const { createSubtask, deleteSubtask, listSubtasks, reorderSubtasks, updateSubtask } =
+          await import('./subtasksRepo')
+        const check = (label: string, ok: boolean): void => {
+          if (!ok) throw new Error(label)
+        }
+        const d = new Date()
+        const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        const occ = (): ReturnType<typeof listTasks> =>
+          listTasks().filter((t) => t.title === MARK && t.status === 'open')
+        const steps = (taskId: string): ReturnType<typeof listSubtasks> =>
+          listSubtasks().filter((s) => s.taskId === taskId)
+        const titles = (taskId: string): string => steps(taskId).map((s) => s.title).join(',')
+
+        wipe()
+        const one = createTask({ title: MARK, dueDate: today, dueTime: '09:00' })
+        createSubtask(one.id, 'A')
+        const b = createSubtask(one.id, 'B')
+        updateSubtask(b.id, { done: true })
+
+        // 1. One-off → daily: every occurrence carries the checklist, unticked.
+        setTaskRecurrence(one.id, {
+          title: MARK,
+          rule: { freq: 'daily', interval: 1, byWeekdays: [], byMonthDay: null },
+          startDate: today,
+          dueTime: '09:00'
+        })
+        let o = occ()
+        check('occurrences missing', o.length >= 10)
+        check('checklist did not carry', o.every((t) => titles(t.id) === 'A,B'))
+        check('ticks carried into new occurrences', o.every((t) => steps(t.id).every((s) => !s.done)))
+
+        // 2. Adding on tomorrow's reaches later ones, never today's.
+        createSubtask(o[1].id, 'C')
+        check('add leaked backwards', titles(o[0].id) === 'A,B')
+        check('add did not carry forward', o.slice(1).every((t) => titles(t.id) === 'A,B,C'))
+
+        // 3. Rename from today's carries to all later ones; a tick does not.
+        const a0 = steps(o[0].id).find((s) => s.title === 'A')!
+        updateSubtask(a0.id, { title: 'A2' })
+        const b0 = steps(o[0].id).find((s) => s.title === 'B')!
+        updateSubtask(b0.id, { done: true })
+        check('rename did not carry', o.slice(1).every((t) => titles(t.id) === 'A2,B,C'))
+        check('tick leaked forward', o.slice(1).every((t) => steps(t.id).every((s) => !s.done)))
+
+        // 4. Deleting from the third occurrence leaves the second alone.
+        deleteSubtask(steps(o[2].id).find((s) => s.title === 'C')!.id)
+        check('delete leaked backwards', titles(o[1].id) === 'A2,B,C')
+        check('delete did not carry', o.slice(2).every((t) => titles(t.id) === 'A2,B'))
+
+        // 5. Reorder carries forward.
+        reorderSubtasks(o[3].id, steps(o[3].id).map((s) => s.id).reverse())
+        check('reorder did not carry', o.slice(3).every((t) => titles(t.id) === 'B,A2'))
+
+        // 6. A series edit regenerates open occurrences but keeps today's tick.
+        const series = listSeries().find((s) => s.title === MARK)!
+        updateSeries(series.id, { priority: 2 })
+        o = occ()
+        const bToday = steps(o[0].id).find((s) => s.title === 'B')
+        check('series edit cleared today\'s tick', bToday?.done === true)
+        check('regenerated occurrences lost the checklist', o.slice(1).every((t) => titles(t.id) === 'B,A2'))
+
+        console.log('SUBTASK OK', JSON.stringify({ occurrences: o.length, today: titles(o[0].id) }))
+        wipe()
+        app.exit(0)
+      } catch (err) {
+        console.error('SUBTASK FAIL', err)
         wipe()
         app.exit(1)
       }

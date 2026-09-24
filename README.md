@@ -56,6 +56,27 @@ window is closed, so nothing slips.
 - A course doubles as an **event category**: file a midterm under ECSE 200 and it
   shows up on the calendar in that course's colour, labelled with its code.
 
+### Journal (locked)
+
+- One entry a day, **automatically titled with the date**. The writing surface is
+  a blank page — no prompt, no placeholder, no formatting bar — and it saves
+  itself as you type.
+- **Rate the day** on five faces, sad → neutral → happy. Tapping the face already
+  showing clears it. A rating works on a day you wrote nothing.
+- **Locked with a passcode you set.** Entries are encrypted with AES-256-GCM
+  under a random data key; the unwrapped key lives in the main process for the
+  length of a run, so every launch starts locked. This is real encryption, not a
+  hidden screen — opening `planner.db` in a SQLite browser shows ciphertext.
+- **Forgot the passcode? Set a new one.** The data key is also wrapped by
+  Windows DPAPI, so the lock screen can hand you a fresh passcode with every
+  entry intact. The trade, stated plainly: the lock stops someone reading the
+  database file or using an app you left open — it is **not** a defence against
+  someone already signed in to your Windows account. Erasing everything is still
+  offered as a fallback for a journal carried over from another account, where
+  the OS copy can't be opened.
+- Deliberately outside everything else: the journal is **not searchable** from
+  Ctrl+K and the AI assistant has no tool that can reach it.
+
 ### Gym (Push / Pull / Legs)
 - One-tap logging that suggests the next workout in the PPL cycle.
 - A Sunday–Saturday week grid; click **any past day** to log it retroactively,

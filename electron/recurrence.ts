@@ -23,6 +23,12 @@ import {
   getTask,
   insertOccurrence
 } from './tasksRepo'
+import {
+  captureSeriesTicks,
+  restoreSeriesTicks,
+  seedSeriesChecklist,
+  stampSeriesChecklist
+} from './subtasksRepo'
 
 const HORIZON_DAYS = 60
 
@@ -84,7 +90,9 @@ export function getSeries(id: string): TaskSeries {
   return rowToSeries(row)
 }
 
-export function createSeries(input: SeriesInput): TaskSeries {
+/** `checklistFrom` seeds the series' checklist template from an existing
+ *  task's subtasks, before the first occurrences are generated. */
+export function createSeries(input: SeriesInput, checklistFrom?: string): TaskSeries {
   const now = new Date().toISOString()
   const id = crypto.randomUUID()
   const rule = normalizeRule(input.rule, input.startDate)
@@ -109,6 +117,7 @@ export function createSeries(input: SeriesInput): TaskSeries {
       now,
       now
     )
+  if (checklistFrom) seedSeriesChecklist(id, checklistFrom)
   const series = getSeries(id)
   materializeSeries(series)
   return series
@@ -144,10 +153,15 @@ export function updateSeries(id: string, patch: SeriesPatch): TaskSeries {
       id
     )
 
-  // Future open occurrences are stamped from the old template — rewrite them.
+  // Future open occurrences are stamped from the old template — rewrite them,
+  // keeping any checklist steps already ticked on them (today's, usually).
+  const ticks = captureSeriesTicks(id, localToday())
   dropFutureOpenOccurrences(id)
   const series = getSeries(id)
-  if (series.active) materializeSeries(series)
+  if (series.active) {
+    materializeSeries(series)
+    restoreSeriesTicks(id, ticks)
+  }
   return series
 }
 
@@ -182,7 +196,7 @@ export function setTaskRecurrence(taskId: string, input: SeriesInput | null): vo
     if (task.seriesId) {
       updateSeries(task.seriesId, input)
     } else {
-      createSeries(input)
+      createSeries(input, taskId)
       deleteTask(taskId)
     }
   } else if (task.seriesId) {
@@ -215,7 +229,7 @@ export function materializeSeries(series: TaskSeries): void {
 
   for (const date of occurrenceDates(series.rule, series.startDate, from, until)) {
     const { dueAt, allDay } = composeDueAt(date, series.dueTime)
-    insertOccurrence({
+    const taskId = insertOccurrence({
       title: series.title,
       notes: series.notes,
       tags: series.tags,
@@ -226,6 +240,7 @@ export function materializeSeries(series: TaskSeries): void {
       allDay,
       reminderAt: computeReminderAt(dueAt, allDay, series.reminderOffsetMin)
     })
+    if (taskId) stampSeriesChecklist(taskId, series.id)
   }
 }
 

@@ -31,6 +31,7 @@ import type {
   LecturePatch,
   LeetcodeLogInput,
   LeetcodePatch,
+  Mood,
   SeriesInput,
   SeriesPatch,
   Settings,
@@ -86,6 +87,21 @@ const api: PlannerApi = {
   groqStatus: () => ipcRenderer.invoke(IPC.groqStatus),
   groqSetKey: (key: string) => ipcRenderer.invoke(IPC.groqSetKey, key),
   groqListModels: () => ipcRenderer.invoke(IPC.groqListModels),
+
+  journalStatus: () => ipcRenderer.invoke(IPC.journalStatus),
+  journalSetPasscode: (passcode: string) => ipcRenderer.invoke(IPC.journalSetPasscode, passcode),
+  journalChangePasscode: (current: string, next: string) =>
+    ipcRenderer.invoke(IPC.journalChangePasscode, current, next),
+  journalUnlock: (passcode: string) => ipcRenderer.invoke(IPC.journalUnlock, passcode),
+  journalLock: () => ipcRenderer.invoke(IPC.journalLock),
+  journalList: () => ipcRenderer.invoke(IPC.journalList),
+  journalGet: (date: string) => ipcRenderer.invoke(IPC.journalGet, date),
+  journalSave: (date: string, body: string) => ipcRenderer.invoke(IPC.journalSave, date, body),
+  journalSetMood: (date: string, mood: Mood | null) =>
+    ipcRenderer.invoke(IPC.journalSetMood, date, mood),
+  journalDelete: (date: string) => ipcRenderer.invoke(IPC.journalDelete, date),
+  journalResetPasscode: (next: string) => ipcRenderer.invoke(IPC.journalResetPasscode, next),
+  journalReset: () => ipcRenderer.invoke(IPC.journalReset),
 
   goalsList: (month: string) => ipcRenderer.invoke(IPC.goalsList, month),
   goalsCreate: (input: GoalInput) => ipcRenderer.invoke(IPC.goalsCreate, input),

@@ -11,6 +11,7 @@ export type ModuleId =
   | 'career'
   | 'leetcode'
   | 'goals'
+  | 'journal'
   | 'settings'
 
 const NAV: { id: ModuleId; label: string; icon: ReactElement }[] = [
@@ -24,7 +25,8 @@ const NAV: { id: ModuleId; label: string; icon: ReactElement }[] = [
   // conceptually: NAV order matches Ctrl+1..7 one-for-one, and inserting in
   // the middle would renumber every page after it.
   { id: 'leetcode', label: 'LeetCode', icon: <IconCode /> },
-  { id: 'goals', label: 'Goals', icon: <IconTarget /> }
+  { id: 'goals', label: 'Goals', icon: <IconTarget /> },
+  { id: 'journal', label: 'Journal', icon: <IconJournal /> }
 ]
 
 export default function Sidebar({
@@ -235,6 +237,14 @@ function IconTarget() {
     <>
       <circle cx="12" cy="12" r="8" />
       <circle cx="12" cy="12" r="3.4" />
+    </>
+  )
+}
+function IconJournal() {
+  return svg(
+    <>
+      <path d="M5.5 4.5h11a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-11a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z" />
+      <path d="M8.5 4.5v17" />
     </>
   )
 }

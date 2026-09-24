@@ -104,6 +104,7 @@ export default function CommandPalette({
       { id: 'go-career', label: 'Career', group: 'Go to', keywords: 'internships jobs applications', run: () => go('career') },
       { id: 'go-leetcode', label: 'LeetCode', group: 'Go to', keywords: 'dsa problems', run: () => go('leetcode') },
       { id: 'go-goals', label: 'Goals', group: 'Go to', keywords: 'targets month progress', run: () => go('goals') },
+      { id: 'go-journal', label: 'Journal', group: 'Go to', keywords: 'diary write private', run: () => go('journal') },
       { id: 'go-settings', label: 'Settings', group: 'Go to', keywords: 'preferences', run: () => go('settings') },
       {
         id: 'new-task',

@@ -325,6 +325,52 @@ export interface GoalEntryInput {
   note?: string | null
 }
 
+// ---------- Journal ----------
+
+/** How the day felt, on a five-point scale: 1 sad → 3 neutral → 5 happy. */
+export type Mood = 1 | 2 | 3 | 4 | 5
+
+/** A day's writing. `body` is plaintext here — this type only ever exists on
+ *  the far side of an unlock, because the column it comes from is ciphertext
+ *  and the key lives in the main process. */
+export interface JournalEntry {
+  id: string
+  date: string // YYYY-MM-DD, local; one entry per day
+  body: string
+  mood: Mood | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** A row for the date list: enough to render it without handing the whole
+ *  journal to the renderer every time the page mounts. */
+export interface JournalEntryMeta {
+  id: string
+  date: string
+  mood: Mood | null
+  /** First line or so of the body, for the list. Decrypted like everything
+   *  else, so it is empty whenever the journal is locked. */
+  excerpt: string
+  /** Words in the entry. Counted in main, where the plaintext already is,
+   *  so a lifetime total costs nothing to show. */
+  words: number
+  updatedAt: string
+}
+
+/** What the renderer is allowed to know without a passcode. Deliberately not
+ *  the entry count — that is already one fact more than "is it set up". */
+export interface JournalStatus {
+  /** A passcode has been set. False means the journal has never been used. */
+  configured: boolean
+  /** The key is in memory for this run of the app. */
+  unlocked: boolean
+  /** A forgotten passcode can be replaced without losing the entries, because
+   *  the OS holds a second wrapper for the data key. False on a journal that
+   *  predates that, or one carried to another Windows account — there, the
+   *  only way past a forgotten passcode is erasing it. */
+  recoverable: boolean
+}
+
 // ---------- Academics ----------
 
 /** A semester, as a place things go rather than a string repeated on every

@@ -477,5 +477,131 @@ export const MIGRATIONS: Migration[] = [
       );
       CREATE INDEX idx_goal_entries_goal ON goal_entries (goal_id, date);
     `
+  },
+  {
+    version: 12,
+    sql: `
+      -- ---------- journal ----------
+      --
+      -- One entry per day, and the body is genuinely encrypted rather than
+      -- merely hidden behind a screen. This file sits at
+      -- %APPDATA%/planner/planner.db with no OS protection on it, so a lock
+      -- that only gated the UI would be readable by anything that can open a
+      -- SQLite browser — which is not what "locked" means to anyone writing
+      -- about their day.
+      --
+      -- body holds base64(iv | authTag | ciphertext) from AES-256-GCM under a
+      -- key scrypt-derived from the passcode. The key never touches this table
+      -- and never leaves the main process. The consequence is the honest one:
+      -- there is no recovery path. A forgotten passcode is a lost journal,
+      -- which is why setup says so in as many words.
+      --
+      -- date is UNIQUE: a day has one entry, and "today" is found by date
+      -- rather than by id, so opening the page twice can never fork it.
+      --
+      -- mood is deliberately NOT encrypted. The row's existence already
+      -- discloses that you wrote on a given day, a single digit adds little to
+      -- that, and leaving it queryable is what lets a month strip render
+      -- without decrypting a year of prose.
+      CREATE TABLE journal_entries (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL UNIQUE,     -- YYYY-MM-DD, local
+        body TEXT NOT NULL,            -- base64(iv | tag | ciphertext)
+        mood INTEGER,                  -- 1..5, sad..happy; NULL until rated
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_journal_date ON journal_entries (date DESC);
+
+      -- Exactly one row, id 'lock'. The salt is not secret; the verifier is a
+      -- known token encrypted under the derived key, which is how a passcode
+      -- is checked without decrypting anyone's writing.
+      CREATE TABLE journal_lock (
+        id TEXT PRIMARY KEY,
+        salt TEXT NOT NULL,            -- base64, 16 bytes
+        verifier TEXT NOT NULL,        -- base64(iv | tag | ciphertext)
+        created_at TEXT NOT NULL
+      );
+    `
+  },
+  {
+    version: 13,
+    sql: `
+      -- A recovery path for a forgotten passcode.
+      --
+      -- v12 derived the encryption key straight from the passcode, which made
+      -- "forgot it" arithmetically unanswerable: no passcode, no key, no
+      -- entries. Now a random data key encrypts the entries and IS ITSELF
+      -- stored twice — wrapped under the passcode-derived key, and wrapped
+      -- under Electron safeStorage (Windows DPAPI, tied to the OS account).
+      -- Either wrapper opens it, so forgetting the passcode costs a reset
+      -- rather than the journal.
+      --
+      -- The trade is deliberate and worth stating: anything running as this
+      -- Windows user can now reach the entries without the passcode. The lock
+      -- still stops someone reading planner.db directly or poking at an
+      -- already-open app; it is no longer a defence against the account
+      -- itself. That is the exchange asked for.
+      --
+      -- Both NULL means a v12-era lock whose entries are still encrypted
+      -- directly under the passcode key. journalRepo upgrades those in place
+      -- on the next successful unlock, which is the one moment the passcode is
+      -- in hand.
+      ALTER TABLE journal_lock ADD COLUMN dek_pass TEXT;
+      ALTER TABLE journal_lock ADD COLUMN dek_recovery TEXT;
+    `
+  },
+  {
+    version: 14,
+    sql: `
+      -- A repeating task's checklist belongs to the series; the ticks belong
+      -- to each occurrence. series_subtasks is the template every new
+      -- occurrence is stamped from, and subtasks.template_id links a stamped
+      -- step back to its template row so a rename or delete on one occurrence
+      -- can find the same step on the later ones. A standalone task's
+      -- subtasks keep template_id NULL and behave exactly as before.
+      CREATE TABLE series_subtasks (
+        id TEXT PRIMARY KEY,
+        series_id TEXT NOT NULL REFERENCES task_series(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        sort_order REAL NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_series_subtasks_series ON series_subtasks (series_id, sort_order);
+      ALTER TABLE subtasks ADD COLUMN template_id TEXT
+        REFERENCES series_subtasks(id) ON DELETE SET NULL;
+
+      -- Backfill: a series whose occurrences already have checklists takes
+      -- its template from the latest-dated one. Template rows reuse that
+      -- occurrence's subtask ids, which is what lets them be linked below
+      -- without a lookup table.
+      WITH src AS (
+        SELECT t.series_id, t.id AS task_id,
+               ROW_NUMBER() OVER (PARTITION BY t.series_id
+                                  ORDER BY t.occurrence_date DESC) AS rn
+        FROM tasks t
+        WHERE t.series_id IS NOT NULL AND t.status != 'skipped'
+          AND EXISTS (SELECT 1 FROM subtasks s WHERE s.task_id = t.id)
+      )
+      INSERT INTO series_subtasks (id, series_id, title, sort_order, created_at)
+      SELECT s.id, src.series_id, s.title, s.sort_order, s.created_at
+      FROM src JOIN subtasks s ON s.task_id = src.task_id
+      WHERE src.rn = 1;
+
+      UPDATE subtasks SET template_id = id
+      WHERE id IN (SELECT id FROM series_subtasks);
+
+      -- ...and later open occurrences that were generated with an empty
+      -- checklist get stamped now, the way new ones will be from here on.
+      INSERT INTO subtasks (id, task_id, title, done, sort_order, created_at, template_id)
+      SELECT lower(hex(randomblob(16))), t.id, ss.title, 0, ss.sort_order, ss.created_at, ss.id
+      FROM series_subtasks ss
+      JOIN subtasks origin ON origin.id = ss.id
+      JOIN tasks src ON src.id = origin.task_id
+      JOIN tasks t ON t.series_id = ss.series_id
+      WHERE t.status = 'open'
+        AND t.occurrence_date > src.occurrence_date
+        AND NOT EXISTS (SELECT 1 FROM subtasks x WHERE x.task_id = t.id);
+    `
   }
 ]
